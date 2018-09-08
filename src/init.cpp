@@ -11,9 +11,6 @@
 #include "crypto/common.h"
 #include "addrman.h"
 #include "amount.h"
-#ifdef ENABLE_MINING
-#include "base58.h"
-#endif
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/upgrades.h"
@@ -21,6 +18,9 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
+#ifdef ENABLE_MINING
+#include "key_io.h"
+#endif
 #include "main.h"
 #include "metrics.h"
 #include "miner.h"
@@ -65,6 +65,9 @@
 #if ENABLE_PROTON
 #include "amqp/amqpnotificationinterface.h"
 #endif
+
+#include "fetchparams.h"
+#include "librustzcash.h"
 
 using namespace std;
 
@@ -350,9 +353,6 @@ std::string HelpMessage(HelpMessageMode mode)
 #endif
     }
     strUsage += HelpMessageOpt("-datadir=<dir>", _("Specify data directory"));
-    strUsage += HelpMessageOpt("-zcparamsdir=<dir>", _("Specify ZcashParams directory"));
-    strUsage += HelpMessageOpt("-disabledeprecation=<version>", strprintf(_("Disable block-height node deprecation and automatic shutdown (example: -disabledeprecation=%s)"),
-        FormatVersion(CLIENT_VERSION)));
     strUsage += HelpMessageOpt("-exportdir=<dir>", _("Specify directory to be used when exporting data"));
     strUsage += HelpMessageOpt("-dbcache=<n>", strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file") + " " + _("on startup"));
@@ -514,7 +514,7 @@ std::string HelpMessage(HelpMessageMode mode)
 #endif
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
-    strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
+    strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands (default: 1)"));
     strUsage += HelpMessageOpt("-rest", strprintf(_("Accept public REST requests (default: %u)"), 0));
     strUsage += HelpMessageOpt("-rpcbind=<addr>", _("Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)"));
     strUsage += HelpMessageOpt("-rpcuser=<user>", _("Username for JSON-RPC connections"));
@@ -679,23 +679,66 @@ bool InitSanityCheck(void)
 }
 
 
-static void ZC_LoadParams()
+static bool ZC_LoadParams(
+    const CChainParams& chainparams
+)
 {
     struct timeval tv_start, tv_end;
     float elapsed;
 
     boost::filesystem::path pk_path = ZC_GetParamsDir() / "sprout-proving.key";
     boost::filesystem::path vk_path = ZC_GetParamsDir() / "sprout-verifying.key";
+    boost::filesystem::path sapling_spend = ZC_GetParamsDir() / "sapling-spend-testnet.params";
+    boost::filesystem::path sapling_output = ZC_GetParamsDir() / "sapling-output-testnet.params";
+    boost::filesystem::path sprout_groth16 = ZC_GetParamsDir() / "sprout-groth16-testnet.params";
 
-    if (!(boost::filesystem::exists(pk_path) && boost::filesystem::exists(vk_path))) {
-        uiInterface.ThreadSafeMessageBox(strprintf(
-            _("Cannot find the Koto network parameters in the following directory:\n"
-              "%s\n"
-              "Please run 'koto-fetch-params' or './zcutil/fetch-params.sh' and then restart."),
-                ZC_GetParamsDir()),
-            "", CClientUIInterface::MSG_ERROR);
-        StartShutdown();
-        return;
+    if(!(boost::filesystem::is_directory(ZC_GetParamsDir()))) {
+        // Create the '.zcash-params' directory or the 'ZcashParams' folder
+	TryCreateDirectory(ZC_GetParamsDir());
+    }
+    if(!(boost::filesystem::exists(pk_path))) {
+	// Download the 'sprout-proving.key' file
+	if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sprout-proving.key", pk_path.string()))
+	    return false;
+    }
+    // Verify the 'sprout-proving.key' file
+    if (!(LTZ_VerifyParams(pk_path.string(), "8bc20a7f013b2b58970cddd2e7ea028975c88ae7ceb9259a5344a16bc2c0eef7")))
+	return false;
+    if(!(boost::filesystem::exists(vk_path))) {
+	// Download the 'sprout-verifying.key' file
+	if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sprout-verifying.key", vk_path.string()))
+	    return false;
+    }
+    // Verify the 'sprout-verifying.key' file
+    if (!(LTZ_VerifyParams(vk_path.string(), "4bd498dae0aacfd8e98dc306338d017d9c08dd0918ead18172bd0aec2fc5df82")))
+	return false;
+
+    // We don't load Sapling zk-SNARK params if mainnet is configured
+    if (chainparams.NetworkIDString() != "main") {
+	if(!(boost::filesystem::exists(sapling_spend))) {
+	    // Download the 'sapling-spend-testnet.params' file
+	    if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sapling-spend-testnet.params", sapling_spend.string()))
+		return false;
+	}
+	// Verify the 'sapling-spend-testnet.params' file
+	if (!(LTZ_VerifyParams(sapling_spend.string(), "0459ac407b95de2b3cbd6876358920c1e2044680f28badaeb6b49169d210a31e")))
+	    return false;
+	if(!(boost::filesystem::exists(sapling_output))) {
+	    // Download the 'sapling-output-testnet.params' file
+	    if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sapling-output-testnet.params", sapling_output.string()))
+		return false;
+	}
+	// Verify the 'sapling-output-testnet.params' file
+	if (!(LTZ_VerifyParams(sapling_output.string(), "53fea4df10540c7979a72497f16a3932d953758b356e637747caa4a25d0ab914")))
+	    return false;
+	if(!(boost::filesystem::exists(sprout_groth16))) {
+	    // Download the 'sprout-groth16-testnet.params' file
+	    if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sprout-groth16-testnet.params", sprout_groth16.string()))
+		return false;
+	}
+	// Verify the 'sprout-groth16-testnet.params' file
+	if (!(LTZ_VerifyParams(sprout_groth16.string(), "58ae56ce8d2c4d4001a55c002c7d6be273835818187881aab41cdfc704b9dbf9")))
+	    return false;
     }
 
     LogPrintf("Loading verifying key from %s\n", vk_path.string().c_str());
@@ -706,6 +749,31 @@ static void ZC_LoadParams()
     gettimeofday(&tv_end, 0);
     elapsed = float(tv_end.tv_sec-tv_start.tv_sec) + (tv_end.tv_usec-tv_start.tv_usec)/float(1000000);
     LogPrintf("Loaded verifying key in %fs seconds.\n", elapsed);
+
+    if (chainparams.NetworkIDString() != "main") {
+        std::string sapling_spend_str = sapling_spend.string();
+        std::string sapling_output_str = sapling_output.string();
+        std::string sprout_groth16_str = sprout_groth16.string();
+
+        LogPrintf("Loading Sapling (Spend) parameters from %s\n", sapling_spend_str.c_str());
+        LogPrintf("Loading Sapling (Output) parameters from %s\n", sapling_output_str.c_str());
+        LogPrintf("Loading Sapling (Sprout Groth16) parameters from %s\n", sprout_groth16_str.c_str());
+        gettimeofday(&tv_start, 0);
+
+        librustzcash_init_zksnark_params(
+            sapling_spend_str.c_str(),
+            sapling_output_str.c_str(),
+            sprout_groth16_str.c_str()
+        );
+
+        gettimeofday(&tv_end, 0);
+        elapsed = float(tv_end.tv_sec-tv_start.tv_sec) + (tv_end.tv_usec-tv_start.tv_usec)/float(1000000);
+        LogPrintf("Loaded Sapling parameters in %fs seconds.\n", elapsed);
+    } else {
+        LogPrintf("Not loading Sapling parameters in mainnet\n");
+    }
+
+    return true;
 }
 
 bool AppInitServers(boost::thread_group& threadGroup)
@@ -807,6 +875,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     HMENU hmenu = GetSystemMenu(hwnd, FALSE);
     EnableMenuItem(hmenu, SC_CLOSE, MF_GRAYED);
 #endif
+    std::set_new_handler(new_handler_terminate);
 
     // ********************************************************* Step 2: parameter interactions
     const CChainParams& chainparams = Params();
@@ -960,7 +1029,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     else if (nScriptCheckThreads > MAX_SCRIPTCHECK_THREADS)
         nScriptCheckThreads = MAX_SCRIPTCHECK_THREADS;
 
-    fServer = GetBoolArg("-server", false);
+    fServer = GetBoolArg("-server", DEFAULT_SERVER);
 
     // block pruning; get the amount of disk space (in MB) to allot for block & undo files
     int64_t nSignedPruneTarget = GetArg("-prune", 0) * 1024 * 1024;
@@ -1057,8 +1126,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 #ifdef ENABLE_MINING
     if (mapArgs.count("-mineraddress")) {
-        CBitcoinAddress addr;
-        if (!addr.SetString(mapArgs["-mineraddress"])) {
+        CTxDestination addr = DecodeDestination(mapArgs["-mineraddress"]);
+        if (!IsValidDestination(addr)) {
             return InitError(strprintf(
                 _("Invalid address for -mineraddress=<addr>: '%s' (must be a transparent address)"),
                 mapArgs["-mineraddress"]));
@@ -1179,7 +1248,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if ((chainparams.NetworkIDString() != "regtest") &&
             GetBoolArg("-showmetrics", isatty(STDOUT_FILENO)) &&
-            !fPrintToConsole && !GetBoolArg("-daemon", false)) {
+            !fPrintToConsole && !GetBoolArg("-daemon", false) && !fQtGui) {
         // Start the persistent metrics interface
         ConnectMetricsScreen();
         threadGroup.create_thread(&ThreadShowMetricsScreen);
@@ -1191,7 +1260,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     libsnark::inhibit_profiling_counters = true;
 
     // Initialize Koto circuit parameters
-    ZC_LoadParams();
+    if (!(ZC_LoadParams(chainparams)))
+	return InitError(_("Error downloading or verifying Koto network parameters"));
 
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
@@ -1229,6 +1299,20 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 6: network initialization
 
     RegisterNodeSignals(GetNodeSignals());
+
+    // sanitize comments per BIP-0014, format user agent and check total size
+    std::vector<string> uacomments;
+    BOOST_FOREACH(string cmt, mapMultiArgs["-uacomment"])
+    {
+        if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
+            return InitError(strprintf("User Agent comment (%s) contains unsafe characters.", cmt));
+        uacomments.push_back(SanitizeString(cmt, SAFE_CHARS_UA_COMMENT));
+    }
+    strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
+    if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
+        return InitError(strprintf("Total length of network version string %i exceeds maximum of %i characters. Reduce the number and/or size of uacomments.",
+            strSubVersion.size(), MAX_SUBVERSION_LENGTH));
+    }
 
     if (mapArgs.count("-onlynet")) {
         std::set<enum Network> nets;
@@ -1681,9 +1765,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         bool minerAddressInLocalWallet = false;
         if (pwalletMain) {
             // Address has alreday been validated
-            CBitcoinAddress addr(mapArgs["-mineraddress"]);
-            CKeyID keyID;
-            addr.GetKeyID(keyID);
+            CTxDestination addr = DecodeDestination(mapArgs["-mineraddress"]);
+            CKeyID keyID = boost::get<CKeyID>(addr);
             minerAddressInLocalWallet = pwalletMain->HaveKey(keyID);
         }
         if (GetBoolArg("-minetolocalwallet", true) && !minerAddressInLocalWallet) {

@@ -1,4 +1,4 @@
-Koto 1.1.0
+Koto 1.1.2
 =============
 
 What is Koto?
@@ -38,7 +38,7 @@ https://github.com/zcash/zcash/wiki/1.0-User-Guide
 
 ### Need Help?
 
-* See the documentation at the [Koto Wiki](https://github.com/KotoDevelopers/wiki/wiki)
+* See the documentation at the [Koto Wiki](https://github.com/KotoDevelopers/docs/wiki)
   for help and more information.
 * Ask for help on the [Koto](https://discourse.ko-to.org/) forum.
 

@@ -11,7 +11,6 @@
 #include "uint256.h"
 #include "util.h"
 
-#include "librustzcash.h"
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {

@@ -7,4 +7,4 @@
 #(configure to use POSIX variant)
 #$ HOST=x86_64-w64-mingw32 ./zcutil/build.sh
 
-HOST=x86_64-w64-mingw32 ./zcutil/build.sh
+HOST=x86_64-w64-mingw32 ./zcutil/build.sh "$@"

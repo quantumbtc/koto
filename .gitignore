@@ -1,4 +1,17 @@
-# Created by https://www.gitignore.io/api/c
+*.tar.gz
+*.deb
+*.exe
+src/bitcoin
+src/kotod
+src/koto-cli
+src/koto-gtest
+src/koto-tx
+src/test/test_bitcoin
+src/test/test_bitcoin_fuzzy
+src/qt/test/test_koto-qt
+
+*zcashTest.pk
+*zcashTest.vk
 
 ### C ###
 # Prerequisites
@@ -34,6 +47,7 @@
 # Executables
 *.exe
 *.out
+*.app
 *.i*86
 *.x86_64
 *.hex
@@ -67,3 +81,25 @@ dkms.conf
 /configure
 /libtool
 /libzcashconsensus.pc
+config.log
+share/qt/Info.plist
+share/setup.nsi
+src/qt/qrc_bitcoin_locale.cpp
+src/qt/qrc_bitcoin.cpp
+src/qt/*.moc
+src/qt/moc_*.cpp
+src/qt/forms/ui_*.h
+
+src/qt/test/moc*.cpp
+
+src/qt/bitcoin-qt.config
+src/qt/bitcoin-qt.creator
+src/qt/bitcoin-qt.creator.user
+src/qt/bitcoin-qt.files
+src/qt/bitcoin-qt.includes
+
+*.qm
+koto-qt
+Koto-Qt.app
+Koto-Qt.app
+background.tiff*

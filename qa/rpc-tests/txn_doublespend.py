@@ -23,11 +23,15 @@ class TxnMallTest(BitcoinTestFramework):
         return super(TxnMallTest, self).setup_network(True)
 
     def run_test(self):
-        mining_reward = 10
-        starting_balance = mining_reward * 25
+        mining_reward = 100
+        starting_balance = 3920000 + mining_reward * 24
+        starting_balance2 = mining_reward * 25
 
         for i in range(4):
-            assert_equal(self.nodes[i].getbalance(), starting_balance)
+            if i == 0:
+                assert_equal(self.nodes[i].getbalance(), starting_balance)
+            else:
+                assert_equal(self.nodes[i].getbalance(), starting_balance2)
             self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
 
         # Coins are sent to node1_address
@@ -70,7 +74,7 @@ class TxnMallTest(BitcoinTestFramework):
             assert_equal(tx1["confirmations"], 1)
             assert_equal(tx2["confirmations"], 1)
             # Node1's total balance should be its starting balance plus both transaction amounts:
-            assert_equal(self.nodes[1].getbalance(""), starting_balance - (tx1["amount"]+tx2["amount"]))
+            assert_equal(self.nodes[1].getbalance(""), starting_balance2 - (tx1["amount"]+tx2["amount"]))
         else:
             assert_equal(tx1["confirmations"], 0)
             assert_equal(tx2["confirmations"], 0)
@@ -100,7 +104,7 @@ class TxnMallTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].getbalance("*"), expected)
 
         # Node1's total balance should be its starting balance plus the amount of the mutated send:
-        assert_equal(self.nodes[1].getbalance(""), starting_balance + (starting_balance - (mining_reward - 2)))
+        assert_equal(self.nodes[1].getbalance(""), starting_balance + (starting_balance2 - (mining_reward - 2)))
 
 if __name__ == '__main__':
     TxnMallTest().main()

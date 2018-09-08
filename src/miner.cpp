@@ -9,12 +9,12 @@
 #endif
 
 #include "amount.h"
-#include "base58.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
 #include "consensus/upgrades.h"
 #include "consensus/validation.h"
 #include "hash.h"
+#include "key_io.h"
 #include "main.h"
 #include "metrics.h"
 #include "net.h"
@@ -142,9 +142,15 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         CBlockIndex* pindexPrev = chainActive.Tip();
         const int nHeight = pindexPrev->nHeight + 1;
         uint32_t consensusBranchId = CurrentEpochBranchId(nHeight, chainparams.GetConsensus());
+        if (NetworkUpgradeActive(nHeight, chainparams.GetConsensus(), Consensus::UPGRADE_SAPLING)) {
+            pblock->nVersion = CBlockHeader::SAPLING_VERSION;
+	}
         pblock->nTime = GetAdjustedTime();
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
         CCoinsViewCache view(pcoinsTip);
+
+        ZCSaplingIncrementalMerkleTree sapling_tree;
+        assert(view.GetSaplingAnchorAt(view.GetBestAnchor(SAPLING), sapling_tree));
 
         // Priority order to process transactions
         list<COrphan> vOrphan; // list memory doesn't move
@@ -210,7 +216,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
                 dPriority += (double)nValueIn * nConf;
             }
-            nTotalIn += tx.GetJoinSplitValueIn();
+            nTotalIn += tx.GetShieldedValueIn();
 
             if (fMissingInputs) continue;
 
@@ -298,6 +304,10 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
             UpdateCoins(tx, view, nHeight);
 
+            BOOST_FOREACH(const OutputDescription &outDescription, tx.vShieldedOutput) {
+                sapling_tree.append(outDescription.cm);
+            }
+
             // Added
             pblock->vtx.push_back(tx);
             pblocktemplate->vTxFees.push_back(nTxFees);
@@ -368,6 +378,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
+        pblock->hashFinalSaplingRoot   = sapling_tree.root();
         UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
         pblock->nNonce         = 0;
@@ -388,9 +399,9 @@ boost::optional<CScript> GetMinerScriptPubKey()
 #endif
 {
     CKeyID keyID;
-    CBitcoinAddress addr;
-    if (addr.SetString(GetArg("-mineraddress", ""))) {
-        addr.GetKeyID(keyID);
+    CTxDestination addr = DecodeDestination(GetArg("-mineraddress", ""));
+    if (IsValidDestination(addr)) {
+        keyID = boost::get<CKeyID>(addr);
     } else {
 #ifdef ENABLE_WALLET
         CPubKey pubkey;

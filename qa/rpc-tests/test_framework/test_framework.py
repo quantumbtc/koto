@@ -24,9 +24,12 @@ class BitcoinTestFramework(object):
 
     # These may be over-ridden by subclasses:
     def run_test(self):
-        for node in self.nodes:
+        for i, node in enumerate(self.nodes):
             assert_equal(node.getblockcount(), 200)
-            assert_equal(node.getbalance(), 25*10)
+            if i == 0:
+                assert_equal(node.getbalance(), 3920000 + 24*100)
+            else:
+                assert_equal(node.getbalance(), 25*100)
 
     def add_options(self, parser):
         pass

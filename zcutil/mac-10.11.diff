@@ -1,8 +1,8 @@
 diff --git a/depends/Makefile b/depends/Makefile
-index 5c1fb9f..d848817 100644
+index 231b4e1..a127404 100644
 --- a/depends/Makefile
 +++ b/depends/Makefile
-@@ -99,8 +99,8 @@ $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
+@@ -123,8 +123,8 @@ $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
  $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_build_id)
  	$(AT)@mkdir -p $(@D)
  	$(AT)sed -e 's|@HOST@|$(host)|' \
@@ -28,21 +28,6 @@ index 4e58bec..15545b4 100644
  
  darwin_CFLAGS=-pipe
  darwin_CXXFLAGS=$(darwin_CFLAGS)
-diff --git a/src/Makefile.am b/src/Makefile.am
-index 9a48556..7ffd67b 100644
---- a/src/Makefile.am
-+++ b/src/Makefile.am
-@@ -563,8 +563,8 @@ if GLIBC_BACK_COMPAT
-   libzcashconsensus_la_SOURCES += compat/glibc_compat.cpp
- endif
- 
--libzcashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
--libzcashconsensus_la_LIBADD = $(LIBSECP256K1)
-+libzcashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) -L$(srcdir)
-+libzcashconsensus_la_LIBADD = $(LIBSECP256K1) -lboost_system -lsodium -lzcash -lbitcoin_common
- libzcashconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
- libzcashconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
- 
 diff --git a/src/snark/libsnark/algebra/curves/alt_bn128/alt_bn128_g1.cpp b/src/snark/libsnark/algebra/curves/alt_bn128/alt_bn128_g1.cpp
 index bf7f43d..2c62060 100644
 --- a/src/snark/libsnark/algebra/curves/alt_bn128/alt_bn128_g1.cpp
@@ -266,7 +251,7 @@ index 50f78b7..dc47a7e 100644
      bool test_bit(const std::size_t bitno) const;
  
 diff --git a/src/snark/libsnark/algebra/fields/bigint.tcc b/src/snark/libsnark/algebra/fields/bigint.tcc
-index 81befd9..dfd5758 100644
+index 81befd9..29608cd 100644
 --- a/src/snark/libsnark/algebra/fields/bigint.tcc
 +++ b/src/snark/libsnark/algebra/fields/bigint.tcc
 @@ -17,9 +17,9 @@
@@ -299,7 +284,15 @@ index 81befd9..dfd5758 100644
      {
          mp_limb_t x = this->data[i];
          if (x == 0)
-@@ -131,7 +131,7 @@ size_t bigint<n>::num_bits() const
+@@ -124,14 +124,14 @@ size_t bigint<n>::num_bits() const
+         }
+         else
+         {
+-            return ((i+1) * GMP_NUMB_BITS) - __builtin_clzl(x);
++            return ((i+1) * GMP_NUMB_BITS) - __builtin_clzll(x);
+         }
+     }
+     return 0;
  }
  
  template<mp_size_t n>
@@ -810,10 +803,10 @@ index 281700b..ce28b12 100644
          auto it = values.find(i);
          printf("[%zu] -> ", i);
 diff --git a/src/snark/libsnark/common/profiling.cpp b/src/snark/libsnark/common/profiling.cpp
-index ae8f85a..0f1050e 100644
+index 8fc3e6f..5c0374b 100644
 --- a/src/snark/libsnark/common/profiling.cpp
 +++ b/src/snark/libsnark/common/profiling.cpp
-@@ -26,27 +26,44 @@
+@@ -26,29 +26,46 @@
  #include <proc/readproc.h>
  #endif
  
@@ -855,43 +848,47 @@ index ae8f85a..0f1050e 100644
      return ts.tv_sec * 1000000000ll + ts.tv_nsec;
  }
  
--long long start_time, last_time;
--long long start_cpu_time, last_cpu_time;
-+int64_t start_time, last_time;
-+int64_t start_cpu_time, last_cpu_time;
+-static long long start_time;
+-static long long last_time;
+-static long long start_cpu_time;
+-static long long last_cpu_time;
++static int64_t start_time;
++static int64_t last_time;
++static int64_t start_cpu_time;
++static int64_t last_cpu_time;
  
  void start_profiling()
  {
-@@ -57,20 +74,20 @@ void start_profiling()
+@@ -59,20 +76,20 @@ void start_profiling()
  }
  
  std::map<std::string, size_t> invocation_counts;
--std::map<std::string, long long> enter_times;
+-static std::map<std::string, long long> enter_times;
 -std::map<std::string, long long> last_times;
 -std::map<std::string, long long> cumulative_times;
-+std::map<std::string, int64_t> enter_times;
++static std::map<std::string, int64_t> enter_times;
 +std::map<std::string, int64_t> last_times;
 +std::map<std::string, int64_t> cumulative_times;
  //TODO: Instead of analogous maps for time and cpu_time, use a single struct-valued map
--std::map<std::string, long long> enter_cpu_times;
--std::map<std::string, long long> last_cpu_times;
--std::map<std::pair<std::string, std::string>, long long> op_counts;
--std::map<std::pair<std::string, std::string>, long long> cumulative_op_counts; // ((msg, data_point), value)
-+std::map<std::string, int64_t> enter_cpu_times;
-+std::map<std::string, int64_t> last_cpu_times;
-+std::map<std::pair<std::string, std::string>, int64_t> op_counts;
-+std::map<std::pair<std::string, std::string>, int64_t> cumulative_op_counts; // ((msg, data_point), value)
+-static std::map<std::string, long long> enter_cpu_times;
+-static std::map<std::string, long long> last_cpu_times;
+-static std::map<std::pair<std::string, std::string>, long long> op_counts;
+-static std::map<std::pair<std::string, std::string>, long long> cumulative_op_counts; // ((msg, data_point), value)
++static std::map<std::string, int64_t> enter_cpu_times;
++static std::map<std::string, int64_t> last_cpu_times;
++static std::map<std::pair<std::string, std::string>, int64_t> op_counts;
++static std::map<std::pair<std::string, std::string>, int64_t> cumulative_op_counts; // ((msg, data_point), value)
      // TODO: Convert op_counts and cumulative_op_counts from pair to structs
- size_t indentation = 0;
+ static size_t indentation = 0;
  
- std::vector<std::string> block_names;
+ static std::vector<std::string> block_names;
  
--std::list<std::pair<std::string, long long*> > op_data_points = {
-+std::list<std::pair<std::string, int64_t*> > op_data_points = {
+-static std::list<std::pair<std::string, long long*> > op_data_points = {
++static std::list<std::pair<std::string, int64_t*> > op_data_points = {
  #ifdef PROFILE_OP_COUNTS
      std::make_pair("Fradd", &Fr<default_ec_pp>::add_cnt),
      std::make_pair("Frsub", &Fr<default_ec_pp>::sub_cnt),
-@@ -98,7 +115,7 @@ void clear_profiling_counters()
+@@ -100,7 +117,7 @@ void clear_profiling_counters()
      cumulative_times.clear();
  }
  
@@ -900,7 +897,7 @@ index ae8f85a..0f1050e 100644
  {
      const double total_ms = (cumulative_times.at(key) * 1e-6);
      const size_t cnt = invocation_counts.at(key);
-@@ -106,7 +123,7 @@ void print_cumulative_time_entry(const std::string &key, const long long factor)
+@@ -108,7 +125,7 @@ void print_cumulative_time_entry(const std::string &key, const long long factor)
      printf("   %-45s: %12.5fms = %lld * %0.5fms (%zu invocations, %0.5fms = %lld * %0.5fms per invocation)\n", key.c_str(), total_ms, factor, total_ms/factor, cnt, avg_ms, factor, avg_ms/factor);
  }
  
@@ -909,7 +906,7 @@ index ae8f85a..0f1050e 100644
  {
      printf("Dumping times:\n");
      for (auto& kv : cumulative_times)
-@@ -155,7 +172,7 @@ void print_op_profiling(const std::string &msg)
+@@ -157,7 +174,7 @@ void print_op_profiling(const std::string &msg)
  
      printf("(opcounts) = (");
      bool first = true;
@@ -918,7 +915,7 @@ index ae8f85a..0f1050e 100644
      {
          if (!first)
          {
-@@ -171,14 +188,14 @@ void print_op_profiling(const std::string &msg)
+@@ -173,14 +190,14 @@ void print_op_profiling(const std::string &msg)
  #endif
  }
  
@@ -939,7 +936,7 @@ index ae8f85a..0f1050e 100644
  
      if (time_from_last != 0) {
          double parallelism_from_last = 1.0 * cpu_time_from_last / time_from_last;
-@@ -199,8 +216,8 @@ void print_time(const char* msg)
+@@ -201,8 +218,8 @@ void print_time(const char* msg)
          return;
      }
  
@@ -950,7 +947,7 @@ index ae8f85a..0f1050e 100644
  
      printf("%-35s\t", msg);
      print_times_from_last_and_start(now, last_time, cpu_now, last_cpu_time);
-@@ -231,7 +248,7 @@ void print_indent()
+@@ -233,7 +250,7 @@ void print_indent()
  
  void op_profiling_enter(const std::string &msg)
  {
@@ -959,7 +956,7 @@ index ae8f85a..0f1050e 100644
      {
          op_counts[std::make_pair(msg, p.first)] = *(p.second);
      }
-@@ -245,9 +262,9 @@ void enter_block(const std::string &msg, const bool indent)
+@@ -247,9 +264,9 @@ void enter_block(const std::string &msg, const bool indent)
      }
  
      block_names.emplace_back(msg);
@@ -971,7 +968,7 @@ index ae8f85a..0f1050e 100644
      enter_cpu_times[msg] = cpu_t;
  
      if (inhibit_profiling_info)
-@@ -288,15 +305,15 @@ void leave_block(const std::string &msg, const bool indent)
+@@ -290,15 +307,15 @@ void leave_block(const std::string &msg, const bool indent)
  
      ++invocation_counts[msg];
  
@@ -1394,7 +1391,7 @@ index e20f589..3c7b870 100644
      leave_block("Test QAP with field input");
  }
 diff --git a/zcutil/build.sh b/zcutil/build.sh
-index 672af95..152a036 100755
+index 85ff853..7bb019a 100755
 --- a/zcutil/build.sh
 +++ b/zcutil/build.sh
 @@ -35,10 +35,10 @@ fi
@@ -1410,58 +1407,14 @@ index 672af95..152a036 100755
  fi
  
  # Allow users to set arbitary compile flags. Most users will not need this.
-@@ -124,7 +124,7 @@ eval "$CXX" --version
+@@ -113,7 +113,7 @@ eval "$CXX" --version
  as --version
  ld -v
  
 -HOST="$HOST" BUILD="$BUILD" NO_PROTON="$PROTON_ARG" "$MAKE" "$@" -C ./depends/ V=1
 +CC="$CC" CXX="$CXX" HOST="$HOST" BUILD="$BUILD" NO_PROTON="$PROTON_ARG" "$MAKE" "$@" -C ./depends/ V=1
  ./autogen.sh
--CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$LIBS_ARG" $CONFIGURE_FLAGS --enable-werror CXXFLAGS='-g'
+-CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" $CONFIGURE_FLAGS --enable-werror CXXFLAGS='-g'
 -"$MAKE" "$@" V=1
-+CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$LIBS_ARG" $CONFIGURE_FLAGS CXXFLAGS='-g'
++CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" $CONFIGURE_FLAGS CXXFLAGS='-g'
 +CC="$CC" CXX="$CXX" "$MAKE" "$@" V=1
-diff --git a/zcutil/fetch-params.sh b/zcutil/fetch-params.sh
-index 392f60a..f9438b8 100755
---- a/zcutil/fetch-params.sh
-+++ b/zcutil/fetch-params.sh
-@@ -2,7 +2,11 @@
- 
- set -eu
- 
--PARAMS_DIR="$HOME/.zcash-params"
-+if [[ "$OSTYPE" == "darwin"* ]]; then
-+    PARAMS_DIR="$HOME/Library/Application Support/ZcashParams"
-+else
-+    PARAMS_DIR="$HOME/.zcash-params"
-+fi
- 
- SPROUT_PKEY_NAME='sprout-proving.key'
- SPROUT_VKEY_NAME='sprout-verifying.key'
-@@ -102,12 +106,20 @@ EOF
- # Use flock to prevent parallel execution.
- function lock() {
-     local lockfile=/tmp/fetch_params.lock
--    # create lock file
--    eval "exec 200>/$lockfile"
--    # acquire the lock
--    flock -n 200 \
--        && return 0 \
--        || return 1
-+    if [[ "$OSTYPE" == "darwin"* ]]; then
-+        if shlock -f ${lockfile} -p $$; then
-+            return 0
-+        else
-+            return 1
-+        fi
-+    else
-+        # create lock file
-+        eval "exec 200>/$lockfile"
-+        # acquire the lock
-+        flock -n 200 \
-+            && return 0 \
-+            || return 1
-+    fi
- }
- 
- function exit_locked_error {

@@ -33,24 +33,24 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[0].generate(4)
 
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 40)
+        assert_equal(walletinfo['immature_balance'], 3920000+300)
         assert_equal(walletinfo['balance'], 0)
 
         self.sync_all()
         self.nodes[1].generate(101)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance(), 40)
-        assert_equal(self.nodes[1].getbalance(), 10)
+        assert_equal(self.nodes[0].getbalance(), 3920000+300)
+        assert_equal(self.nodes[1].getbalance(), 100)
         assert_equal(self.nodes[2].getbalance(), 0)
-        assert_equal(self.nodes[0].getbalance("*"), 40)
-        assert_equal(self.nodes[1].getbalance("*"), 10)
+        assert_equal(self.nodes[0].getbalance("*"), 3920000+300)
+        assert_equal(self.nodes[1].getbalance("*"), 100)
         assert_equal(self.nodes[2].getbalance("*"), 0)
 
-        # Send 21 BTC from 0 to 2 using sendtoaddress call.
+        # Send 210 KOTO from 0 to 2 using sendtoaddress call.
         # Second transaction will be child of first, and will require a fee
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 11)
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 10)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 210)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 100)
 
         walletinfo = self.nodes[0].getwalletinfo()
         assert_equal(walletinfo['immature_balance'], 0)
@@ -66,10 +66,10 @@ class WalletTest (BitcoinTestFramework):
 
         # node0 should end up with 50 btc in block rewards plus fees, but
         # minus the 21 plus fees sent to node2
-        assert_equal(self.nodes[0].getbalance(), 50-21)
-        assert_equal(self.nodes[2].getbalance(), 21)
-        assert_equal(self.nodes[0].getbalance("*"), 50-21)
-        assert_equal(self.nodes[2].getbalance("*"), 21)
+        assert_equal(self.nodes[0].getbalance(), 3920400-310)
+        assert_equal(self.nodes[2].getbalance(), 310)
+        assert_equal(self.nodes[0].getbalance("*"), 3920400-310)
+        assert_equal(self.nodes[2].getbalance("*"), 310)
 
         # Node0 should have three unspent outputs.
         # Create a couple of transactions to send them to node2, submit them through
@@ -90,16 +90,16 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(sum(int(uxto["generated"] is True) for uxto in node2utxos), 0)
 
         # Catch an attempt to send a transaction with an absurdly high fee.
-        # Send 1.0 from an utxo of value 10.0 but don't specify a change output, so then
-        # the change of 9.0 becomes the fee, which is greater than estimated fee of 0.0019.
+        # Send 10.0 from an utxo of value 100.0 but don't specify a change output, so then
+        # the change of 90.0 becomes the fee, which is greater than estimated fee of 0.0019.
         inputs = []
         outputs = {}
         for utxo in node2utxos:
-            if utxo["amount"] == Decimal("10.0"):
+            if utxo["amount"] == Decimal("100.0"):
                 break
-        assert_equal(utxo["amount"], Decimal("10.0"))
+        assert_equal(utxo["amount"], Decimal("100.0"))
         inputs.append({ "txid" : utxo["txid"], "vout" : utxo["vout"]})
-        outputs[self.nodes[2].getnewaddress("")] = Decimal("1.0")
+        outputs[self.nodes[2].getnewaddress("")] = Decimal("10.0")
         raw_tx = self.nodes[2].createrawtransaction(inputs, outputs)
         signed_tx = self.nodes[2].signrawtransaction(raw_tx)
         try:
@@ -107,7 +107,7 @@ class WalletTest (BitcoinTestFramework):
         except JSONRPCException,e:
             errorString = e.error['message']
         assert("absurdly high fees" in errorString)
-        assert("900000000 > 190000" in errorString)
+        assert("9000000000 > 190000" in errorString)
 
         # create both transactions
         txns_to_send = []
@@ -130,50 +130,50 @@ class WalletTest (BitcoinTestFramework):
         self.sync_all()
 
         assert_equal(self.nodes[0].getbalance(), 0)
-        assert_equal(self.nodes[2].getbalance(), 50)
+        assert_equal(self.nodes[2].getbalance(), 3920400)
         assert_equal(self.nodes[0].getbalance("*"), 0)
-        assert_equal(self.nodes[2].getbalance("*"), 50)
+        assert_equal(self.nodes[2].getbalance("*"), 3920400)
 
-        # Send 10 BTC normal
+        # Send 10 KOTO normal
         address = self.nodes[0].getnewaddress("")
         self.nodes[2].settxfee(Decimal('0.001'))
         self.nodes[2].sendtoaddress(address, 10, "", "", False)
         self.sync_all()
         self.nodes[2].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[2].getbalance(), Decimal('39.99900000'))
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920389.99900000'))
         assert_equal(self.nodes[0].getbalance(), Decimal('10.00000000'))
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('39.99900000'))
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920389.99900000'))
         assert_equal(self.nodes[0].getbalance("*"), Decimal('10.00000000'))
 
-        # Send 10 BTC with subtract fee from amount
+        # Send 10 KOTO with subtract fee from amount
         self.nodes[2].sendtoaddress(address, 10, "", "", True)
         self.sync_all()
         self.nodes[2].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[2].getbalance(), Decimal('29.99900000'))
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920379.99900000'))
         assert_equal(self.nodes[0].getbalance(), Decimal('19.99900000'))
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('29.99900000'))
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920379.99900000'))
         assert_equal(self.nodes[0].getbalance("*"), Decimal('19.99900000'))
 
-        # Sendmany 10 BTC
+        # Sendmany 10 KOTO
         self.nodes[2].sendmany("", {address: 10}, 0, "", [])
         self.sync_all()
         self.nodes[2].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[2].getbalance(), Decimal('19.99800000'))
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920369.99800000'))
         assert_equal(self.nodes[0].getbalance(), Decimal('29.99900000'))
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('19.99800000'))
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920369.99800000'))
         assert_equal(self.nodes[0].getbalance("*"), Decimal('29.99900000'))
 
-        # Sendmany 10 BTC with subtract fee from amount
+        # Sendmany 10 KOTO with subtract fee from amount
         self.nodes[2].sendmany("", {address: 10}, 0, "", [address])
         self.sync_all()
         self.nodes[2].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[2].getbalance(), Decimal('9.99800000'))
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920359.99800000'))
         assert_equal(self.nodes[0].getbalance(), Decimal('39.99800000'))
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('9.99800000'))
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920359.99800000'))
         assert_equal(self.nodes[0].getbalance("*"), Decimal('39.99800000'))
 
         # Test ResendWalletTransactions:
@@ -201,7 +201,7 @@ class WalletTest (BitcoinTestFramework):
         #4. check if recipient (node0) can list the zero value tx
         usp = self.nodes[1].listunspent()
         inputs = [{"txid":usp[0]['txid'], "vout":usp[0]['vout']}]
-        outputs = {self.nodes[1].getnewaddress(): 9.998, self.nodes[0].getnewaddress(): 11.11}
+        outputs = {self.nodes[1].getnewaddress(): 99.998, self.nodes[0].getnewaddress(): 11.11}
 
         rawTx = self.nodes[1].createrawtransaction(inputs, outputs).replace("c0833842", "00000000") #replace 11.11 with 0.0 (int32)
         decRawTx = self.nodes[1].decoderawtransaction(rawTx)
@@ -236,8 +236,8 @@ class WalletTest (BitcoinTestFramework):
         self.sync_all()
         self.nodes[1].generate(1) #mine a block, tx should not be in there
         self.sync_all()
-        assert_equal(self.nodes[2].getbalance(), Decimal('9.99800000')); #should not be changed because tx was not broadcasted
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('9.99800000')); #should not be changed because tx was not broadcasted
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920359.99800000')); #should not be changed because tx was not broadcasted
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920359.99800000')); #should not be changed because tx was not broadcasted
 
         #now broadcast from another node, mine a block, sync, and check the balance
         self.nodes[1].sendrawtransaction(txObjNotBroadcasted['hex'])
@@ -245,8 +245,8 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
         txObjNotBroadcasted = self.nodes[0].gettransaction(txIdNotBroadcasted)
-        assert_equal(self.nodes[2].getbalance(), Decimal('11.99800000')); #should not be
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('11.99800000')); #should not be
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920361.99800000')); #should not be
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920361.99800000')); #should not be
 
         #create another tx
         txIdNotBroadcasted  = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 2);
@@ -264,8 +264,8 @@ class WalletTest (BitcoinTestFramework):
         sync_blocks(self.nodes)
 
         #tx should be added to balance because after restarting the nodes tx should be broadcastet
-        assert_equal(self.nodes[2].getbalance(), Decimal('13.99800000')); #should not be
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('13.99800000')); #should not be
+        assert_equal(self.nodes[2].getbalance(), Decimal('3920363.99800000')); #should not be
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('3920363.99800000')); #should not be
 
         # send from node 0 to node 2 taddr
         mytaddr = self.nodes[2].getnewaddress();
@@ -372,7 +372,7 @@ class WalletTest (BitcoinTestFramework):
         # check balances
         zsendmanynotevalue = Decimal('7.0')
         zsendmanyfee = Decimal('0.0001')
-        node2utxobalance = Decimal('23.998') - zsendmanynotevalue - zsendmanyfee
+        node2utxobalance = Decimal('3920373.998') - zsendmanynotevalue - zsendmanyfee
 
         assert_equal(self.nodes[2].getbalance(), node2utxobalance)
         assert_equal(self.nodes[2].getbalance("*"), node2utxobalance)

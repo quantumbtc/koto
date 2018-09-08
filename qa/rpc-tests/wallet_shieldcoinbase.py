@@ -38,7 +38,7 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
 
         self.nodes[0].generate(4)
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 50)
+        assert_equal(walletinfo['immature_balance'], 3920000+400)
         assert_equal(walletinfo['balance'], 0)
         self.sync_all()
         self.nodes[2].generate(1)
@@ -49,9 +49,9 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
         self.sync_all()
         self.nodes[1].generate(101)
         self.sync_all()
-        assert_equal(self.nodes[0].getbalance(), 50)
-        assert_equal(self.nodes[1].getbalance(), 10)
-        assert_equal(self.nodes[2].getbalance(), 30)
+        assert_equal(self.nodes[0].getbalance(), 3920000+400)
+        assert_equal(self.nodes[1].getbalance(), 100)
+        assert_equal(self.nodes[2].getbalance(), 300)
 
         # Prepare to send taddr->zaddr
         mytaddr = self.nodes[0].getnewaddress()
@@ -74,14 +74,14 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
 
         # Shielding will fail because fee is larger than MAX_MONEY
         try:
-            self.nodes[0].z_shieldcoinbase("*", myzaddr, Decimal('21000000.00000001'))
+            self.nodes[0].z_shieldcoinbase("*", myzaddr, Decimal('214160000.1'))
         except JSONRPCException,e:
             errorString = e.error['message']
         assert_equal("Amount out of range" in errorString, True)
 
         # Shielding will fail because fee is larger than sum of utxos
         try:
-            self.nodes[0].z_shieldcoinbase("*", myzaddr, 999)
+            self.nodes[0].z_shieldcoinbase("*", myzaddr, 9999999)
         except JSONRPCException,e:
             errorString = e.error['message']
         assert_equal("Insufficient coinbase funds" in errorString, True)
@@ -107,12 +107,12 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
-        # Confirm balances and that do_not_shield_taddr containing funds of 10 was left alone
-        assert_equal(self.nodes[0].getbalance(), 10)
-        assert_equal(self.nodes[0].z_getbalance(do_not_shield_taddr), Decimal('10.0'))
-        assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('39.99990000'))
-        assert_equal(self.nodes[1].getbalance(), 20)
-        assert_equal(self.nodes[2].getbalance(), 30)
+        # Confirm balances and that do_not_shield_taddr containing funds of 100 was left alone
+        assert_equal(self.nodes[0].getbalance(), 3920000)
+        assert_equal(self.nodes[0].z_getbalance(do_not_shield_taddr), Decimal('3920000.0'))
+        assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('399.99990000'))
+        assert_equal(self.nodes[1].getbalance(), 200)
+        assert_equal(self.nodes[2].getbalance(), 300)
 
         # Shield coinbase utxos from any node 2 taddr, and set fee to 0
         result = self.nodes[2].z_shieldcoinbase("*", myzaddr, 0)
@@ -121,9 +121,9 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance(), 10)
-        assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('69.99990000'))
-        assert_equal(self.nodes[1].getbalance(), 30)
+        assert_equal(self.nodes[0].getbalance(), 3920000)
+        assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('699.99990000'))
+        assert_equal(self.nodes[1].getbalance(), 300)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Generate 800 coinbase utxos on node 0, and 20 coinbase utxos on node 2

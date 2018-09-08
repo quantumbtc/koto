@@ -1,70 +1,48 @@
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 9a4855696..7ffd67b9d 100644
+index b047ce42d..53d1a3165 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -563,8 +563,8 @@ if GLIBC_BACK_COMPAT
-   libzcashconsensus_la_SOURCES += compat/glibc_compat.cpp
+@@ -42,7 +42,7 @@ LIBBITCOINQT=qt/libbitcoinqt.a
+ $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
+ 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
+ 
+-LIBSNARK_CXXFLAGS = -fPIC -DBINARY_OUTPUT -DNO_PT_COMPRESSION=1 -fstack-protector-all
++LIBSNARK_CXXFLAGS = $(AM_CXXFLAGS) $(PIC_FLAGS) -DBINARY_OUTPUT -DNO_PT_COMPRESSION=1 -fstack-protector-all
+ LIBSNARK_CONFIG_FLAGS = CURVE=ALT_BN128 NO_PROCPS=1 NO_DOCS=1 STATIC=1 NO_SUPERCOP=1 FEATUREFLAGS=-DMONTGOMERY_OUTPUT NO_COPY_DEPINST=1 NO_COMPILE_LIBGTEST=1
+ if HAVE_OPENMP
+ LIBSNARK_CONFIG_FLAGS += MULTICORE=1
+@@ -355,7 +355,7 @@ crypto_libbitcoin_crypto_a_SOURCES += \
  endif
  
--libzcashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
--libzcashconsensus_la_LIBADD = $(LIBSECP256K1)
-+libzcashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) -L$(srcdir)
-+libzcashconsensus_la_LIBADD = $(LIBSECP256K1) -lboost_system -lsodium -lzcash -lbitcoin_common
- libzcashconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
- libzcashconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+ # common: shared between zcashd and non-server tools
+-libbitcoin_common_a_CFLAGS = -fPIC
++libbitcoin_common_a_CFLAGS = $(AM_CFLAGS) $(PIC_FLAGS)
+ libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+ libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+ libbitcoin_common_a_SOURCES = \
+@@ -538,11 +538,11 @@ libzcash_a_SOURCES = \
+   zcash/circuit/prfs.tcc \
+   zcash/circuit/utils.tcc
+ 
+-libzcash_a_CPPFLAGS = -fPIC -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DBOOST_SPIRIT_THREADSAFE -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS $(HARDENED_CPPFLAGS) $(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) -O1 -g -Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden -DSTATIC $(BITCOIN_INCLUDES)
++libzcash_a_CPPFLAGS = $(AM_CPPFLAGS) $(PIC_FLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DBOOST_SPIRIT_THREADSAFE -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS $(HARDENED_CPPFLAGS) $(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) -O1 -g -Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden -DSTATIC $(BITCOIN_INCLUDES)
+ 
+-libzcash_a_CXXFLAGS = $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
++libzcash_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
+ 
+-libzcash_a_LDFLAGS = $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
++libzcash_a_LDFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
+ 
+ libzcash_a_CPPFLAGS += -DMONTGOMERY_OUTPUT
  
 diff --git a/zcutil/build.sh b/zcutil/build.sh
-index 672af95e9..29d17faa8 100755
+index 85ff853f6..898cebd54 100755
 --- a/zcutil/build.sh
 +++ b/zcutil/build.sh
-@@ -126,5 +126,5 @@ ld -v
+@@ -115,5 +115,5 @@ ld -v
  
  HOST="$HOST" BUILD="$BUILD" NO_PROTON="$PROTON_ARG" "$MAKE" "$@" -C ./depends/ V=1
  ./autogen.sh
--CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$LIBS_ARG" $CONFIGURE_FLAGS --enable-werror CXXFLAGS='-g'
-+CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$LIBS_ARG" $CONFIGURE_FLAGS CXXFLAGS='-g'
+-CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" $CONFIGURE_FLAGS --enable-werror CXXFLAGS='-g'
++CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" $CONFIGURE_FLAGS CXXFLAGS='-g'
  "$MAKE" "$@" V=1
-diff --git a/zcutil/fetch-params.sh b/zcutil/fetch-params.sh
-index 10bade7c..ec37e1e7 100755
---- a/zcutil/fetch-params.sh
-+++ b/zcutil/fetch-params.sh
-@@ -2,7 +2,11 @@
- 
- set -eu
- 
--PARAMS_DIR="$HOME/.zcash-params"
-+if [[ "$OSTYPE" == "darwin"* ]]; then
-+    PARAMS_DIR="$HOME/Library/Application Support/ZcashParams"
-+else
-+    PARAMS_DIR="$HOME/.zcash-params"
-+fi
- 
- SPROUT_PKEY_NAME='sprout-proving.key'
- SPROUT_VKEY_NAME='sprout-verifying.key'
-@@ -102,12 +106,20 @@ EOF
- # Use flock to prevent parallel execution.
- function lock() {
-     local lockfile=/tmp/fetch_params.lock
--    # create lock file
--    eval "exec 200>/$lockfile"
--    # acquire the lock
--    flock -n 200 \
--        && return 0 \
--        || return 1
-+    if [[ "$OSTYPE" == "darwin"* ]]; then
-+        if shlock -f ${lockfile} -p $$; then
-+            return 0
-+        else
-+            return 1
-+        fi
-+    else
-+        # create lock file
-+        eval "exec 200>/$lockfile"
-+        # acquire the lock
-+        flock -n 200 \
-+            && return 0 \
-+            || return 1
-+    fi
- }
- 
- function exit_locked_error {

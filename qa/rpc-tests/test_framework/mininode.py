@@ -31,20 +31,17 @@ from threading import Thread
 import logging
 import copy
 from pyblake2 import blake2b
-
-from .equihash import (
-    gbp_basic,
-    gbp_validate,
-    hash_nonce,
-    zcash_person,
-)
+try:
+    import yescrypt
+except ImportError as e:
+    exit("Please run 'sudo pip install https://github.com/wo01/yescrypt_python/archive/master.zip'")
 
 OVERWINTER_PROTO_VERSION = 170003
 BIP0031_VERSION = 60000
 MY_VERSION = 170002  # past bip-31 for ping/pong
 MY_SUBVERSION = "/python-mininode-tester:0.0.1/"
 
-OVERWINTER_VERSION_GROUP_ID = 0x03C48270
+OVERWINTER_VERSION_GROUP_ID = 0x02E7D970
 
 MAX_INV_SZ = 50000
 
@@ -65,6 +62,18 @@ mininode_socket_map = dict()
 mininode_lock = RLock()
 
 # Serialization/deserialization tools
+def bfh(x):
+    if sys.version_info[0] >= 3:
+        return bytes.fromhex(x)
+    else:
+        return x.decode("hex")
+
+def rev_hex(s):
+    return bh2u(bfh(s)[::-1])
+
+def bh2u(x):
+    return binascii.hexlify(x).decode('ascii')
+
 def sha256(s):
     return hashlib.new('sha256', s).digest()
 
@@ -653,7 +662,7 @@ class CTransaction(object):
     def is_valid(self):
         self.calc_sha256()
         for tout in self.vout:
-            if tout.nValue < 0 or tout.nValue > 21000000L * 100000000L:
+            if tout.nValue < 0 or tout.nValue > 214160000L * 100000000L:
                 return False
         return True
 
@@ -679,11 +688,9 @@ class CBlockHeader(object):
             self.nVersion = header.nVersion
             self.hashPrevBlock = header.hashPrevBlock
             self.hashMerkleRoot = header.hashMerkleRoot
-            self.hashReserved = header.hashReserved
             self.nTime = header.nTime
             self.nBits = header.nBits
             self.nNonce = header.nNonce
-            self.nSolution = header.nSolution
             self.sha256 = header.sha256
             self.hash = header.hash
             self.calc_sha256()
@@ -692,11 +699,9 @@ class CBlockHeader(object):
         self.nVersion = 4
         self.hashPrevBlock = 0
         self.hashMerkleRoot = 0
-        self.hashReserved = 0
         self.nTime = 0
         self.nBits = 0
         self.nNonce = 0
-        self.nSolution = []
         self.sha256 = None
         self.hash = None
 
@@ -704,11 +709,9 @@ class CBlockHeader(object):
         self.nVersion = struct.unpack("<i", f.read(4))[0]
         self.hashPrevBlock = deser_uint256(f)
         self.hashMerkleRoot = deser_uint256(f)
-        self.hashReserved = deser_uint256(f)
         self.nTime = struct.unpack("<I", f.read(4))[0]
         self.nBits = struct.unpack("<I", f.read(4))[0]
-        self.nNonce = deser_uint256(f)
-        self.nSolution = deser_char_vector(f)
+        self.nNonce = struct.unpack("<I", f.read(4))[0]
         self.sha256 = None
         self.hash = None
 
@@ -717,11 +720,9 @@ class CBlockHeader(object):
         r += struct.pack("<i", self.nVersion)
         r += ser_uint256(self.hashPrevBlock)
         r += ser_uint256(self.hashMerkleRoot)
-        r += ser_uint256(self.hashReserved)
         r += struct.pack("<I", self.nTime)
         r += struct.pack("<I", self.nBits)
-        r += ser_uint256(self.nNonce)
-        r += ser_char_vector(self.nSolution)
+        r += struct.pack("<I", self.nNonce)
         return r
 
     def calc_sha256(self):
@@ -730,11 +731,9 @@ class CBlockHeader(object):
             r += struct.pack("<i", self.nVersion)
             r += ser_uint256(self.hashPrevBlock)
             r += ser_uint256(self.hashMerkleRoot)
-            r += ser_uint256(self.hashReserved)
             r += struct.pack("<I", self.nTime)
             r += struct.pack("<I", self.nBits)
-            r += ser_uint256(self.nNonce)
-            r += ser_char_vector(self.nSolution)
+            r += struct.pack("<I", self.nNonce)
             self.sha256 = uint256_from_str(hash256(r))
             self.hash = hash256(r)[::-1].encode('hex_codec')
 
@@ -744,9 +743,9 @@ class CBlockHeader(object):
         return self.sha256
 
     def __repr__(self):
-        return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x hashReserved=%064x nTime=%s nBits=%08x nNonce=%064x nSolution=%s)" \
-            % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot, self.hashReserved,
-               time.ctime(self.nTime), self.nBits, self.nNonce, repr(self.nSolution))
+        return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x)" \
+            % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot,
+               time.ctime(self.nTime), self.nBits, self.nNonce)
 
 
 class CBlock(CBlockHeader):
@@ -777,49 +776,22 @@ class CBlock(CBlockHeader):
             hashes = newhashes
         return uint256_from_str(hashes[0])
 
-    def is_valid(self, n=48, k=5):
-        # H(I||...
-        digest = blake2b(digest_size=(512/n)*n/8, person=zcash_person(n, k))
-        digest.update(super(CBlock, self).serialize()[:108])
-        hash_nonce(digest, self.nNonce)
-        if not gbp_validate(self.nSolution, digest, n, k):
-            return False
-        self.calc_sha256()
+    def solve(self):
         target = uint256_from_compact(self.nBits)
-        if self.sha256 > target:
-            return False
-        for tx in self.vtx:
-            if not tx.is_valid():
-                return False
-        if self.calc_merkle_root() != self.hashMerkleRoot:
-            return False
-        return True
-
-    def solve(self, n=48, k=5):
-        target = uint256_from_compact(self.nBits)
-        # H(I||...
-        digest = blake2b(digest_size=(512/n)*n/8, person=zcash_person(n, k))
-        digest.update(super(CBlock, self).serialize()[:108])
         self.nNonce = 0
         while True:
-            # H(I||V||...
-            curr_digest = digest.copy()
-            hash_nonce(curr_digest, self.nNonce)
-            # (x_1, x_2, ...) = A(I, V, n, k)
-            solns = gbp_basic(curr_digest, n, k)
-            for soln in solns:
-                assert(gbp_validate(curr_digest, soln, n, k))
-                self.nSolution = soln
+            _powhash = rev_hex(bh2u(yescrypt.getPoWHash(super(CBlock, self).serialize())))
+            pow = int('0x' + _powhash, 16)
+            if pow <= target:
                 self.rehash()
-                if self.sha256 <= target:
-                    return
+                return
             self.nNonce += 1
 
     def __repr__(self):
-        return "CBlock(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x hashReserved=%064x nTime=%s nBits=%08x nNonce=%064x nSolution=%s vtx=%s)" \
+        return "CBlock(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x vtx=%s)" \
             % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot,
-               self.hashReserved, time.ctime(self.nTime), self.nBits,
-               self.nNonce, repr(self.nSolution), repr(self.vtx))
+               time.ctime(self.nTime), self.nBits,
+               self.nNonce, repr(self.vtx))
 
 
 class CUnsignedAlert(object):
@@ -1390,9 +1362,9 @@ class NodeConn(asyncore.dispatcher):
         "mempool": msg_mempool
     }
     MAGIC_BYTES = {
-        "mainnet": "\x24\xe9\x27\x64",   # mainnet
-        "testnet3": "\xfa\x1a\xf9\xbf",  # testnet3
-        "regtest": "\xaa\xe8\x3f\x5f"    # regtest
+        "mainnet": "\x4b\x6f\x74\x6f",   # mainnet
+        "testnet3": "\x54\x6f\x6b\x6f",  # testnet3
+        "regtest": "\x52\x65\x6b\x6f"    # regtest
     }
 
     def __init__(self, dstaddr, dstport, rpc, callback, net="regtest", overwintered=False):

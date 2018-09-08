@@ -14,7 +14,9 @@ public:
     CTxDestination destChange;
     //! If false, allows unselected inputs, but requires all selected inputs be used
     bool fAllowOtherInputs;
-
+    //! Minimum absolute fee (not per kilobyte)
+    CAmount nMinimumTotalFee;
+    
     CCoinControl()
     {
         SetNull();
@@ -25,6 +27,7 @@ public:
         destChange = CNoDestination();
         fAllowOtherInputs = false;
         setSelected.clear();
+        nMinimumTotalFee = 0;
     }
 
     bool HasSelected() const

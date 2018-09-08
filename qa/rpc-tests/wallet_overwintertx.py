@@ -57,8 +57,8 @@ class WalletOverwinterTxTest (BitcoinTestFramework):
         myopid = self.nodes[2].z_sendmany(taddr2, recipients, 0)
         txid_zsendmany = wait_and_assert_operationid_status(self.nodes[2], myopid)
 
-        # Node 0 shields to Node 2, a coinbase utxo of value 10.0 less fee 0.00010000
-        zsendamount = Decimal('10.0') - Decimal('0.0001')
+        # Node 0 shields to Node 2, a coinbase utxo of value 100.0 less fee 0.00010000
+        zsendamount = Decimal('100.0') - Decimal('0.0001')
         recipients = []
         recipients.append({"address":zaddr2, "amount": zsendamount})
         myopid = self.nodes[0].z_sendmany(taddr0, recipients)
@@ -103,8 +103,8 @@ class WalletOverwinterTxTest (BitcoinTestFramework):
         myopid = self.nodes[3].z_sendmany(taddr3, recipients, 0)
         txid_zsendmany = wait_and_assert_operationid_status(self.nodes[3], myopid)
 
-        # Node 0 shields to Node 3, a coinbase utxo of value 10.0 less fee 0.00010000
-        zsendamount = Decimal('10.0') - Decimal('0.0001')
+        # Node 0 shields to Node 3, a coinbase utxo of value 100.0 less fee 0.00010000
+        zsendamount = Decimal('100.0') - Decimal('0.0001')
         recipients = []
         recipients.append({"address":zaddr3, "amount": zsendamount})
         myopid = self.nodes[0].z_sendmany(taddr0, recipients)
@@ -128,15 +128,15 @@ class WalletOverwinterTxTest (BitcoinTestFramework):
         result = self.nodes[0].getrawtransaction(txid_transparent, 1)
         assert_equal(result["version"], 3)
         assert_equal(result["overwintered"], True)
-        assert_equal(result["versiongroupid"], "03c48270")
+        assert_equal(result["versiongroupid"], "02e7d970")
         result = self.nodes[0].getrawtransaction(txid_zsendmany, 1)
         assert_equal(result["version"], 3)
         assert_equal(result["overwintered"], True)
-        assert_equal(result["versiongroupid"], "03c48270")
+        assert_equal(result["versiongroupid"], "02e7d970")
         result = self.nodes[0].getrawtransaction(txid_shielded, 1)
         assert_equal(result["version"], 3)
         assert_equal(result["overwintered"], True)
-        assert_equal(result["versiongroupid"], "03c48270")
+        assert_equal(result["versiongroupid"], "02e7d970")
 
 if __name__ == '__main__':
     WalletOverwinterTxTest().main()

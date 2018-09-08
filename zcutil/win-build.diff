@@ -1,8 +1,8 @@
 diff --git a/configure.ac b/configure.ac
-index b2b36fc..4508633 100644
+index 8c19408..f96c06a 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -483,8 +483,9 @@ if test x$use_hardening != xno; then
+@@ -502,8 +502,9 @@ if test x$use_hardening != xno; then
      HARDENED_CPPFLAGS="$HARDENED_CPPFLAGS -D_FORTIFY_SOURCE=2"
    ],[AC_MSG_ERROR(Cannot enable -D_FORTIFY_SOURCE=2)])
  
@@ -13,36 +13,15 @@ index b2b36fc..4508633 100644
      AX_CHECK_LINK_FLAG([[-Wl,-z,relro]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,relro"],[AC_MSG_WARN(Cannot enable RELRO)])
      AX_CHECK_LINK_FLAG([[-Wl,-z,now]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,now"],[AC_MSG_WARN(Cannot enable BIND_NOW)])
    else
-diff --git a/depends/hosts/darwin.mk b/depends/hosts/darwin.mk
-index 4e58bec..9399881 100644
---- a/depends/hosts/darwin.mk
-+++ b/depends/hosts/darwin.mk
-@@ -8,7 +8,7 @@ darwin_CXX=clang++ -target $(host) -mmacosx-version-min=$(OSX_MIN_VERSION) --sys
- darwin_CFLAGS=-pipe
- darwin_CXXFLAGS=$(darwin_CFLAGS)
+@@ -764,7 +765,7 @@ AC_CHECK_LIB([gmp],[[__gmpn_sub_n]],GMP_LIBS=-lgmp, [AC_MSG_ERROR(libgmp missing
+ AC_CHECK_HEADER([gmpxx.h],,AC_MSG_ERROR(libgmpxx headers missing))
+ AC_CHECK_LIB([gmpxx],[main],GMPXX_LIBS=-lgmpxx, [AC_MSG_ERROR(libgmpxx missing)])
  
--darwin_release_CFLAGS=-O2
-+darwin_release_CFLAGS=-O1
- darwin_release_CXXFLAGS=$(darwin_release_CFLAGS)
+-RUST_LIBS="-lrustzcash -ldl"
++RUST_LIBS="-lrustzcash"
  
- darwin_debug_CFLAGS=-O1
-diff --git a/depends/hosts/mingw32.mk b/depends/hosts/mingw32.mk
-index be7ea0c..2248973 100644
---- a/depends/hosts/mingw32.mk
-+++ b/depends/hosts/mingw32.mk
-@@ -1,9 +1,7 @@
--mingw32_CC=x86_64-w64-mingw32-gcc-posix
--mingw32_CXX=x86_64-w64-mingw32-g++-posix
--mingw32_CFLAGS=-pipe -fopenmp -DPTW32_STATIC_LIB
--mingw32_CXXFLAGS=$(mingw32_CFLAGS) -std=c++11
-+mingw32_CFLAGS=-pipe
-+mingw32_CXXFLAGS=$(mingw32_CFLAGS)
- 
--mingw32_release_CFLAGS=-O2
-+mingw32_release_CFLAGS=-O1
- mingw32_release_CXXFLAGS=$(mingw32_release_CFLAGS)
- 
- mingw32_debug_CFLAGS=-O1
+ dnl Check for OpenMP support
+ AX_OPENMP(
 diff --git a/depends/packages/googletest.mk b/depends/packages/googletest.mk
 index b10ce89..ad42d5b 100644
 --- a/depends/packages/googletest.mk
@@ -65,10 +44,10 @@ index b10ce89..ad42d5b 100644
  
  define $(package)_stage_cmds
 diff --git a/depends/packages/librustzcash.mk b/depends/packages/librustzcash.mk
-index 4fc554c..147d29f 100644
+index 11ee085..cc84c19 100644
 --- a/depends/packages/librustzcash.mk
 +++ b/depends/packages/librustzcash.mk
-@@ -8,18 +8,29 @@ $(package)_git_commit=91348647a86201a9482ad4ad68398152dc3d635e
+@@ -8,18 +8,29 @@ $(package)_git_commit=0af1ce8bf121e1ad367db907c39d214581e270a6
  $(package)_dependencies=rust $(rust_crates)
  $(package)_patches=cargo.config
  
@@ -101,30 +80,22 @@ index 4fc554c..147d29f 100644
    cp include/librustzcash.h $($(package)_staging_dir)$(host_prefix)/include/
  endef
 diff --git a/depends/packages/rust.mk b/depends/packages/rust.mk
-index b644009..9773530 100644
+index 07665ce..ccc4a19 100644
 --- a/depends/packages/rust.mk
 +++ b/depends/packages/rust.mk
-@@ -1,14 +1,40 @@
- package=rust
--$(package)_version=1.16.0
--$(package)_download_path=https://static.rust-lang.org/dist
-+$(package)_version=beta
-+$(package)_download_path=https://static.rust-lang.org/dist/2018-04-09
- $(package)_file_name_linux=rust-$($(package)_version)-x86_64-unknown-linux-gnu.tar.gz
--$(package)_sha256_hash_linux=48621912c242753ba37cad5145df375eeba41c81079df46f93ffb4896542e8fd
-+$(package)_sha256_hash_linux=e9a22f2c732e9e3e0774627fb565116d4871e5551464af9b22f170eb6cc79222
+@@ -5,10 +5,36 @@ $(package)_file_name_linux=rust-$($(package)_version)-x86_64-unknown-linux-gnu.t
+ $(package)_sha256_hash_linux=13691d7782577fc9f110924b26603ade1990de0b691a3ce2dc324b4a72a64a68
  $(package)_file_name_darwin=rust-$($(package)_version)-x86_64-apple-darwin.tar.gz
--$(package)_sha256_hash_darwin=2d08259ee038d3a2c77a93f1a31fc59e7a1d6d1bbfcba3dba3c8213b2e5d1926
+ $(package)_sha256_hash_darwin=38708803c3096b8f101d1919ee2d7e723b0adf1bc1bb986b060973b57d8c7c28
 -$(package)_file_name_mingw32=rust-mingw-$($(package)_version)-x86_64-pc-windows-gnu.tar.gz
--$(package)_sha256_hash_mingw32=4975e1f8eade1afca5dd17e71659f665f3bcc645733a545179c887543da1e27c
-+$(package)_sha256_hash_darwin=b31b671c54ed1923ee2b98c3939b4097e43df21f2c44aa12d656f567b86d2387
+-$(package)_sha256_hash_mingw32=156f99baf34a7a52867879cde17b762481c49aa280ca1b8fee3c4c5b7b43a408
 +$(package)_file_name_mingw32=rust-$($(package)_version)-x86_64-pc-windows-gnu.tar.gz
-+$(package)_sha256_hash_mingw32=913fe62358c2c41381133c368c6c6bcf6ad68899bba5fce9343aac419ffd5ee4
-+ 
++$(package)_sha256_hash_mingw32=4586d69edcb22f7ebd651cd305dce67ead065e8a60994a7d64fc8b472fc4e51b
+ 
 +ifeq ($(host_os),mingw32)
 +$(package)_build_subdir=buildos
 +$(package)_extra_sources = $($(package)_file_name_$(build_os))
- 
++
 +define $(package)_fetch_cmds
 +$(call fetch_file,$(package),$($(package)_download_path),$($(package)_download_file),$($(package)_file_name),$($(package)_sha256_hash)) && \
 +$(call fetch_file,$(package),$($(package)_download_path),$($(package)_file_name_$(build_os)),$($(package)_file_name_$(build_os)),$($(package)_sha256_hash_$(build_os)))
@@ -152,10 +123,10 @@ index b644009..9773530 100644
  endef
 +endif
 diff --git a/depends/patches/librustzcash/cargo.config b/depends/patches/librustzcash/cargo.config
-index ded7ce6..04c77e7 100644
+index 234a9c9..6fafa20 100644
 --- a/depends/patches/librustzcash/cargo.config
 +++ b/depends/patches/librustzcash/cargo.config
-@@ -3,3 +3,6 @@ replace-with = "vendored-sources"
+@@ -13,3 +13,6 @@ replace-with = "vendored-sources"
  
  [source.vendored-sources]
  directory = "CRATE_REGISTRY"
@@ -163,10 +134,10 @@ index ded7ce6..04c77e7 100644
 +[target.x86_64-pc-windows-gnu]
 +linker = "x86_64-w64-mingw32-gcc"
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 9a48556..77c4f7f 100644
+index b047ce4..b374926 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -41,7 +41,7 @@ LIBZCASH=libzcash.a
+@@ -42,7 +42,7 @@ LIBBITCOINQT=qt/libbitcoinqt.a
  $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
  	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
  
@@ -175,7 +146,7 @@ index 9a48556..77c4f7f 100644
  LIBSNARK_CONFIG_FLAGS = CURVE=ALT_BN128 NO_PROCPS=1 NO_DOCS=1 STATIC=1 NO_SUPERCOP=1 FEATUREFLAGS=-DMONTGOMERY_OUTPUT NO_COPY_DEPINST=1 NO_COMPILE_LIBGTEST=1
  if HAVE_OPENMP
  LIBSNARK_CONFIG_FLAGS += MULTICORE=1
-@@ -51,10 +51,10 @@ LIBSNARK_CONFIG_FLAGS += PLATFORM=darwin
+@@ -52,10 +52,10 @@ LIBSNARK_CONFIG_FLAGS += PLATFORM=darwin
  endif
  
  $(LIBSNARK): $(wildcard snark/libsnark/*)
@@ -186,9 +157,9 @@ index 9a48556..77c4f7f 100644
 -	$(AM_V_at) CXXFLAGS="$(LIBSNARK_CXXFLAGS)" $(MAKE) $(AM_MAKEFLAGS) -C snark/ check DEPINST="$(LIBSNARK_DEPINST)" $(LIBSNARK_CONFIG_FLAGS) OPTFLAGS="-O2 -march=x86-64"
 +	$(AM_V_at) CC="$(CC)" CXX="$(CXX)" AR="$(AR)" CXXFLAGS="$(LIBSNARK_CXXFLAGS)" $(MAKE) $(AM_MAKEFLAGS) -C snark/ check DEPINST="$(LIBSNARK_DEPINST)" $(LIBSNARK_CONFIG_FLAGS) OPTFLAGS="-O2 -march=x86-64"
  
- $(LIBUNIVALUE): $(wildcard univalue/lib/*)
- 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C univalue/
-@@ -532,11 +532,9 @@ libzcash_a_SOURCES = \
+ $(LIBUNIVALUE): $(wildcard univalue/lib/*) $(wildcard univalue/include/*)
+ 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
+@@ -538,11 +538,9 @@ libzcash_a_SOURCES = \
    zcash/circuit/prfs.tcc \
    zcash/circuit/utils.tcc
  
@@ -203,11 +174,21 @@ index 9a48556..77c4f7f 100644
  
  libzcash_a_CPPFLAGS += -DMONTGOMERY_OUTPUT
  
+@@ -593,7 +591,8 @@ clean-local:
+ 
+ .rc.o:
+ 	@test -f $(WINDRES)
+-	$(AM_V_GEN) $(WINDRES) -DWINDRES_PREPROC -i $< -o $@
++	## FIXME: How to get the appropriate modulename_CPPFLAGS in here?
++	$(AM_V_GEN) $(WINDRES) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(CPPFLAGS) -DWINDRES_PREPROC -i $< -o $@
+ 
+ .mm.o:
+ 	$(AM_V_CXX) $(OBJCXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 diff --git a/src/gtest/test_paymentdisclosure.cpp b/src/gtest/test_paymentdisclosure.cpp
-index 32abce2..0fdb331 100644
+index 77b0e24..1514a82 100644
 --- a/src/gtest/test_paymentdisclosure.cpp
 +++ b/src/gtest/test_paymentdisclosure.cpp
-@@ -98,7 +98,7 @@ TEST(paymentdisclosure, mainnet) {
+@@ -100,7 +100,7 @@ TEST(paymentdisclosure, mainnet) {
      boost::filesystem::create_directories(pathTemp);
      mapArgs["-datadir"] = pathTemp.string();
  
@@ -217,7 +198,7 @@ index 32abce2..0fdb331 100644
      PaymentDisclosureDBTest mydb(pathTemp);
  
 diff --git a/src/metrics.cpp b/src/metrics.cpp
-index b9fdfc5..addf0d1 100644
+index 0e0c77f..ef8f0bd 100644
 --- a/src/metrics.cpp
 +++ b/src/metrics.cpp
 @@ -19,7 +19,6 @@
@@ -1135,7 +1116,7 @@ index 281700b..ce28b12 100644
          auto it = values.find(i);
          printf("[%zu] -> ", i);
 diff --git a/src/snark/libsnark/common/profiling.cpp b/src/snark/libsnark/common/profiling.cpp
-index ae8f85a..36e5bff 100644
+index 8fc3e6f..44781e1 100644
 --- a/src/snark/libsnark/common/profiling.cpp
 +++ b/src/snark/libsnark/common/profiling.cpp
 @@ -28,14 +28,14 @@
@@ -1155,47 +1136,51 @@ index ae8f85a..36e5bff 100644
  {
      ::timespec ts;
      if ( ::clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts) )
-@@ -45,8 +45,8 @@ long long get_nsec_cpu_time()
+@@ -45,10 +45,10 @@ long long get_nsec_cpu_time()
      return ts.tv_sec * 1000000000ll + ts.tv_nsec;
  }
  
--long long start_time, last_time;
--long long start_cpu_time, last_cpu_time;
-+int64_t start_time, last_time;
-+int64_t start_cpu_time, last_cpu_time;
+-static long long start_time;
+-static long long last_time;
+-static long long start_cpu_time;
+-static long long last_cpu_time;
++static int64_t start_time;
++static int64_t last_time;
++static int64_t start_cpu_time;
++static int64_t last_cpu_time;
  
  void start_profiling()
  {
-@@ -57,20 +57,20 @@ void start_profiling()
+@@ -59,20 +59,20 @@ void start_profiling()
  }
  
  std::map<std::string, size_t> invocation_counts;
--std::map<std::string, long long> enter_times;
+-static std::map<std::string, long long> enter_times;
 -std::map<std::string, long long> last_times;
 -std::map<std::string, long long> cumulative_times;
-+std::map<std::string, int64_t> enter_times;
++static std::map<std::string, int64_t> enter_times;
 +std::map<std::string, int64_t> last_times;
 +std::map<std::string, int64_t> cumulative_times;
  //TODO: Instead of analogous maps for time and cpu_time, use a single struct-valued map
--std::map<std::string, long long> enter_cpu_times;
--std::map<std::string, long long> last_cpu_times;
--std::map<std::pair<std::string, std::string>, long long> op_counts;
--std::map<std::pair<std::string, std::string>, long long> cumulative_op_counts; // ((msg, data_point), value)
-+std::map<std::string, int64_t> enter_cpu_times;
-+std::map<std::string, int64_t> last_cpu_times;
-+std::map<std::pair<std::string, std::string>, int64_t> op_counts;
-+std::map<std::pair<std::string, std::string>, int64_t> cumulative_op_counts; // ((msg, data_point), value)
+-static std::map<std::string, long long> enter_cpu_times;
+-static std::map<std::string, long long> last_cpu_times;
+-static std::map<std::pair<std::string, std::string>, long long> op_counts;
+-static std::map<std::pair<std::string, std::string>, long long> cumulative_op_counts; // ((msg, data_point), value)
++static std::map<std::string, int64_t> enter_cpu_times;
++static std::map<std::string, int64_t> last_cpu_times;
++static std::map<std::pair<std::string, std::string>, int64_t> op_counts;
++static std::map<std::pair<std::string, std::string>, int64_t> cumulative_op_counts; // ((msg, data_point), value)
      // TODO: Convert op_counts and cumulative_op_counts from pair to structs
- size_t indentation = 0;
+ static size_t indentation = 0;
  
- std::vector<std::string> block_names;
+ static std::vector<std::string> block_names;
  
--std::list<std::pair<std::string, long long*> > op_data_points = {
-+std::list<std::pair<std::string, int64_t*> > op_data_points = {
+-static std::list<std::pair<std::string, long long*> > op_data_points = {
++static std::list<std::pair<std::string, int64_t*> > op_data_points = {
  #ifdef PROFILE_OP_COUNTS
      std::make_pair("Fradd", &Fr<default_ec_pp>::add_cnt),
      std::make_pair("Frsub", &Fr<default_ec_pp>::sub_cnt),
-@@ -98,7 +98,7 @@ void clear_profiling_counters()
+@@ -100,7 +100,7 @@ void clear_profiling_counters()
      cumulative_times.clear();
  }
  
@@ -1204,7 +1189,7 @@ index ae8f85a..36e5bff 100644
  {
      const double total_ms = (cumulative_times.at(key) * 1e-6);
      const size_t cnt = invocation_counts.at(key);
-@@ -106,7 +106,7 @@ void print_cumulative_time_entry(const std::string &key, const long long factor)
+@@ -108,7 +108,7 @@ void print_cumulative_time_entry(const std::string &key, const long long factor)
      printf("   %-45s: %12.5fms = %lld * %0.5fms (%zu invocations, %0.5fms = %lld * %0.5fms per invocation)\n", key.c_str(), total_ms, factor, total_ms/factor, cnt, avg_ms, factor, avg_ms/factor);
  }
  
@@ -1213,7 +1198,7 @@ index ae8f85a..36e5bff 100644
  {
      printf("Dumping times:\n");
      for (auto& kv : cumulative_times)
-@@ -155,7 +155,7 @@ void print_op_profiling(const std::string &msg)
+@@ -157,7 +157,7 @@ void print_op_profiling(const std::string &msg)
  
      printf("(opcounts) = (");
      bool first = true;
@@ -1222,7 +1207,7 @@ index ae8f85a..36e5bff 100644
      {
          if (!first)
          {
-@@ -171,14 +171,14 @@ void print_op_profiling(const std::string &msg)
+@@ -173,14 +173,14 @@ void print_op_profiling(const std::string &msg)
  #endif
  }
  
@@ -1243,7 +1228,7 @@ index ae8f85a..36e5bff 100644
  
      if (time_from_last != 0) {
          double parallelism_from_last = 1.0 * cpu_time_from_last / time_from_last;
-@@ -199,8 +199,8 @@ void print_time(const char* msg)
+@@ -201,8 +201,8 @@ void print_time(const char* msg)
          return;
      }
  
@@ -1254,7 +1239,7 @@ index ae8f85a..36e5bff 100644
  
      printf("%-35s\t", msg);
      print_times_from_last_and_start(now, last_time, cpu_now, last_cpu_time);
-@@ -231,7 +231,7 @@ void print_indent()
+@@ -233,7 +233,7 @@ void print_indent()
  
  void op_profiling_enter(const std::string &msg)
  {
@@ -1263,7 +1248,7 @@ index ae8f85a..36e5bff 100644
      {
          op_counts[std::make_pair(msg, p.first)] = *(p.second);
      }
-@@ -245,9 +245,9 @@ void enter_block(const std::string &msg, const bool indent)
+@@ -247,9 +247,9 @@ void enter_block(const std::string &msg, const bool indent)
      }
  
      block_names.emplace_back(msg);
@@ -1275,7 +1260,7 @@ index ae8f85a..36e5bff 100644
      enter_cpu_times[msg] = cpu_t;
  
      if (inhibit_profiling_info)
-@@ -288,15 +288,15 @@ void leave_block(const std::string &msg, const bool indent)
+@@ -290,15 +290,15 @@ void leave_block(const std::string &msg, const bool indent)
  
      ++invocation_counts[msg];
  
@@ -1711,10 +1696,10 @@ index 8c2c704..84c65e8 100644
  /**
   * Forward declaration.
 diff --git a/src/test/rpc_wallet_tests.cpp b/src/test/rpc_wallet_tests.cpp
-index ce2da60..b9c72c4 100644
+index 42590c3..a49be82 100644
 --- a/src/test/rpc_wallet_tests.cpp
 +++ b/src/test/rpc_wallet_tests.cpp
-@@ -394,7 +394,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_exportwallet)
+@@ -403,7 +403,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_exportwallet)
      BOOST_CHECK_THROW(CallRPC(string("z_exportwallet ") + tmpfilename.string()), runtime_error);
  
      // set exportdir
@@ -1723,7 +1708,7 @@ index ce2da60..b9c72c4 100644
  
      // run some tests
      BOOST_CHECK_THROW(CallRPC("z_exportwallet"), runtime_error);
-@@ -475,7 +475,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_importwallet)
+@@ -483,7 +483,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_importwallet)
      // write test data to file
      boost::filesystem::path temp = boost::filesystem::temp_directory_path() /
              boost::filesystem::unique_path();
@@ -1733,7 +1718,7 @@ index ce2da60..b9c72c4 100644
      file << testWalletDump;
      file << std::flush;
 diff --git a/zcutil/build.sh b/zcutil/build.sh
-index 672af95..15f8c2d 100755
+index 85ff853..1702776 100755
 --- a/zcutil/build.sh
 +++ b/zcutil/build.sh
 @@ -33,14 +33,6 @@ if [[ -z "${HOST-}" ]]; then
@@ -1751,7 +1736,7 @@ index 672af95..15f8c2d 100755
  # Allow users to set arbitary compile flags. Most users will not need this.
  if [[ -z "${CONFIGURE_FLAGS-}" ]]; then
      CONFIGURE_FLAGS=""
-@@ -116,15 +108,11 @@ then
+@@ -105,15 +97,11 @@ then
      shift
  fi
  
@@ -1765,6 +1750,6 @@ index 672af95..15f8c2d 100755
  
  HOST="$HOST" BUILD="$BUILD" NO_PROTON="$PROTON_ARG" "$MAKE" "$@" -C ./depends/ V=1
  ./autogen.sh
--CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$LIBS_ARG" $CONFIGURE_FLAGS --enable-werror CXXFLAGS='-g'
+-CC="$CC" CXX="$CXX" ./configure --prefix="${PREFIX}" --host="$HOST" --build="$BUILD" "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" $CONFIGURE_FLAGS --enable-werror CXXFLAGS='-g'
 +CONFIG_SITE="$PWD/depends/$HOST/share/config.site" ./configure "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" $CONFIGURE_FLAGS --enable-static --disable-shared CXXFLAGS='-g'
  "$MAKE" "$@" V=1

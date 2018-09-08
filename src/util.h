@@ -45,6 +45,7 @@ extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 extern bool fDebug;
 extern bool fPrintToConsole;
+extern bool fQtGui;
 extern bool fPrintToDebugLog;
 extern bool fServer;
 extern std::string strMiscWarning;
@@ -52,6 +53,8 @@ extern bool fLogTimestamps;
 extern bool fLogIPs;
 extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
+
+[[noreturn]] extern void new_handler_terminate();
 
 /**
  * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
@@ -128,10 +131,6 @@ boost::filesystem::path GetConfigFile();
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
 #endif
-class missing_zcash_conf : public std::runtime_error {
-public:
-    missing_zcash_conf() : std::runtime_error("Missing koto.conf") { }
-};
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
@@ -256,5 +255,7 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         throw;
     }
 }
+
+std::string CopyrightHolders();
 
 #endif // BITCOIN_UTIL_H
