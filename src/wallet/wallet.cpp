@@ -3007,6 +3007,7 @@ DBErrors CWallet::ZapWalletTx(std::vector<CWalletTx>& vWtx)
 bool CWallet::SetZAddressBook(const libzcash::PaymentAddress& address, const string& strName, const string& strPurpose)
 {
     NotifyZAddressBookChanged(this, address, strName, false, strPurpose, CT_NEW);
+    return true;
 }
 
 bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
