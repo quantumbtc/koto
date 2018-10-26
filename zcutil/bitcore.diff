@@ -1,5 +1,5 @@
 diff --git a/.gitignore b/.gitignore
-index 2e148a932..fd2d40423 100644
+index 2e148a9..fd2d404 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -9,6 +9,7 @@ src/koto-tx
@@ -11,7 +11,7 @@ index 2e148a932..fd2d40423 100644
  *zcashTest.pk
  *zcashTest.vk
 diff --git a/Makefile.am b/Makefile.am
-index 7a268e45c..37676ce04 100644
+index 7a268e4..37676ce 100644
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -16,6 +16,7 @@ BITCOIND_BIN=$(top_builddir)/src/$(BITCOIN_DAEMON_NAME)$(EXEEXT)
@@ -33,7 +33,7 @@ index 7a268e45c..37676ce04 100644
  
  baseline.info:
 diff --git a/configure.ac b/configure.ac
-index a0d67b5c0..83d92fdac 100644
+index a0d67b5..83d92fd 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -232,7 +232,7 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
@@ -55,7 +55,7 @@ index a0d67b5c0..83d92fdac 100644
  AC_MSG_RESULT($build_bitcoin_utils)
  
 diff --git a/contrib/debian/changelog b/contrib/debian/changelog
-index 504660f57..315a33ce6 100644
+index 504660f..315a33c 100644
 --- a/contrib/debian/changelog
 +++ b/contrib/debian/changelog
 @@ -1,3 +1,9 @@
@@ -69,7 +69,7 @@ index 504660f57..315a33ce6 100644
  
    * 2.0.0 release.
 diff --git a/qa/pull-tester/rpc-tests.sh b/qa/pull-tester/rpc-tests.sh
-index 73d9ddb76..4362a14b5 100755
+index 73d9ddb..4362a14 100755
 --- a/qa/pull-tester/rpc-tests.sh
 +++ b/qa/pull-tester/rpc-tests.sh
 @@ -46,6 +46,9 @@ testScripts=(
@@ -84,7 +84,7 @@ index 73d9ddb76..4362a14b5 100755
      'disablewallet.py'
 diff --git a/qa/rpc-tests/addressindex.py b/qa/rpc-tests/addressindex.py
 new file mode 100644
-index 000000000..8b0b6d38a
+index 0000000..8b0b6d3
 --- /dev/null
 +++ b/qa/rpc-tests/addressindex.py
 @@ -0,0 +1,349 @@
@@ -439,7 +439,7 @@ index 000000000..8b0b6d38a
 +    AddressIndexTest().main()
 diff --git a/qa/rpc-tests/spentindex.py b/qa/rpc-tests/spentindex.py
 new file mode 100644
-index 000000000..1366dbe31
+index 0000000..1366dbe
 --- /dev/null
 +++ b/qa/rpc-tests/spentindex.py
 @@ -0,0 +1,139 @@
@@ -584,7 +584,7 @@ index 000000000..1366dbe31
 +    SpentIndexTest().main()
 diff --git a/qa/rpc-tests/timestampindex.py b/qa/rpc-tests/timestampindex.py
 new file mode 100644
-index 000000000..289c81b2a
+index 0000000..289c81b
 --- /dev/null
 +++ b/qa/rpc-tests/timestampindex.py
 @@ -0,0 +1,61 @@
@@ -651,7 +651,7 @@ index 000000000..289c81b2a
 +    TimestampIndexTest().main()
 diff --git a/qa/rpc-tests/txindex.py b/qa/rpc-tests/txindex.py
 new file mode 100644
-index 000000000..b139253b7
+index 0000000..b139253
 --- /dev/null
 +++ b/qa/rpc-tests/txindex.py
 @@ -0,0 +1,73 @@
@@ -729,7 +729,7 @@ index 000000000..b139253b7
 +if __name__ == '__main__':
 +    TxIndexTest().main()
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 4e9ec68aa..9fce80069 100644
+index 4e9ec68..9fce800 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -99,6 +99,9 @@ endif
@@ -790,7 +790,7 @@ index 4e9ec68aa..9fce80069 100644
  
  # zcash-tx binary #
 diff --git a/src/Makefile.test.include b/src/Makefile.test.include
-index 75083d1a7..4773e9bf3 100644
+index 75083d1..4773e9b 100644
 --- a/src/Makefile.test.include
 +++ b/src/Makefile.test.include
 @@ -15,7 +15,9 @@ EXTRA_DIST += \
@@ -825,7 +825,7 @@ index 75083d1a7..4773e9bf3 100644
  
 diff --git a/src/addressindex.h b/src/addressindex.h
 new file mode 100644
-index 000000000..9e734b84d
+index 0000000..9e734b8
 --- /dev/null
 +++ b/src/addressindex.h
 @@ -0,0 +1,82 @@
@@ -912,7 +912,7 @@ index 000000000..9e734b84d
 +
 +#endif // BITCOIN_ADDRESSINDEX_H
 diff --git a/src/dbwrapper.cpp b/src/dbwrapper.cpp
-index b34be5af7..3df99cc7e 100644
+index b34be5a..3df99cc 100644
 --- a/src/dbwrapper.cpp
 +++ b/src/dbwrapper.cpp
 @@ -14,14 +14,14 @@
@@ -951,7 +951,7 @@ index b34be5af7..3df99cc7e 100644
      if (fMemory) {
          penv = leveldb::NewMemEnv(leveldb::Env::Default());
 diff --git a/src/dbwrapper.h b/src/dbwrapper.h
-index e3f9a2652..811367b5a 100644
+index e3f9a26..811367b 100644
 --- a/src/dbwrapper.h
 +++ b/src/dbwrapper.h
 @@ -173,7 +173,7 @@ public:
@@ -964,7 +964,7 @@ index e3f9a2652..811367b5a 100644
  
      template <typename K, typename V>
 diff --git a/src/init.cpp b/src/init.cpp
-index 992bfe4ba..8a2c004a0 100644
+index 992bfe4..8a2c004 100644
 --- a/src/init.cpp
 +++ b/src/init.cpp
 @@ -373,6 +373,10 @@ std::string HelpMessage(HelpMessageMode mode)
@@ -1024,7 +1024,7 @@ index 992bfe4ba..8a2c004a0 100644
                  pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                  pcoinsTip = new CCoinsViewCache(pcoinscatcher);
 diff --git a/src/main.cpp b/src/main.cpp
-index 524bccaa5..5e3578266 100644
+index 524bcca..5e35782 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
 @@ -21,6 +21,7 @@
@@ -1440,7 +1440,7 @@ index 524bccaa5..5e3578266 100644
  
      // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
 diff --git a/src/main.h b/src/main.h
-index 72b23ad5d..6aa6148d6 100644
+index 72b23ad..6aa6148 100644
 --- a/src/main.h
 +++ b/src/main.h
 @@ -22,6 +22,7 @@
@@ -1792,7 +1792,7 @@ index 72b23ad5d..6aa6148d6 100644
  /** Functions for disk access for blocks */
  bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);
 diff --git a/src/rpc/blockchain.cpp b/src/rpc/blockchain.cpp
-index 4a9613d4c..7f77cb15b 100644
+index 4a9613d..7f77cb1 100644
 --- a/src/rpc/blockchain.cpp
 +++ b/src/rpc/blockchain.cpp
 @@ -4,6 +4,7 @@
@@ -2044,7 +2044,7 @@ index 4a9613d4c..7f77cb15b 100644
      { "blockchain",         "getblockheader",         &getblockheader,         true  },
      { "blockchain",         "getchaintips",           &getchaintips,           true  },
 diff --git a/src/rpc/client.cpp b/src/rpc/client.cpp
-index 5288d977e..23bd7bcc4 100644
+index 5288d97..23bd7bc 100644
 --- a/src/rpc/client.cpp
 +++ b/src/rpc/client.cpp
 @@ -99,6 +99,15 @@ static const CRPCConvertParam vRPCConvertParams[] =
@@ -2064,7 +2064,7 @@ index 5288d977e..23bd7bcc4 100644
      { "zcrawjoinsplit", 2 },
      { "zcrawjoinsplit", 3 },
 diff --git a/src/rpc/misc.cpp b/src/rpc/misc.cpp
-index 44c398865..e8b64fbc8 100644
+index 44c3988..e8b64fb 100644
 --- a/src/rpc/misc.cpp
 +++ b/src/rpc/misc.cpp
 @@ -11,6 +11,7 @@
@@ -2646,7 +2646,7 @@ index 44c398865..e8b64fbc8 100644
      { "hidden",             "setmocktime",            &setmocktime,            true  },
  };
 diff --git a/src/rpc/rawtransaction.cpp b/src/rpc/rawtransaction.cpp
-index ccb96df42..da415028e 100644
+index 7cb34c3..7370014 100644
 --- a/src/rpc/rawtransaction.cpp
 +++ b/src/rpc/rawtransaction.cpp
 @@ -65,7 +65,9 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
@@ -2659,7 +2659,7 @@ index ccb96df42..da415028e 100644
  
          joinsplit.push_back(Pair("anchor", jsdescription.anchor.GetHex()));
  
-@@ -114,9 +116,42 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
+@@ -114,9 +116,41 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
      return vjoinsplit;
  }
  
@@ -2698,13 +2698,12 @@ index ccb96df42..da415028e 100644
 +                      int nHeight = 0, int nConfirmations = 0, int nBlockTime = 0)
  {
 -    entry.push_back(Pair("txid", tx.GetHash().GetHex()));
-+
 +    uint256 txid = tx.GetHash();
 +    entry.push_back(Pair("txid", txid.GetHex()));
+     entry.push_back(Pair("hash", tx.GetScriptSigHash().GetHex()));
      entry.push_back(Pair("overwintered", tx.fOverwintered));
      entry.push_back(Pair("version", tx.nVersion));
-     if (tx.fOverwintered) {
-@@ -138,6 +173,20 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+@@ -139,6 +173,20 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
              o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
              o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
              in.push_back(Pair("scriptSig", o));
@@ -2725,7 +2724,7 @@ index ccb96df42..da415028e 100644
          }
          in.push_back(Pair("sequence", (int64_t)txin.nSequence));
          vin.push_back(in);
-@@ -148,11 +197,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+@@ -149,11 +197,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
          const CTxOut& txout = tx.vout[i];
          UniValue out(UniValue::VOBJ);
          out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
@@ -2748,7 +2747,7 @@ index ccb96df42..da415028e 100644
          vout.push_back(out);
      }
      entry.push_back(Pair("vout", vout));
-@@ -160,18 +219,89 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+@@ -161,18 +219,89 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
      UniValue vjoinsplit = TxJoinSplitToJSON(tx);
      entry.push_back(Pair("vjoinsplit", vjoinsplit));
  
@@ -2840,7 +2839,7 @@ index ccb96df42..da415028e 100644
          }
      }
  }
-@@ -270,8 +400,6 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -271,8 +400,6 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
              + HelpExampleRpc("getrawtransaction", "\"mytxid\", 1")
          );
  
@@ -2849,7 +2848,7 @@ index ccb96df42..da415028e 100644
      uint256 hash = ParseHashV(params[0], "parameter 1");
  
      bool fVerbose = false;
-@@ -279,9 +407,31 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -280,9 +407,31 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
          fVerbose = (params[1].get_int() != 0);
  
      CTransaction tx;
@@ -2883,7 +2882,7 @@ index ccb96df42..da415028e 100644
  
      string strHex = EncodeHexTx(tx);
  
-@@ -290,7 +440,8 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -291,7 +440,8 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
  
      UniValue result(UniValue::VOBJ);
      result.push_back(Pair("hex", strHex));
@@ -2894,7 +2893,7 @@ index ccb96df42..da415028e 100644
  }
  
 diff --git a/src/script/script.cpp b/src/script/script.cpp
-index d5234cae8..ede8ffa10 100644
+index d5234ca..ede8ffa 100644
 --- a/src/script/script.cpp
 +++ b/src/script/script.cpp
 @@ -201,6 +201,20 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
@@ -2919,7 +2918,7 @@ index d5234cae8..ede8ffa10 100644
  {
      // Extra-fast test for pay-to-script-hash CScripts:
 diff --git a/src/script/script.h b/src/script/script.h
-index 781a09773..21a99d6c8 100644
+index 781a097..21a99d6 100644
 --- a/src/script/script.h
 +++ b/src/script/script.h
 @@ -565,6 +565,8 @@ public:
@@ -2932,7 +2931,7 @@ index 781a09773..21a99d6c8 100644
  
      /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
 diff --git a/src/serialize.h b/src/serialize.h
-index a945650d6..0ed2b03d4 100644
+index a22a064..48578d5 100644
 --- a/src/serialize.h
 +++ b/src/serialize.h
 @@ -26,6 +26,7 @@
@@ -2968,20 +2967,20 @@ index a945650d6..0ed2b03d4 100644
  template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
  {
      uint64_t obj;
-@@ -511,6 +523,12 @@ template<typename Stream, unsigned int N, typename T> void Unserialize_impl(Stre
- template<typename Stream, unsigned int N, typename T, typename V> void Unserialize_impl(Stream& is, prevector<N, T>& v, const V&);
+@@ -513,6 +525,12 @@ template<typename Stream, unsigned int N, typename T, typename V> void Unseriali
  template<typename Stream, unsigned int N, typename T> inline void Unserialize(Stream& is, prevector<N, T>& v);
  
-+/**
+ /**
 + * CScript
 + */
 +template<typename Stream> void Serialize(Stream& os, const CScript& v);
 +template<typename Stream> void Unserialize(Stream& is, CScript& v);
 +
- /**
++/**
   * vector
   * vectors of unsigned char are a special case and are intended to be serialized as a single opaque blob.
-@@ -747,7 +765,21 @@ inline void Unserialize(Stream& is, std::vector<T, A>& v)
+  */
+@@ -748,7 +766,21 @@ inline void Unserialize(Stream& is, std::vector<T, A>& v)
      Unserialize_impl(is, v, T());
  }
  
@@ -3005,7 +3004,7 @@ index a945650d6..0ed2b03d4 100644
   * optional
 diff --git a/src/spentindex.h b/src/spentindex.h
 new file mode 100644
-index 000000000..7b9da423b
+index 0000000..7b9da42
 --- /dev/null
 +++ b/src/spentindex.h
 @@ -0,0 +1,98 @@
@@ -3109,10 +3108,10 @@ index 000000000..7b9da423b
 +#endif // BITCOIN_SPENTINDEX_H
 diff --git a/src/test/data/wallet.dat b/src/test/data/wallet.dat
 new file mode 100644
-index 000000000..e69de29bb
+index 0000000..e69de29
 diff --git a/src/test/script_P2PKH_tests.cpp b/src/test/script_P2PKH_tests.cpp
 new file mode 100644
-index 000000000..3a7dc1660
+index 0000000..3a7dc16
 --- /dev/null
 +++ b/src/test/script_P2PKH_tests.cpp
 @@ -0,0 +1,59 @@
@@ -3176,7 +3175,7 @@ index 000000000..3a7dc1660
 +
 +BOOST_AUTO_TEST_SUITE_END()
 diff --git a/src/test/test_bitcoin.h b/src/test/test_bitcoin.h
-index ae528d682..9f8085853 100644
+index ae528d6..9f80858 100644
 --- a/src/test/test_bitcoin.h
 +++ b/src/test/test_bitcoin.h
 @@ -1,6 +1,7 @@
@@ -3189,7 +3188,7 @@ index ae528d682..9f8085853 100644
  #include "txdb.h"
 diff --git a/src/test/wallet-utility.py b/src/test/wallet-utility.py
 new file mode 100644
-index 000000000..b853a227e
+index 0000000..b853a22
 --- /dev/null
 +++ b/src/test/wallet-utility.py
 @@ -0,0 +1,61 @@
@@ -3255,7 +3254,7 @@ index 000000000..b853a227e
 +        os.remove(datadir + '/db.log')
 +    sys.exit(0)
 diff --git a/src/txdb.cpp b/src/txdb.cpp
-index b4d7fb7b5..c48a54c08 100644
+index b4d7fb7..c48a54c 100644
 --- a/src/txdb.cpp
 +++ b/src/txdb.cpp
 @@ -26,6 +26,11 @@ static const char DB_SAPLING_NULLIFIER = 'S';
@@ -3469,7 +3468,7 @@ index b4d7fb7b5..c48a54c08 100644
  {
      boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 diff --git a/src/txdb.h b/src/txdb.h
-index a415ad2bb..5b2c8afd1 100644
+index a415ad2..5b2c8af 100644
 --- a/src/txdb.h
 +++ b/src/txdb.h
 @@ -17,6 +17,17 @@
@@ -3525,7 +3524,7 @@ index a415ad2bb..5b2c8afd1 100644
  
  #endif // BITCOIN_TXDB_H
 diff --git a/src/txmempool.cpp b/src/txmempool.cpp
-index cf04ad577..9287b8ffd 100644
+index cf04ad5..9287b8f 100644
 --- a/src/txmempool.cpp
 +++ b/src/txmempool.cpp
 @@ -121,6 +121,144 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
@@ -3683,7 +3682,7 @@ index cf04ad577..9287b8ffd 100644
      }
  }
 diff --git a/src/txmempool.h b/src/txmempool.h
-index ec8a8518a..e3465b04a 100644
+index ec8a851..e3465b0 100644
 --- a/src/txmempool.h
 +++ b/src/txmempool.h
 @@ -8,6 +8,8 @@
@@ -3736,7 +3735,7 @@ index ec8a8518a..e3465b04a 100644
      void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags);
 diff --git a/src/wallet-utility.cpp b/src/wallet-utility.cpp
 new file mode 100644
-index 000000000..b54d7f67a
+index 0000000..b54d7f6
 --- /dev/null
 +++ b/src/wallet-utility.cpp
 @@ -0,0 +1,340 @@
