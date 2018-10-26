@@ -117,6 +117,7 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
+    entry.push_back(Pair("hash", tx.GetScriptSigHash().GetHex()));
     entry.push_back(Pair("overwintered", tx.fOverwintered));
     entry.push_back(Pair("version", tx.nVersion));
     if (tx.fOverwintered) {
@@ -317,6 +318,7 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
         );
 
     set<uint256> setTxids;
+    set<uint256> setHashes;
     uint256 oneTxid;
     UniValue txids = params[0].get_array();
     for (size_t idx = 0; idx < txids.size(); idx++) {
@@ -362,14 +364,16 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
 
     unsigned int ntxFound = 0;
-    BOOST_FOREACH(const CTransaction&tx, block.vtx)
-        if (setTxids.count(tx.GetHash()))
+    BOOST_FOREACH(const CTransaction&tx, block.vtx) {
+        if (setTxids.count(tx.GetHash())) 
             ntxFound++;
+	setHashes.insert(tx.GetScriptSigHash());
+    }
     if (ntxFound != setTxids.size())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "(Not all) transactions not found in specified block");
 
     CDataStream ssMB(SER_NETWORK, PROTOCOL_VERSION);
-    CMerkleBlock mb(block, setTxids);
+    CMerkleBlock mb(block, setHashes);
     ssMB << mb;
     std::string strHex = HexStr(ssMB.begin(), ssMB.end());
     return strHex;

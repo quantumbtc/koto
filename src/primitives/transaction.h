@@ -374,6 +374,7 @@ public:
     COutPoint prevout;
     CScript scriptSig;
     uint32_t nSequence;
+    int32_t nVersion = 3;
 
     CTxIn()
     {
@@ -388,7 +389,10 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(prevout);
-        READWRITE(*(CScriptBase*)(&scriptSig));
+        bool isSapling = nVersion >= SAPLING_TX_VERSION;
+        if (!((s.GetType() & SER_GETHASH) && !(s.GetType() & SER_WITHSIG) && isSapling) || prevout.IsNull()) {
+            READWRITE(*(CScriptBase*)(&scriptSig));
+        }
         READWRITE(nSequence);
     }
 
@@ -548,7 +552,7 @@ public:
     const bool fOverwintered;
     const int32_t nVersion;
     const uint32_t nVersionGroupId;
-    const std::vector<CTxIn> vin;
+    std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const uint32_t nLockTime;
     const uint32_t nExpiryHeight;
@@ -599,7 +603,13 @@ public:
             throw std::ios_base::failure("Unknown transaction format");
         }
 
+	for (CTxIn &txin : vin) {
+	    txin.nVersion = nVersion;
+	}
         READWRITE(*const_cast<std::vector<CTxIn>*>(&vin));
+	for (CTxIn &txin : vin) {
+	    txin.nVersion = nVersion;
+	}
         READWRITE(*const_cast<std::vector<CTxOut>*>(&vout));
         READWRITE(*const_cast<uint32_t*>(&nLockTime));
         if (isOverwinterV3 || isSaplingV4) {
@@ -635,6 +645,8 @@ public:
     const uint256& GetHash() const {
         return hash;
     }
+
+    uint256 GetScriptSigHash() const;
 
     uint32_t GetHeader() const {
         // When serializing v1 and v2, the 4 byte header is nVersion

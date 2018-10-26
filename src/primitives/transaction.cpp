@@ -211,12 +211,17 @@ CMutableTransaction::CMutableTransaction(const CTransaction& tx) : nVersion(tx.n
 
 uint256 CMutableTransaction::GetHash() const
 {
-    return SerializeHash(*this);
+    return SerializeHash(*this, SER_GETHASH, this->nVersion);
 }
 
 void CTransaction::UpdateHash() const
 {
-    *const_cast<uint256*>(&hash) = SerializeHash(*this);
+    *const_cast<uint256*>(&hash) = SerializeHash(*this, SER_GETHASH, this->nVersion);
+}
+
+uint256 CTransaction::GetScriptSigHash() const
+{
+    return SerializeHash(*this, SER_GETHASH | SER_WITHSIG, this->nVersion);
 }
 
 CTransaction::CTransaction() : nVersion(CTransaction::SPROUT_MIN_CURRENT_VERSION), fOverwintered(false), nVersionGroupId(0), nExpiryHeight(0), vin(), vout(), nLockTime(0), valueBalance(0), vShieldedSpend(), vShieldedOutput(), vjoinsplit(), joinSplitPubKey(), joinSplitSig(), bindingSig() { }
@@ -357,15 +362,17 @@ std::string CTransaction::ToString() const
 {
     std::string str;
     if (!fOverwintered) {
-        str += strprintf("CTransaction(hash=%s, ver=%d, vin.size=%u, vout.size=%u, nLockTime=%u)\n",
+        str += strprintf("CTransaction(txid=%s, hash=%s, ver=%d, vin.size=%u, vout.size=%u, nLockTime=%u)\n",
             GetHash().ToString().substr(0,10),
+            GetScriptSigHash().ToString().substr(0,10),
             nVersion,
             vin.size(),
             vout.size(),
             nLockTime);
     } else if (nVersion >= SAPLING_MIN_TX_VERSION) {
-        str += strprintf("CTransaction(hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u, valueBalance=%u, vShieldedSpend.size=%u, vShieldedOutput.size=%u)\n",
+        str += strprintf("CTransaction(txid=%s, hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u, valueBalance=%u, vShieldedSpend.size=%u, vShieldedOutput.size=%u)\n",
             GetHash().ToString().substr(0,10),
+            GetScriptSigHash().ToString().substr(0,10),
             nVersion,
             fOverwintered,
             nVersionGroupId,
@@ -377,8 +384,9 @@ std::string CTransaction::ToString() const
             vShieldedSpend.size(),
             vShieldedOutput.size());
     } else if (nVersion >= 3) {
-        str += strprintf("CTransaction(hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u)\n",
+        str += strprintf("CTransaction(txid=%s, hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u)\n",
             GetHash().ToString().substr(0,10),
+            GetScriptSigHash().ToString().substr(0,10),
             nVersion,
             fOverwintered,
             nVersionGroupId,
