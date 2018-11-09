@@ -1,4 +1,5 @@
-Koto 2.0.0
+Koto 2.0.1
+<img align="right" width="120" height="80" src="doc/imgs/logo.png">
 =============
 
 What is Koto?
@@ -15,41 +16,47 @@ of Koto transactions; depending on the speed of your computer and network
 connection, the synchronization process could take a day or more once the
 blockchain has reached a significant size.
 
-Security Warnings
------------------
+<!--
+<p align="center">
+  <img src="doc/imgs/zcashd_screen.gif" height="500">
+</p>
+-->
+
+#### :lock: Security Warnings
 
 See important security warnings on the
 [Security Information page](https://z.cash/support/security/).
 
 **Koto is experimental and a work-in-progress.** Use at your own risk.
 
-Deprecation Policy
-------------------
+####  :ledger: Deprecation Policy
 
 This release is considered deprecated 16 weeks after the release day. There
 is an automatic deprecation shutdown feature which will halt the node some
 time after this 16 week time period. The automatic feature is based on block
-height and can be explicitly disabled.
+height.
 
-Where do I begin?
------------------
-We have a guide for joining the main Koto network:
-https://github.com/KotoDevelopers/docs/wiki
+## Getting Started
+
+Please see our [user guide](https://github.com/KotoDevelopers/docs/wiki) for joining the main Koto network.
 
 ### Need Help?
 
-* See the documentation at the [Koto Wiki](https://github.com/KotoDevelopers/docs/wiki)
+* :blue_book: See the documentation at the [Koto Wiki](https://github.com/KotoDevelopers/docs/wiki)
   for help and more information.
-* Ask for help on the [Koto](https://discourse.ko-to.org/) forum.
+* :incoming_envelope: Ask for help on the [Koto](https://discourse.ko-to.org/) forum.
+* :mag: Chat with our support community on [Discord](https://discord.gg/HmsTDww)
 
 Participation in the Koto project is subject to a
 [Code of Conduct](code_of_conduct.md).
 
-Building
---------
+### Building
 
-Build Koto along with most dependencies from source by running
-``./zcutil/build.sh -j$(nproc) ``. Currently only Linux is officially supported.
+Build Koto along with most dependencies from source by running:
+
+```
+./zcutil/build.sh -j$(nproc)
+```
 
 License
 -------

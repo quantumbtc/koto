@@ -96,6 +96,7 @@ public:
         consensus.nPowMaxAdjustDown = 32; // 32% adjustment down
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 1 * 60;
+        consensus.nPowAllowMinDifficultyBlocksAfterHeight = boost::none;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
@@ -105,8 +106,7 @@ public:
         consensus.vUpgrades[Consensus::UPGRADE_OVERWINTER].nProtocolVersion = 170005;
         consensus.vUpgrades[Consensus::UPGRADE_OVERWINTER].nActivationHeight = 335600;
         consensus.vUpgrades[Consensus::UPGRADE_SAPLING].nProtocolVersion = 170007;
-        consensus.vUpgrades[Consensus::UPGRADE_SAPLING].nActivationHeight =
-            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
+        consensus.vUpgrades[Consensus::UPGRADE_SAPLING].nActivationHeight = 556500;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000923084b2fcff");
@@ -153,7 +153,7 @@ public:
         bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "koto";
         bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviews";
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivks";
-        bech32HRPs[SAPLING_SPENDING_KEY]         = "ksecret-spending-key-main";
+        bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-main";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
@@ -165,7 +165,7 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            ( 0, consensus.hashGenesisBlock)
+            (0, consensus.hashGenesisBlock)
             (77500, uint256S("0x8ed5cf1de772152f15cb392fd5e686796f77c08386eba922cbe109d4df96381a"))
             (150000, uint256S("0x31d1e2c5aa0a4ece690cb68912ddce8db49f837919bf141e163135dc95ae2bc4"))
             (200000, uint256S("0x134c68f3769274f2757fa32795c0cc9aa2fbf18b47ac3670e57652721011d3b4"))
@@ -209,6 +209,7 @@ public:
         consensus.nPowMaxAdjustDown = 32; // 32% adjustment down
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 1 * 60;
+        consensus.nPowAllowMinDifficultyBlocksAfterHeight = 347300;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
@@ -262,7 +263,7 @@ public:
         bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "ktestsapling";
         bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewtestsapling";
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivktestsapling";
-        bech32HRPs[SAPLING_SPENDING_KEY]         = "ksecret-spending-key-test";
+        bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-test";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
@@ -314,6 +315,7 @@ public:
         consensus.nPowMaxAdjustDown = 0; // Turn off adjustment down
         consensus.nPowMaxAdjustUp = 0; // Turn off adjustment up
         consensus.nPowTargetSpacing = 1 * 60;
+        consensus.nPowAllowMinDifficultyBlocksAfterHeight = 0;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
@@ -374,7 +376,7 @@ public:
         bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "kregtestsapling";
         bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewregtestsapling";
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivkregtestsapling";
-        bech32HRPs[SAPLING_SPENDING_KEY]         = "ksecret-spending-key-regtest";
+        bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-regtest";
 
 	// Founders reward script expects a vector of multisig addresses
 	vFoundersRewardAddress = { "k2A4ArX2YAQJ6Qiut7tNNWUhq3Np7Et525K" };

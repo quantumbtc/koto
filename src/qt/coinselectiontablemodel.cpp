@@ -133,9 +133,10 @@ public:
             }
 
             if (zaddrs.size() > 0) {
-                std::vector<CUnspentSproutNotePlaintextEntry> entries;
-                wallet->GetUnspentFilteredNotes(entries, zaddrs, nMinDepth, nMaxDepth);
-                for (CUnspentSproutNotePlaintextEntry & entry : entries) {
+                std::vector<CUnspentSproutNotePlaintextEntry> sproutEntries;
+		std::vector<UnspentSaplingNoteEntry> saplingEntries;
+                wallet->GetUnspentFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth);
+                for (CUnspentSproutNotePlaintextEntry & entry : sproutEntries) {
                     mapZCoins[QString::fromStdString(EncodePaymentAddress(entry.address))].push_back(entry);
                 }
                 BOOST_FOREACH(const PAIRTYPE(QString, std::vector<CUnspentSproutNotePlaintextEntry>)& coins, mapZCoins) {
