@@ -84,33 +84,17 @@ public:
     }
 };
 
-static constexpr size_t SAPLING_ENC_CIPHERTEXT_SIZE = (
-    1 +  // leading byte
-    11 + // d
-    8 +  // value
-    32 + // rcm
-    ZC_MEMO_SIZE + // memo
-    NOTEENCRYPTION_AUTH_BYTES);
-
-static constexpr size_t SAPLING_OUT_CIPHERTEXT_SIZE = (
-    32 + // pkd_new
-    32 + // esk
-    NOTEENCRYPTION_AUTH_BYTES);
-
 /**
  * A shielded output to a transaction. It contains data that describes an Output transfer.
  */
 class OutputDescription
 {
 public:
-    typedef std::array<unsigned char, SAPLING_ENC_CIPHERTEXT_SIZE> sapling_enc_ct_t; // TODO: Replace with actual type
-    typedef std::array<unsigned char, SAPLING_OUT_CIPHERTEXT_SIZE> sapling_out_ct_t; // TODO: Replace with actual type
-
     uint256 cv;                     //!< A value commitment to the value of the output note.
     uint256 cm;                     //!< The note commitment for the output note.
     uint256 ephemeralKey;           //!< A Jubjub public key.
-    sapling_enc_ct_t encCiphertext; //!< A ciphertext component for the encrypted output note.
-    sapling_out_ct_t outCiphertext; //!< A ciphertext component for the encrypted output note.
+    libzcash::SaplingEncCiphertext encCiphertext; //!< A ciphertext component for the encrypted output note.
+    libzcash::SaplingOutCiphertext outCiphertext; //!< A ciphertext component for the encrypted output note.
     libzcash::GrothProof zkproof;   //!< A zero-knowledge proof using the output circuit.
 
     OutputDescription() { }
@@ -325,15 +309,14 @@ public:
     }
 };
 
-/** An outpoint - a combination of a transaction hash and an index n into its vout */
-class COutPoint
+class BaseOutPoint
 {
 public:
     uint256 hash;
     uint32_t n;
 
-    COutPoint() { SetNull(); }
-    COutPoint(uint256 hashIn, uint32_t nIn) { hash = hashIn; n = nIn; }
+    BaseOutPoint() { SetNull(); }
+    BaseOutPoint(uint256 hashIn, uint32_t nIn) { hash = hashIn; n = nIn; }
 
     ADD_SERIALIZE_METHODS;
 
@@ -346,21 +329,38 @@ public:
     void SetNull() { hash.SetNull(); n = (uint32_t) -1; }
     bool IsNull() const { return (hash.IsNull() && n == (uint32_t) -1); }
 
-    friend bool operator<(const COutPoint& a, const COutPoint& b)
+    friend bool operator<(const BaseOutPoint& a, const BaseOutPoint& b)
     {
         return (a.hash < b.hash || (a.hash == b.hash && a.n < b.n));
     }
 
-    friend bool operator==(const COutPoint& a, const COutPoint& b)
+    friend bool operator==(const BaseOutPoint& a, const BaseOutPoint& b)
     {
         return (a.hash == b.hash && a.n == b.n);
     }
 
-    friend bool operator!=(const COutPoint& a, const COutPoint& b)
+    friend bool operator!=(const BaseOutPoint& a, const BaseOutPoint& b)
     {
         return !(a == b);
     }
+};
 
+/** An outpoint - a combination of a transaction hash and an index n into its vout */
+class COutPoint : public BaseOutPoint
+{
+public:
+    COutPoint() : BaseOutPoint() {};
+    COutPoint(uint256 hashIn, uint32_t nIn) : BaseOutPoint(hashIn, nIn) {};
+    std::string ToString() const;
+};
+
+/** An outpoint - a combination of a transaction hash and an index n into its sapling
+ * output description (vShieldedOutput) */
+class SaplingOutPoint : public BaseOutPoint
+{
+public:
+    SaplingOutPoint() : BaseOutPoint() {};
+    SaplingOutPoint(uint256 hashIn, uint32_t nIn) : BaseOutPoint(hashIn, nIn) {}; 
     std::string ToString() const;
 };
 
@@ -374,6 +374,7 @@ public:
     COutPoint prevout;
     CScript scriptSig;
     uint32_t nSequence;
+    int32_t nVersion = 3;
 
     CTxIn()
     {
@@ -388,7 +389,10 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(prevout);
-        READWRITE(*(CScriptBase*)(&scriptSig));
+        bool isSapling = nVersion >= SAPLING_TX_VERSION;
+        if (!((s.GetType() & SER_GETHASH) && !(s.GetType() & SER_WITHSIG) && isSapling) || prevout.IsNull()) {
+            READWRITE(*(CScriptBase*)(&scriptSig));
+        }
         READWRITE(nSequence);
     }
 
@@ -548,7 +552,7 @@ public:
     const bool fOverwintered;
     const int32_t nVersion;
     const uint32_t nVersionGroupId;
-    const std::vector<CTxIn> vin;
+    std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const uint32_t nLockTime;
     const uint32_t nExpiryHeight;
@@ -599,7 +603,13 @@ public:
             throw std::ios_base::failure("Unknown transaction format");
         }
 
+	for (CTxIn &txin : vin) {
+	    txin.nVersion = nVersion;
+	}
         READWRITE(*const_cast<std::vector<CTxIn>*>(&vin));
+	for (CTxIn &txin : vin) {
+	    txin.nVersion = nVersion;
+	}
         READWRITE(*const_cast<std::vector<CTxOut>*>(&vout));
         READWRITE(*const_cast<uint32_t*>(&nLockTime));
         if (isOverwinterV3 || isSaplingV4) {
@@ -635,6 +645,8 @@ public:
     const uint256& GetHash() const {
         return hash;
     }
+
+    uint256 GetScriptSigHash() const;
 
     uint32_t GetHeader() const {
         // When serializing v1 and v2, the 4 byte header is nVersion

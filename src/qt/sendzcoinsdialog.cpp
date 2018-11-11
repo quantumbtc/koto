@@ -22,7 +22,7 @@
 #include "wallet/wallet.h"
 
 #include <univalue.h>
-#include "rpcserver.h"
+#include "rpc/server.h"
 
 #include "resultsdialog.h"
 

@@ -25,7 +25,8 @@
 #include "metrics.h"
 #include "miner.h"
 #include "net.h"
-#include "rpcserver.h"
+#include "rpc/server.h"
+#include "rpc/register.h"
 #include "script/standard.h"
 #include "scheduler.h"
 #include "txdb.h"
@@ -472,6 +473,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitfreerelay=<n>", strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", 15));
         strUsage += HelpMessageOpt("-relaypriority", strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", 0));
         strUsage += HelpMessageOpt("-maxsigcachesize=<n>", strprintf("Limit size of signature cache to <n> entries (default: %u)", 50000));
+        strUsage += HelpMessageOpt("-maxtipage=<n>", strprintf("Maximum tip age in seconds to consider node in initial block download (default: %u)", DEFAULT_MAX_TIP_AGE));
     }
     strUsage += HelpMessageOpt("-minrelaytxfee=<amt>", strprintf(_("Fees (in %s/kB) smaller than this are considered zero fee for relaying (default: %s)"),
         CURRENCY_UNIT, FormatMoney(::minRelayTxFee.GetFeePerK())));
@@ -688,9 +690,9 @@ static bool ZC_LoadParams(
 
     boost::filesystem::path pk_path = ZC_GetParamsDir() / "sprout-proving.key";
     boost::filesystem::path vk_path = ZC_GetParamsDir() / "sprout-verifying.key";
-    boost::filesystem::path sapling_spend = ZC_GetParamsDir() / "sapling-spend-testnet.params";
-    boost::filesystem::path sapling_output = ZC_GetParamsDir() / "sapling-output-testnet.params";
-    boost::filesystem::path sprout_groth16 = ZC_GetParamsDir() / "sprout-groth16-testnet.params";
+    boost::filesystem::path sapling_spend = ZC_GetParamsDir() / "sapling-spend.params";
+    boost::filesystem::path sapling_output = ZC_GetParamsDir() / "sapling-output.params";
+    boost::filesystem::path sprout_groth16 = ZC_GetParamsDir() / "sprout-groth16.params";
 
     if(!(boost::filesystem::is_directory(ZC_GetParamsDir()))) {
         // Create the '.zcash-params' directory or the 'ZcashParams' folder
@@ -713,33 +715,30 @@ static bool ZC_LoadParams(
     if (!(LTZ_VerifyParams(vk_path.string(), "4bd498dae0aacfd8e98dc306338d017d9c08dd0918ead18172bd0aec2fc5df82")))
 	return false;
 
-    // We don't load Sapling zk-SNARK params if mainnet is configured
-    if (chainparams.NetworkIDString() != "main") {
-	if(!(boost::filesystem::exists(sapling_spend))) {
-	    // Download the 'sapling-spend-testnet.params' file
-	    if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sapling-spend-testnet.params", sapling_spend.string()))
-		return false;
-	}
-	// Verify the 'sapling-spend-testnet.params' file
-	if (!(LTZ_VerifyParams(sapling_spend.string(), "0459ac407b95de2b3cbd6876358920c1e2044680f28badaeb6b49169d210a31e")))
-	    return false;
-	if(!(boost::filesystem::exists(sapling_output))) {
-	    // Download the 'sapling-output-testnet.params' file
-	    if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sapling-output-testnet.params", sapling_output.string()))
-		return false;
-	}
-	// Verify the 'sapling-output-testnet.params' file
-	if (!(LTZ_VerifyParams(sapling_output.string(), "53fea4df10540c7979a72497f16a3932d953758b356e637747caa4a25d0ab914")))
-	    return false;
-	if(!(boost::filesystem::exists(sprout_groth16))) {
-	    // Download the 'sprout-groth16-testnet.params' file
-	    if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sprout-groth16-testnet.params", sprout_groth16.string()))
-		return false;
-	}
-	// Verify the 'sprout-groth16-testnet.params' file
-	if (!(LTZ_VerifyParams(sprout_groth16.string(), "58ae56ce8d2c4d4001a55c002c7d6be273835818187881aab41cdfc704b9dbf9")))
+    if(!(boost::filesystem::exists(sapling_spend))) {
+	// Download the 'sapling-spend.params' file
+	if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sapling-spend.params", sapling_spend.string()))
 	    return false;
     }
+    // Verify the 'sapling-spend.params' file
+    if (!(LTZ_VerifyParams(sapling_spend.string(), "8e48ffd23abb3a5fd9c5589204f32d9c31285a04b78096ba40a79b75677efc13")))
+	return false;
+    if(!(boost::filesystem::exists(sapling_output))) {
+	// Download the 'sapling-output.params' file
+	if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sapling-output.params", sapling_output.string()))
+	    return false;
+    }
+    // Verify the 'sapling-output.params' file
+    if (!(LTZ_VerifyParams(sapling_output.string(), "2f0ebbcbb9bb0bcffe95a397e7eba89c29eb4dde6191c339db88570e3f3fb0e4")))
+	return false;
+    if(!(boost::filesystem::exists(sprout_groth16))) {
+	// Download the 'sprout-groth16.params' file
+	if (!LTZ_FetchParams("http://dl.ko-to.org:8080/sprout-groth16.params", sprout_groth16.string()))
+	    return false;
+    }
+    // Verify the 'sprout-groth16.params' file
+    if (!(LTZ_VerifyParams(sprout_groth16.string(), "b685d700c60328498fbde589c8c7c484c722b788b265b72af448a5bf0ee55b50")))
+	return false;
 
     LogPrintf("Loading verifying key from %s\n", vk_path.string().c_str());
     gettimeofday(&tv_start, 0);
@@ -750,28 +749,27 @@ static bool ZC_LoadParams(
     elapsed = float(tv_end.tv_sec-tv_start.tv_sec) + (tv_end.tv_usec-tv_start.tv_usec)/float(1000000);
     LogPrintf("Loaded verifying key in %fs seconds.\n", elapsed);
 
-    if (chainparams.NetworkIDString() != "main") {
-        std::string sapling_spend_str = sapling_spend.string();
-        std::string sapling_output_str = sapling_output.string();
-        std::string sprout_groth16_str = sprout_groth16.string();
+    std::string sapling_spend_str = sapling_spend.string();
+    std::string sapling_output_str = sapling_output.string();
+    std::string sprout_groth16_str = sprout_groth16.string();
 
-        LogPrintf("Loading Sapling (Spend) parameters from %s\n", sapling_spend_str.c_str());
-        LogPrintf("Loading Sapling (Output) parameters from %s\n", sapling_output_str.c_str());
-        LogPrintf("Loading Sapling (Sprout Groth16) parameters from %s\n", sprout_groth16_str.c_str());
-        gettimeofday(&tv_start, 0);
+    LogPrintf("Loading Sapling (Spend) parameters from %s\n", sapling_spend_str.c_str());
+    LogPrintf("Loading Sapling (Output) parameters from %s\n", sapling_output_str.c_str());
+    LogPrintf("Loading Sapling (Sprout Groth16) parameters from %s\n", sprout_groth16_str.c_str());
+    gettimeofday(&tv_start, 0);
 
-        librustzcash_init_zksnark_params(
-            sapling_spend_str.c_str(),
-            sapling_output_str.c_str(),
-            sprout_groth16_str.c_str()
-        );
+    librustzcash_init_zksnark_params(
+        sapling_spend_str.c_str(),
+        "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
+        sapling_output_str.c_str(),
+        "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
+        sprout_groth16_str.c_str(),
+        "e9b238411bd6c0ec4791e9d04245ec350c9c5744f5610dfcce4365d5ca49dfefd5054e371842b3f88fa1b9d7e8e075249b3ebabd167fa8b0f3161292d36c180a"
+    );
 
-        gettimeofday(&tv_end, 0);
-        elapsed = float(tv_end.tv_sec-tv_start.tv_sec) + (tv_end.tv_usec-tv_start.tv_usec)/float(1000000);
-        LogPrintf("Loaded Sapling parameters in %fs seconds.\n", elapsed);
-    } else {
-        LogPrintf("Not loading Sapling parameters in mainnet\n");
-    }
+    gettimeofday(&tv_end, 0);
+    elapsed = float(tv_end.tv_sec-tv_start.tv_sec) + (tv_end.tv_usec-tv_start.tv_usec)/float(1000000);
+    LogPrintf("Loaded Sapling parameters in %fs seconds.\n", elapsed);
 
     return true;
 }
@@ -1045,8 +1043,11 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         fPruneMode = true;
     }
 
+    RegisterAllCoreRPCCommands(tableRPC);
 #ifdef ENABLE_WALLET
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
+    if (!fDisableWallet)
+        RegisterWalletRPCCommands(tableRPC);
 #endif
 
     nConnectTimeout = GetArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
@@ -1123,6 +1124,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (GetBoolArg("-peerbloomfilters", true))
         nLocalServices |= NODE_BLOOM;
+
+    nMaxTipAge = GetArg("-maxtipage", DEFAULT_MAX_TIP_AGE);
 
 #ifdef ENABLE_MINING
     if (mapArgs.count("-mineraddress")) {
@@ -1486,6 +1489,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
 
+    bool clearWitnessCaches = false;
+
     bool fLoaded = false;
     while (!fLoaded) {
         bool fReset = fReindex;
@@ -1545,7 +1550,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 if (!fReindex) {
                     uiInterface.InitMessage(_("Rewinding blocks if needed..."));
-                    if (!RewindBlockIndex(chainparams)) {
+                    if (!RewindBlockIndex(chainparams, clearWitnessCaches)) {
                         strLoadError = _("Unable to rewind the database to a pre-upgrade state. You will need to redownload the blockchain");
                         break;
                     }
@@ -1695,7 +1700,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         RegisterValidationInterface(pwalletMain);
 
         CBlockIndex *pindexRescan = chainActive.Tip();
-        if (GetBoolArg("-rescan", false))
+        if (clearWitnessCaches || GetBoolArg("-rescan", false))
         {
             pwalletMain->ClearNoteWitnessCache();
             pindexRescan = chainActive.Genesis();

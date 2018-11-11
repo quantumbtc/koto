@@ -1,4 +1,4 @@
-Koto 1.1.2.1
+Koto 2.0.0
 =============
 
 What is Koto?
@@ -8,7 +8,7 @@ What is Koto?
 Based on Bitcoin's code, it intends to offer a far higher standard of privacy
 through a sophisticated zero-knowledge proving scheme that preserves
 confidentiality of transaction metadata. Technical details are available
-in our [Protocol Specification](https://github.com/zcash/zips/raw/master/protocol/protocol.pdf).
+in Zcash [Protocol Specification](https://github.com/zcash/zips/raw/master/protocol/protocol.pdf).
 
 This software is the Koto client. It downloads and stores the entire history
 of Koto transactions; depending on the speed of your computer and network
@@ -34,7 +34,7 @@ height and can be explicitly disabled.
 Where do I begin?
 -----------------
 We have a guide for joining the main Koto network:
-https://github.com/zcash/zcash/wiki/1.0-User-Guide
+https://github.com/KotoDevelopers/docs/wiki
 
 ### Need Help?
 
@@ -49,7 +49,7 @@ Building
 --------
 
 Build Koto along with most dependencies from source by running
-./zcutil/build.sh. Currently only Linux is officially supported.
+``./zcutil/build.sh -j$(nproc) ``. Currently only Linux is officially supported.
 
 License
 -------

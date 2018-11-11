@@ -1,8 +1,8 @@
 diff --git a/configure.ac b/configure.ac
-index 8c19408..f96c06a 100644
+index a0d67b5..a3fd4cb 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -502,8 +502,9 @@ if test x$use_hardening != xno; then
+@@ -506,8 +506,9 @@ if test x$use_hardening != xno; then
      HARDENED_CPPFLAGS="$HARDENED_CPPFLAGS -D_FORTIFY_SOURCE=2"
    ],[AC_MSG_ERROR(Cannot enable -D_FORTIFY_SOURCE=2)])
  
@@ -13,7 +13,7 @@ index 8c19408..f96c06a 100644
      AX_CHECK_LINK_FLAG([[-Wl,-z,relro]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,relro"],[AC_MSG_WARN(Cannot enable RELRO)])
      AX_CHECK_LINK_FLAG([[-Wl,-z,now]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,now"],[AC_MSG_WARN(Cannot enable BIND_NOW)])
    else
-@@ -764,7 +765,7 @@ AC_CHECK_LIB([gmp],[[__gmpn_sub_n]],GMP_LIBS=-lgmp, [AC_MSG_ERROR(libgmp missing
+@@ -776,7 +777,7 @@ AC_CHECK_LIB([gmp],[[__gmpn_sub_n]],GMP_LIBS=-lgmp, [AC_MSG_ERROR(libgmp missing
  AC_CHECK_HEADER([gmpxx.h],,AC_MSG_ERROR(libgmpxx headers missing))
  AC_CHECK_LIB([gmpxx],[main],GMPXX_LIBS=-lgmpxx, [AC_MSG_ERROR(libgmpxx missing)])
  
@@ -44,10 +44,10 @@ index b10ce89..ad42d5b 100644
  
  define $(package)_stage_cmds
 diff --git a/depends/packages/librustzcash.mk b/depends/packages/librustzcash.mk
-index 11ee085..cc84c19 100644
+index 46cf909..7283787 100644
 --- a/depends/packages/librustzcash.mk
 +++ b/depends/packages/librustzcash.mk
-@@ -8,18 +8,29 @@ $(package)_git_commit=0af1ce8bf121e1ad367db907c39d214581e270a6
+@@ -8,18 +8,29 @@ $(package)_git_commit=f5d2afb4eabac29b1b1cc860d66e45a5b48b4f88
  $(package)_dependencies=rust $(rust_crates)
  $(package)_patches=cargo.config
  
@@ -80,17 +80,17 @@ index 11ee085..cc84c19 100644
    cp include/librustzcash.h $($(package)_staging_dir)$(host_prefix)/include/
  endef
 diff --git a/depends/packages/rust.mk b/depends/packages/rust.mk
-index 07665ce..ccc4a19 100644
+index 9340a6a..7c2e313 100644
 --- a/depends/packages/rust.mk
 +++ b/depends/packages/rust.mk
 @@ -5,10 +5,36 @@ $(package)_file_name_linux=rust-$($(package)_version)-x86_64-unknown-linux-gnu.t
- $(package)_sha256_hash_linux=13691d7782577fc9f110924b26603ade1990de0b691a3ce2dc324b4a72a64a68
+ $(package)_sha256_hash_linux=2a1390340db1d24a9498036884e6b2748e9b4b057fc5219694e298bdaa37b810
  $(package)_file_name_darwin=rust-$($(package)_version)-x86_64-apple-darwin.tar.gz
- $(package)_sha256_hash_darwin=38708803c3096b8f101d1919ee2d7e723b0adf1bc1bb986b060973b57d8c7c28
+ $(package)_sha256_hash_darwin=5d7a70ed4701fe9410041c1eea025c95cad97e5b3d8acc46426f9ac4f9f02393
 -$(package)_file_name_mingw32=rust-mingw-$($(package)_version)-x86_64-pc-windows-gnu.tar.gz
--$(package)_sha256_hash_mingw32=156f99baf34a7a52867879cde17b762481c49aa280ca1b8fee3c4c5b7b43a408
+-$(package)_sha256_hash_mingw32=17effb289f53af43c36be48635364db7eed68c5a411410216eb75a57c39219e3
 +$(package)_file_name_mingw32=rust-$($(package)_version)-x86_64-pc-windows-gnu.tar.gz
-+$(package)_sha256_hash_mingw32=4586d69edcb22f7ebd651cd305dce67ead065e8a60994a7d64fc8b472fc4e51b
++$(package)_sha256_hash_mingw32=55c07426f791c51c8a2b6934b35784175c4abb4e03f123f3e847109c4dc1ad8b
  
 +ifeq ($(host_os),mingw32)
 +$(package)_build_subdir=buildos
@@ -123,7 +123,7 @@ index 07665ce..ccc4a19 100644
  endef
 +endif
 diff --git a/depends/patches/librustzcash/cargo.config b/depends/patches/librustzcash/cargo.config
-index 234a9c9..6fafa20 100644
+index 7696632..a54c9a4 100644
 --- a/depends/patches/librustzcash/cargo.config
 +++ b/depends/patches/librustzcash/cargo.config
 @@ -13,3 +13,6 @@ replace-with = "vendored-sources"
@@ -134,10 +134,10 @@ index 234a9c9..6fafa20 100644
 +[target.x86_64-pc-windows-gnu]
 +linker = "x86_64-w64-mingw32-gcc"
 diff --git a/src/Makefile.am b/src/Makefile.am
-index b047ce4..b374926 100644
+index 4e9ec68..f3def86 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -42,7 +42,7 @@ LIBBITCOINQT=qt/libbitcoinqt.a
+@@ -56,7 +56,7 @@ endif
  $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
  	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
  
@@ -146,7 +146,7 @@ index b047ce4..b374926 100644
  LIBSNARK_CONFIG_FLAGS = CURVE=ALT_BN128 NO_PROCPS=1 NO_DOCS=1 STATIC=1 NO_SUPERCOP=1 FEATUREFLAGS=-DMONTGOMERY_OUTPUT NO_COPY_DEPINST=1 NO_COMPILE_LIBGTEST=1
  if HAVE_OPENMP
  LIBSNARK_CONFIG_FLAGS += MULTICORE=1
-@@ -52,10 +52,10 @@ LIBSNARK_CONFIG_FLAGS += PLATFORM=darwin
+@@ -66,10 +66,10 @@ LIBSNARK_CONFIG_FLAGS += PLATFORM=darwin
  endif
  
  $(LIBSNARK): $(wildcard snark/libsnark/*)
@@ -159,7 +159,7 @@ index b047ce4..b374926 100644
  
  $(LIBUNIVALUE): $(wildcard univalue/lib/*) $(wildcard univalue/include/*)
  	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
-@@ -538,11 +538,9 @@ libzcash_a_SOURCES = \
+@@ -536,11 +536,9 @@ libzcash_a_SOURCES = \
    zcash/circuit/prfs.tcc \
    zcash/circuit/utils.tcc
  
@@ -174,7 +174,7 @@ index b047ce4..b374926 100644
  
  libzcash_a_CPPFLAGS += -DMONTGOMERY_OUTPUT
  
-@@ -593,7 +591,8 @@ clean-local:
+@@ -591,7 +589,8 @@ clean-local:
  
  .rc.o:
  	@test -f $(WINDRES)
@@ -185,10 +185,10 @@ index b047ce4..b374926 100644
  .mm.o:
  	$(AM_V_CXX) $(OBJCXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 diff --git a/src/gtest/test_paymentdisclosure.cpp b/src/gtest/test_paymentdisclosure.cpp
-index 77b0e24..1514a82 100644
+index aa8040b..5c11394 100644
 --- a/src/gtest/test_paymentdisclosure.cpp
 +++ b/src/gtest/test_paymentdisclosure.cpp
-@@ -100,7 +100,7 @@ TEST(paymentdisclosure, mainnet) {
+@@ -99,7 +99,7 @@ TEST(paymentdisclosure, mainnet) {
      boost::filesystem::create_directories(pathTemp);
      mapArgs["-datadir"] = pathTemp.string();
  
@@ -1116,7 +1116,7 @@ index 281700b..ce28b12 100644
          auto it = values.find(i);
          printf("[%zu] -> ", i);
 diff --git a/src/snark/libsnark/common/profiling.cpp b/src/snark/libsnark/common/profiling.cpp
-index 8fc3e6f..44781e1 100644
+index 23f27ce..e668566 100644
 --- a/src/snark/libsnark/common/profiling.cpp
 +++ b/src/snark/libsnark/common/profiling.cpp
 @@ -28,14 +28,14 @@
@@ -1696,10 +1696,10 @@ index 8c2c704..84c65e8 100644
  /**
   * Forward declaration.
 diff --git a/src/test/rpc_wallet_tests.cpp b/src/test/rpc_wallet_tests.cpp
-index 42590c3..a49be82 100644
+index edbcb65..119acc0 100644
 --- a/src/test/rpc_wallet_tests.cpp
 +++ b/src/test/rpc_wallet_tests.cpp
-@@ -403,7 +403,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_exportwallet)
+@@ -421,7 +421,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_exportwallet)
      BOOST_CHECK_THROW(CallRPC(string("z_exportwallet ") + tmpfilename.string()), runtime_error);
  
      // set exportdir
@@ -1708,7 +1708,7 @@ index 42590c3..a49be82 100644
  
      // run some tests
      BOOST_CHECK_THROW(CallRPC("z_exportwallet"), runtime_error);
-@@ -483,7 +483,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_importwallet)
+@@ -501,7 +501,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet_z_importwallet)
      // write test data to file
      boost::filesystem::path temp = boost::filesystem::temp_directory_path() /
              boost::filesystem::unique_path();
@@ -1718,7 +1718,7 @@ index 42590c3..a49be82 100644
      file << testWalletDump;
      file << std::flush;
 diff --git a/zcutil/build.sh b/zcutil/build.sh
-index 85ff853..1702776 100755
+index 10b659c..5a8a8ed 100755
 --- a/zcutil/build.sh
 +++ b/zcutil/build.sh
 @@ -33,14 +33,6 @@ if [[ -z "${HOST-}" ]]; then
@@ -1733,7 +1733,7 @@ index 85ff853..1702776 100755
 -    CXX=g++
 -fi
 -
- # Allow users to set arbitary compile flags. Most users will not need this.
+ # Allow users to set arbitrary compile flags. Most users will not need this.
  if [[ -z "${CONFIGURE_FLAGS-}" ]]; then
      CONFIGURE_FLAGS=""
 @@ -105,15 +97,11 @@ then

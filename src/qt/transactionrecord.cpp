@@ -12,7 +12,7 @@
 #include "wallet/wallet.h"
 
 #include "univalue.h"
-#include "rpcserver.h"
+#include "rpc/server.h"
 
 #include <stdint.h>
 
@@ -36,9 +36,9 @@ bool TransactionRecord::showTransaction(const CWalletTx &wtx)
 bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &hash, CAmount &amout, std::string &address)
 {
     std::set<libzcash::SproutPaymentAddress> addresses;
-    wallet->GetPaymentAddresses(addresses);
+    wallet->GetSproutPaymentAddresses(addresses);
     for (auto addr : addresses ) {
-        if (wallet->HaveSpendingKey(addr)) {
+        if (wallet->HaveSproutSpendingKey(addr)) {
             UniValue params(UniValue::VARR);
             params.push_back(EncodePaymentAddress(addr));
             params.push_back(0);
@@ -93,13 +93,13 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
     if(found)
     {
         // Received on Z-Addeess or Sent to T-Address or ?Sent to T-Address?
-        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapNoteData.size() > 0))
+        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0))
         {
             // Received Z<-T
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::RecvWithAddress, address,
                             -(nDebit - nChange), nCredit - nChange));
         }
-        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapNoteData.size() > 0))
+        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0))
         {
             // Sent Z->T
             BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -126,13 +126,13 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToAddress, address,
                             (nDebit - fee - nChange), nCredit));
         }
-        else if((wtx.vin.size() == 0) && (wtx.vout.size() == 0) && (wtx.mapNoteData.size() > 0))
+        else if((wtx.vin.size() == 0) && (wtx.vout.size() == 0) && (wtx.mapSproutNoteData.size() > 0))
         {
             // Received Z<-Z
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::RecvWithAddress, address,
                             -(nDebit - nChange), nCredit - nChange));
         }
-        else if((wtx.vin.size() > 0) && (wtx.vout.size() == 0) && (wtx.mapNoteData.size() > 0))
+        else if((wtx.vin.size() > 0) && (wtx.vout.size() == 0) && (wtx.mapSproutNoteData.size() > 0))
         {
             // Shielding transaction
             nDebit = wtx.GetDebit(ISMINE_ALL);
@@ -153,7 +153,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
     else
     {
         // Sent or Received on T-Address
-        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapNoteData.size() == 0))
+        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0))
         {
             // Sent T->Z
             address = "Z Address not listed by wallet!";
@@ -169,7 +169,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToAddress, address,
                             (nDebit - nTxFee - nChange), nCredit));
         }
-        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapNoteData.size() == 0))
+        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0))
         {
             // Received T<-Z
             BOOST_FOREACH(const CTxOut& txout, wtx.vout)
