@@ -114,6 +114,22 @@ public:
                                       QString::fromStdString(EncodePaymentAddress(addr))));
                }
             }
+	    std::set<libzcash::SaplingPaymentAddress> addressesSapling;
+            wallet->GetSaplingPaymentAddresses(addressesSapling);
+	    libzcash::SaplingIncomingViewingKey ivk;
+	    libzcash::SaplingFullViewingKey fvk;
+            for (auto addr : addressesSapling ) {
+                AddressTableEntry::Type addressType = translateTransactionType(
+                        QString::fromStdString("zreceive"), true);
+                const std::string& strName = "";
+                if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
+		    wallet->GetSaplingFullViewingKey(ivk, fvk) &&
+		    wallet->HaveSaplingSpendingKey(fvk)) {
+                    cachedAddressTable.append(AddressTableEntry(addressType,
+                                      QString::fromStdString(strName),
+                                      QString::fromStdString(EncodePaymentAddress(addr))));
+               }
+            }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
         // Even though the map is already sorted this re-sorting step is needed because the originating map
@@ -416,7 +432,7 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
         // Generate a new z-address
         LOCK(wallet->cs_wallet);
 
-	libzcash::PaymentAddress pubaddr = wallet->GenerateNewZKey();
+	libzcash::PaymentAddress pubaddr = wallet->GenerateNewSaplingZKey();
         strAddress = EncodePaymentAddress(pubaddr);
     }
     else
