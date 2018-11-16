@@ -55,6 +55,31 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
             }
         }
     }
+
+    std::set<libzcash::SaplingPaymentAddress> addressesSapling;
+    wallet->GetSaplingPaymentAddresses(addressesSapling);
+    libzcash::SaplingIncomingViewingKey ivk;
+    libzcash::SaplingFullViewingKey fvk;
+    for (auto addr : addressesSapling ) {
+        if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
+            wallet->GetSaplingFullViewingKey(ivk, fvk) &&
+            wallet->HaveSaplingSpendingKey(fvk)) {
+            UniValue params(UniValue::VARR);
+            params.push_back(EncodePaymentAddress(addr));
+            params.push_back(0);
+            UniValue ret = z_listreceivedbyaddress(params, false);
+            for (const UniValue& entry : ret.getValues()) {
+                UniValue txid = find_value(entry, "txid");
+                UniValue amount = find_value(entry, "amount");
+                if(txid.get_str() == hash.GetHex())
+                {
+                    amout = AmountFromValue(amount);
+                    address = EncodePaymentAddress(addr);
+                    return true;
+                }
+            }
+        }
+    }
     return false;
 }
 
@@ -93,13 +118,13 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
     if(found)
     {
         // Received on Z-Addeess or Sent to T-Address or ?Sent to T-Address?
-        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0))
+        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0 || wtx.mapSaplingNoteData.size() > 0))
         {
             // Received Z<-T
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::RecvWithAddress, address,
                             -(nDebit - nChange), nCredit - nChange));
         }
-        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0))
+        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0 || wtx.mapSaplingNoteData.size() > 0))
         {
             // Sent Z->T
             BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -126,13 +151,13 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToAddress, address,
                             (nDebit - fee - nChange), nCredit));
         }
-        else if((wtx.vin.size() == 0) && (wtx.vout.size() == 0) && (wtx.mapSproutNoteData.size() > 0))
+        else if((wtx.vin.size() == 0) && (wtx.vout.size() == 0) && (wtx.mapSproutNoteData.size() > 0 || wtx.mapSaplingNoteData.size() > 0))
         {
             // Received Z<-Z
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::RecvWithAddress, address,
                             -(nDebit - nChange), nCredit - nChange));
         }
-        else if((wtx.vin.size() > 0) && (wtx.vout.size() == 0) && (wtx.mapSproutNoteData.size() > 0))
+        else if((wtx.vin.size() > 0) && (wtx.vout.size() == 0) && (wtx.mapSproutNoteData.size() > 0 || wtx.mapSaplingNoteData.size() > 0))
         {
             // Shielding transaction
             nDebit = wtx.GetDebit(ISMINE_ALL);
@@ -153,7 +178,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
     else
     {
         // Sent or Received on T-Address
-        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0))
+        if((wtx.vin.size() > 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0 && wtx.mapSaplingNoteData.size() == 0))
         {
             // Sent T->Z
             address = "Z Address not listed by wallet!";
@@ -169,7 +194,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToAddress, address,
                             (nDebit - nTxFee - nChange), nCredit));
         }
-        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0))
+        else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0 && wtx.mapSaplingNoteData.size() == 0))
         {
             // Received T<-Z
             BOOST_FOREACH(const CTxOut& txout, wtx.vout)

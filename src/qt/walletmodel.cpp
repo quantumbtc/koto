@@ -75,6 +75,9 @@ CAmount WalletModel::getZBalance(bool showUnconfirmed) const
     for (auto & entry : sproutEntries) {
         nBalance += CAmount(entry.plaintext.value());
     }
+    for (auto & entry : saplingEntries) {
+        nBalance += CAmount(entry.note.value());
+    }
 
     return nBalance;
 }

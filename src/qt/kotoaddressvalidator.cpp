@@ -80,7 +80,7 @@ QValidator::State KotoAddressEntryValidator::validate(QString &input, int &pos) 
         if (((ch >= '0' && ch<='9') ||
             (ch >= 'a' && ch<='z') ||
             (ch >= 'A' && ch<='Z')) &&
-            ch != 'l' && ch != 'I' && ch != '0' && ch != 'O')
+	    ch != 'I' && ch != 'O') // Characters invalid in both Base58 and Bech32
         {
             // Alphanumeric and not a 'forbidden' character
         }
