@@ -33,7 +33,7 @@ index 7a268e4..37676ce 100644
  
  baseline.info:
 diff --git a/configure.ac b/configure.ac
-index a0d67b5..83d92fd 100644
+index ad56998..3a82fb7 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -232,7 +232,7 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
@@ -45,7 +45,7 @@ index a0d67b5..83d92fd 100644
    [build_bitcoin_utils=$withval],
    [build_bitcoin_utils=yes])
  
-@@ -807,7 +807,7 @@ AC_MSG_CHECKING([whether to build bitcoind])
+@@ -815,7 +815,7 @@ AC_MSG_CHECKING([whether to build bitcoind])
  AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_bitcoind = xyes])
  AC_MSG_RESULT($build_bitcoind)
  
@@ -54,25 +54,11 @@ index a0d67b5..83d92fd 100644
  AM_CONDITIONAL([BUILD_BITCOIN_UTILS], [test x$build_bitcoin_utils = xyes])
  AC_MSG_RESULT($build_bitcoin_utils)
  
-diff --git a/contrib/debian/changelog b/contrib/debian/changelog
-index 504660f..315a33c 100644
---- a/contrib/debian/changelog
-+++ b/contrib/debian/changelog
-@@ -1,3 +1,9 @@
-+koto (2.0.0) stable; urgency=medium
-+
-+  * 2.0.0-bitcore release.
-+
-+ -- WO <wo@ko-to.org>  Mon, 24 Sep 2018 22:21:00 +0900
-+
- zcash (2.0.0) stable; urgency=medium
- 
-   * 2.0.0 release.
 diff --git a/qa/pull-tester/rpc-tests.sh b/qa/pull-tester/rpc-tests.sh
-index 73d9ddb..4362a14 100755
+index e8d8a00..610da2f 100755
 --- a/qa/pull-tester/rpc-tests.sh
 +++ b/qa/pull-tester/rpc-tests.sh
-@@ -46,6 +46,9 @@ testScripts=(
+@@ -53,6 +53,9 @@ testScripts=(
      'key_import_export.py'
      'nodehandling.py'
      'reindex.py'
@@ -729,7 +715,7 @@ index 0000000..b139253
 +if __name__ == '__main__':
 +    TxIndexTest().main()
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 4e9ec68..9fce800 100644
+index c67df60..7e1ca39 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -99,6 +99,9 @@ endif
@@ -742,7 +728,7 @@ index 4e9ec68..9fce800 100644
  endif
  
  LIBZCASH_H = \
-@@ -115,6 +118,8 @@ LIBZCASH_H = \
+@@ -116,6 +119,8 @@ LIBZCASH_H = \
  .PHONY: FORCE collate-libsnark check-symbols check-security
  # bitcoin core #
  BITCOIN_CORE_H = \
@@ -751,7 +737,7 @@ index 4e9ec68..9fce800 100644
    addrman.h \
    alert.h \
    amount.h \
-@@ -477,6 +482,14 @@ koto_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+@@ -478,6 +483,14 @@ koto_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
  koto_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
  koto_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
  
@@ -766,7 +752,7 @@ index 4e9ec68..9fce800 100644
  if TARGET_WINDOWS
  koto_cli_SOURCES += bitcoin-cli-res.rc
  endif
-@@ -493,6 +506,22 @@ koto_cli_LDADD = \
+@@ -494,6 +507,22 @@ koto_cli_LDADD = \
    $(LIBSNARK) \
    $(LIBBITCOIN_CRYPTO) \
    $(LIBZCASH_LIBS)
@@ -964,7 +950,7 @@ index e3f9a26..811367b 100644
  
      template <typename K, typename V>
 diff --git a/src/init.cpp b/src/init.cpp
-index 992bfe4..8a2c004 100644
+index 0b17387..ba28db8 100644
 --- a/src/init.cpp
 +++ b/src/init.cpp
 @@ -373,6 +373,10 @@ std::string HelpMessage(HelpMessageMode mode)
@@ -1024,7 +1010,7 @@ index 992bfe4..8a2c004 100644
                  pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                  pcoinsTip = new CCoinsViewCache(pcoinscatcher);
 diff --git a/src/main.cpp b/src/main.cpp
-index 524bcca..5e35782 100644
+index e49e047..25a280f 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
 @@ -21,6 +21,7 @@
@@ -1045,7 +1031,7 @@ index 524bcca..5e35782 100644
  bool fHavePruned = false;
  bool fPruneMode = false;
  bool fIsBareMultisigStd = true;
-@@ -1575,6 +1579,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1581,6 +1585,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
  
          // Store transaction in memory
          pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
@@ -1062,7 +1048,7 @@ index 524bcca..5e35782 100644
      }
  
      SyncWithWallets(tx, NULL);
-@@ -1582,6 +1596,55 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1588,6 +1602,55 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
      return true;
  }
  
@@ -1118,7 +1104,7 @@ index 524bcca..5e35782 100644
  /** Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock */
  bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
  {
-@@ -2224,11 +2287,54 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2230,11 +2293,54 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
      if (blockUndo.vtxundo.size() + 1 != block.vtx.size())
          return error("DisconnectBlock(): block and undo data inconsistent");
  
@@ -1173,7 +1159,7 @@ index 524bcca..5e35782 100644
          // Check that all outputs are available and match the outputs in the block itself
          // exactly.
          {
-@@ -2261,6 +2367,48 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2267,6 +2373,48 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
                  const CTxInUndo &undo = txundo.vprevout[j];
                  if (!ApplyTxInUndo(undo, view, out))
                      fClean = false;
@@ -1222,7 +1208,7 @@ index 524bcca..5e35782 100644
              }
          }
      }
-@@ -2279,6 +2427,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2285,6 +2433,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
          view.PopAnchor(SaplingMerkleTree::empty_root(), SAPLING);
      }
  
@@ -1230,7 +1216,7 @@ index 524bcca..5e35782 100644
      // move best block pointer to prevout block
      view.SetBestBlock(pindex->pprev->GetBlockHash());
  
-@@ -2287,6 +2436,15 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2293,6 +2442,15 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
          return true;
      }
  
@@ -1246,7 +1232,7 @@ index 524bcca..5e35782 100644
      return fClean;
  }
  
-@@ -2454,6 +2612,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2460,6 +2618,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
      std::vector<std::pair<uint256, CDiskTxPos> > vPos;
      vPos.reserve(block.vtx.size());
      blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -1256,7 +1242,7 @@ index 524bcca..5e35782 100644
  
      // Construct the incremental merkle tree at the current
      // block position,
-@@ -2484,6 +2645,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2490,6 +2651,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
      for (unsigned int i = 0; i < block.vtx.size(); i++)
      {
          const CTransaction &tx = block.vtx[i];
@@ -1264,7 +1250,7 @@ index 524bcca..5e35782 100644
  
          nInputs += tx.vin.size();
          nSigOps += GetLegacySigOpCount(tx);
-@@ -2502,6 +2664,50 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2508,6 +2670,50 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                  return state.DoS(100, error("ConnectBlock(): JoinSplit requirements not met"),
                                   REJECT_INVALID, "bad-txns-joinsplit-requirements-not-met");
  
@@ -1315,7 +1301,7 @@ index 524bcca..5e35782 100644
              // Add in sigops done by pay-to-script-hash inputs;
              // this is to prevent a "rogue miner" from creating
              // an incredibly-expensive-to-validate block.
-@@ -2523,6 +2729,43 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2529,6 +2735,43 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
              control.Add(vChecks);
          }
  
@@ -1359,7 +1345,7 @@ index 524bcca..5e35782 100644
          CTxUndo undoDummy;
          if (i > 0) {
              blockundo.vtxundo.push_back(CTxUndo());
-@@ -2637,6 +2880,41 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2643,6 +2886,41 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
          if (!pblocktree->WriteTxIndex(vPos))
              return AbortNode(state, "Failed to write transaction index");
  
@@ -1401,7 +1387,7 @@ index 524bcca..5e35782 100644
      // add this block to the view's block chain
      view.SetBestBlock(pindex->GetBlockHash());
  
-@@ -4120,6 +4398,18 @@ bool static LoadBlockIndexDB()
+@@ -4126,6 +4404,18 @@ bool static LoadBlockIndexDB()
      pblocktree->ReadFlag("txindex", fTxIndex);
      LogPrintf("%s: transaction index %s\n", __func__, fTxIndex ? "enabled" : "disabled");
  
@@ -1420,7 +1406,7 @@ index 524bcca..5e35782 100644
      // Fill in-memory data
      BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
      {
-@@ -4453,6 +4743,18 @@ bool InitBlockIndex() {
+@@ -4459,6 +4749,18 @@ bool InitBlockIndex() {
      // Use the provided setting for -txindex in the new database
      fTxIndex = GetBoolArg("-txindex", false);
      pblocktree->WriteFlag("txindex", fTxIndex);
@@ -1440,7 +1426,7 @@ index 524bcca..5e35782 100644
  
      // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
 diff --git a/src/main.h b/src/main.h
-index 72b23ad..6aa6148 100644
+index ca6cc8e..7cf4331 100644
 --- a/src/main.h
 +++ b/src/main.h
 @@ -22,6 +22,7 @@
@@ -1777,7 +1763,7 @@ index 72b23ad..6aa6148 100644
  struct CDiskTxPos : public CDiskBlockPos
  {
      unsigned int nTxOffset; // after header
-@@ -427,6 +740,13 @@ public:
+@@ -428,6 +741,13 @@ public:
      ScriptError GetScriptError() const { return error; }
  };
  
@@ -2646,10 +2632,10 @@ index 44c3988..e8b64fb 100644
      { "hidden",             "setmocktime",            &setmocktime,            true  },
  };
 diff --git a/src/rpc/rawtransaction.cpp b/src/rpc/rawtransaction.cpp
-index 7cb34c3..7370014 100644
+index 020cad6..3ea6b27 100644
 --- a/src/rpc/rawtransaction.cpp
 +++ b/src/rpc/rawtransaction.cpp
-@@ -65,7 +65,9 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
+@@ -66,7 +66,9 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
          UniValue joinsplit(UniValue::VOBJ);
  
          joinsplit.push_back(Pair("vpub_old", ValueFromAmount(jsdescription.vpub_old)));
@@ -2659,41 +2645,11 @@ index 7cb34c3..7370014 100644
  
          joinsplit.push_back(Pair("anchor", jsdescription.anchor.GetHex()));
  
-@@ -114,9 +116,41 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
-     return vjoinsplit;
+@@ -145,9 +147,11 @@ UniValue TxShieldedOutputsToJSON(const CTransaction& tx) {
+     return vdesc;
  }
  
 -void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
-+UniValue TxShieldedSpendsToJSON(const CTransaction& tx) {
-+    UniValue vdesc(UniValue::VARR);
-+    for (const SpendDescription& spendDesc : tx.vShieldedSpend) {
-+        UniValue obj(UniValue::VOBJ);
-+        obj.push_back(Pair("cv", spendDesc.cv.GetHex()));
-+        obj.push_back(Pair("anchor", spendDesc.anchor.GetHex()));
-+        obj.push_back(Pair("nullifier", spendDesc.nullifier.GetHex()));
-+        obj.push_back(Pair("rk", spendDesc.rk.GetHex()));
-+        obj.push_back(Pair("proof", HexStr(spendDesc.zkproof.begin(), spendDesc.zkproof.end())));
-+        obj.push_back(Pair("spendAuthSig", HexStr(spendDesc.spendAuthSig.begin(), spendDesc.spendAuthSig.end())));
-+        vdesc.push_back(obj);
-+    }
-+    return vdesc;
-+}
-+
-+UniValue TxShieldedOutputsToJSON(const CTransaction& tx) {
-+    UniValue vdesc(UniValue::VARR);
-+    for (const OutputDescription& outputDesc : tx.vShieldedOutput) {
-+        UniValue obj(UniValue::VOBJ);
-+        obj.push_back(Pair("cv", outputDesc.cv.GetHex()));
-+        obj.push_back(Pair("cmu", outputDesc.cm.GetHex()));
-+        obj.push_back(Pair("ephemeralKey", outputDesc.ephemeralKey.GetHex()));
-+        obj.push_back(Pair("encCiphertext", HexStr(outputDesc.encCiphertext.begin(), outputDesc.encCiphertext.end())));
-+        obj.push_back(Pair("outCiphertext", HexStr(outputDesc.outCiphertext.begin(), outputDesc.outCiphertext.end())));
-+        obj.push_back(Pair("proof", HexStr(outputDesc.zkproof.begin(), outputDesc.zkproof.end())));
-+        vdesc.push_back(obj);
-+    }
-+    return vdesc;
-+}
-+
 +void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue& entry,
 +                      int nHeight = 0, int nConfirmations = 0, int nBlockTime = 0)
  {
@@ -2703,7 +2659,7 @@ index 7cb34c3..7370014 100644
      entry.push_back(Pair("hash", tx.GetScriptSigHash().GetHex()));
      entry.push_back(Pair("overwintered", tx.fOverwintered));
      entry.push_back(Pair("version", tx.nVersion));
-@@ -139,6 +173,20 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+@@ -170,6 +174,20 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
              o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
              o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
              in.push_back(Pair("scriptSig", o));
@@ -2724,7 +2680,7 @@ index 7cb34c3..7370014 100644
          }
          in.push_back(Pair("sequence", (int64_t)txin.nSequence));
          vin.push_back(in);
-@@ -149,11 +197,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+@@ -180,11 +198,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
          const CTxOut& txout = tx.vout[i];
          UniValue out(UniValue::VOBJ);
          out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
@@ -2747,9 +2703,9 @@ index 7cb34c3..7370014 100644
          vout.push_back(out);
      }
      entry.push_back(Pair("vout", vout));
-@@ -161,18 +219,89 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
-     UniValue vjoinsplit = TxJoinSplitToJSON(tx);
-     entry.push_back(Pair("vjoinsplit", vjoinsplit));
+@@ -203,18 +231,89 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+         }
+     }
  
 +    if (tx.fOverwintered && tx.nVersion >= SAPLING_TX_VERSION) {
 +        entry.push_back(Pair("valueBalance", ValueFromAmount(tx.valueBalance)));
@@ -2839,7 +2795,7 @@ index 7cb34c3..7370014 100644
          }
      }
  }
-@@ -271,8 +400,6 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -313,8 +412,6 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
              + HelpExampleRpc("getrawtransaction", "\"mytxid\", 1")
          );
  
@@ -2848,7 +2804,7 @@ index 7cb34c3..7370014 100644
      uint256 hash = ParseHashV(params[0], "parameter 1");
  
      bool fVerbose = false;
-@@ -280,9 +407,31 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -322,9 +419,31 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
          fVerbose = (params[1].get_int() != 0);
  
      CTransaction tx;
@@ -2882,7 +2838,7 @@ index 7cb34c3..7370014 100644
  
      string strHex = EncodeHexTx(tx);
  
-@@ -291,7 +440,8 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -333,7 +452,8 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
  
      UniValue result(UniValue::VOBJ);
      result.push_back(Pair("hex", strHex));
