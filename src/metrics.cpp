@@ -461,11 +461,7 @@ void ThreadShowMetricsScreen()
 #endif
 
         // Clear screen
-#ifdef WIN32
-        setCursorPosition(0, 0);
-#else
         std::cout << "\e[2J";
-#endif
 
         // Print art
         std::cout << METRICS_ART << std::endl;
@@ -502,28 +498,8 @@ void ThreadShowMetricsScreen()
         }
 
         if (isScreen) {
-#ifdef WIN32
-        setCursorPosition(0, 12);
-        if (loaded)
-        {
-           if (!clearedAfterLoaded)
-           {
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              std::cout << std::string(cols, ' ');
-              setCursorPosition(0, 12);
-           }
-           clearedAfterLoaded=true;
-        }
-#else
             // Erase below current position
             std::cout << "\e[J";
-#endif
         }
 
         // Miner status
@@ -563,11 +539,7 @@ void ThreadShowMetricsScreen()
 
         if (isScreen) {
             // Return to the top of the updating section
-#ifdef WIN32
-            setCursorPosition(0, 12);
-#else
             std::cout << "\e[" << lines << "A";
-#endif
         }
     }
 }
