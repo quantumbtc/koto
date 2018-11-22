@@ -1,5 +1,5 @@
 ---
-name: "zcash-2.0.1"
+name: "koto-2.0.0"
 enable_cache: true
 distro: "debian"
 suites:
@@ -25,8 +25,8 @@ packages:
 - "wget"
 - "zlib1g-dev"
 remotes:
-- "url": "https://github.com/zcash/zcash.git"
-  "dir": "zcash"
+- "url": "https://github.com/KotoDevelopers/koto.git"
+  "dir": "koto"
 files: []
 script: |
   WRAP_DIR=$HOME/wrapped
