@@ -156,6 +156,7 @@ BITCOIN_CORE_H = \
   httprpc.h \
   httpserver.h \
   init.h \
+  insecure_memzero.h \
   key.h \
   key_io.h \
   keystore.h \
@@ -193,6 +194,7 @@ BITCOIN_CORE_H = \
   script/sign.h \
   script/standard.h \
   serialize.h \
+  sha256.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
