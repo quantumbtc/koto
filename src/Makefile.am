@@ -202,6 +202,7 @@ BITCOIN_CORE_H = \
   support/events.h \
   support/pagelocker.h \
   sync.h \
+  sysendian.h \
   threadsafety.h \
   timedata.h \
   tinyformat.h \
