@@ -35,8 +35,8 @@ script: |
   MAKEOPTS="V=1"
   FAKETIME_HOST_PROGS=""
   FAKETIME_PROGS="date ar ranlib nm strip objcopy"
-  HOST_CFLAGS="-fwrapv -fno-strict-aliasing -Werror -g"
-  HOST_CXXFLAGS="-fwrapv -fno-strict-aliasing -Werror -g"
+  HOST_CFLAGS="-fwrapv -fno-strict-aliasing -g"
+  HOST_CXXFLAGS="-fwrapv -fno-strict-aliasing -g"
   HOST_LDFLAGS=-static-libstdc++
 
   export QT_RCC_TEST=0
