@@ -100,7 +100,7 @@
 
 #include "yespower.h"
 
-#include "yespower-platform.c"
+#include "yespower-platform.c.h"
 
 #if __STDC_VERSION__ >= 199901L
 /* Have restrict */
