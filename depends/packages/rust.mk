@@ -38,3 +38,36 @@ define $(package)_stage_cmds
   ./install.sh --destdir=$($(package)_staging_dir) --prefix=$(host_prefix)/native --disable-ldconfig
 endef
 endif
+
+ifeq ($(host_os),darwin)
+ifneq ($(build_os),darwin)
+$(package)_build_subdir=buildos
+$(package)_extra_sources = $($(package)_file_name_$(build_os))
+
+define $(package)_fetch_cmds
+$(call fetch_file,$(package),$($(package)_download_path),$($(package)_download_file),$($(package)_file_name),$($(package)_sha256_hash)) && \
+$(call fetch_file,$(package),$($(package)_download_path),$($(package)_file_name_$(build_os)),$($(package)_file_name_$(build_os)),$($(package)_sha256_hash_$(build_os)))
+endef
+
+define $(package)_extract_cmds
+  mkdir -p $($(package)_extract_dir) && \
+  echo "$($(package)_sha256_hash)  $($(package)_source)" > $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  echo "$($(package)_sha256_hash_$(build_os))  $($(package)_source_dir)/$($(package)_file_name_$(build_os))" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  $(build_SHA256SUM) -c $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  mkdir darwin && \
+  tar --strip-components=1 -xf $($(package)_source) -C darwin && \
+  mkdir buildos && \
+  tar --strip-components=1 -xf $($(package)_source_dir)/$($(package)_file_name_$(build_os)) -C buildos
+endef
+
+define $(package)_stage_cmds
+  ./install.sh --destdir=$($(package)_staging_dir) --prefix=$(host_prefix)/native --disable-ldconfig && \
+  cp -r ../darwin/rust-std-x86_64-apple-darwin/lib/rustlib/x86_64-apple-darwin $($(package)_staging_dir)$(host_prefix)/native/lib/rustlib
+endef
+else
+
+define $(package)_stage_cmds
+  ./install.sh --destdir=$($(package)_staging_dir) --prefix=$(host_prefix)/native --disable-ldconfig
+endef
+endif
+endif

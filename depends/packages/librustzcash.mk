@@ -10,6 +10,12 @@ $(package)_patches=cargo.config
 
 ifeq ($(host_os),mingw32)
 $(package)_library_file=target/x86_64-pc-windows-gnu/release/rustzcash.lib
+else ifeq ($(host_os),darwin)
+ifneq ($(build_os),darwin)
+$(package)_library_file=target/x86_64-apple-darwin/release/librustzcash.a
+else
+$(package)_library_file=target/release/librustzcash.a
+endif
 else
 $(package)_library_file=target/release/librustzcash.a
 endif
@@ -17,6 +23,11 @@ endif
 define $(package)_set_vars
 $(package)_build_opts=--frozen --release
 $(package)_build_opts_mingw32=--target=x86_64-pc-windows-gnu
+ifeq ($(host_os),darwin)
+ifneq ($(build_os),darwin)
+$(package)_build_opts_darwin=--target=x86_64-apple-darwin
+endif
+endif
 endef
 
 define $(package)_preprocess_cmds
