@@ -11,6 +11,8 @@
 #include "uint256.h"
 #include "yespower.h"
 #include "utilstrencodings.h"
+#include "streams.h"
+#include "version.h"
 
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
@@ -80,10 +82,17 @@ public:
     uint256 GetPoWHash() const
     {
         uint256 thash;
-        if (this->nVersion >= CBlockHeader::SAPLING_VERSION) {
-            yespower_hash(BEGIN(nVersion), 112, BEGIN(thash));
-        } else {
-            yespower_hash(BEGIN(nVersion), 80, BEGIN(thash));
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << *this;
+        yespower_params_t params = {
+                .version = YESPOWER_0_5,
+                .N = 2048,
+                .r = 8,
+                .pers = (const uint8_t *)&ss[0],
+                .perslen = ss.size()
+        };
+        if (yespower_tls((unsigned char *)&ss[0], ss.size(), &params, (yespower_binary_t *)&thash)) {
+            abort();
         }
         return thash;
     }
