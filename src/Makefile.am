@@ -393,7 +393,6 @@ libbitcoin_common_a_SOURCES = \
   script/script_error.cpp \
   script/sign.cpp \
   script/standard.cpp \
-  yespower.c \
   yespower-opt.c \
   sha256.c \
   transaction_builder.cpp \
