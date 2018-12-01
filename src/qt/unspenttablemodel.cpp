@@ -127,10 +127,23 @@ public:
                 }
             }
 
+            std::set<libzcash::SaplingPaymentAddress> addressesSapling;
+            wallet->GetSaplingPaymentAddresses(addressesSapling);
+            libzcash::SaplingIncomingViewingKey ivk;
+            libzcash::SaplingFullViewingKey fvk;
+            for (auto addr : addressesSapling ) {
+                if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
+                    wallet->GetSaplingFullViewingKey(ivk, fvk) &&
+                    wallet->HaveSaplingSpendingKey(fvk)) {
+                    zaddrs.insert(addr);
+                }
+            }
+
             if (zaddrs.size() > 0) {
-                std::vector<CUnspentSproutNotePlaintextEntry> entries; 
-                wallet->GetUnspentFilteredNotes(entries, zaddrs, nMinDepth, nMaxDepth);
-                for (CUnspentSproutNotePlaintextEntry & entry : entries) {
+                std::vector<CUnspentSproutNotePlaintextEntry> sproutEntries;
+                std::vector<UnspentSaplingNoteEntry> saplingEntries;
+                wallet->GetUnspentFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth);
+                for (CUnspentSproutNotePlaintextEntry & entry : sproutEntries) {
                     UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("zunspent"));
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
                                                   QString::fromStdString(EncodePaymentAddress(entry.address)),
@@ -139,6 +152,15 @@ public:
                                              )
                     );
                 }
+                for (UnspentSaplingNoteEntry & entry : saplingEntries) {
+                    UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("zunspent"));
+                    cachedUnspentTable.append(UnspentTableEntry(unspentType,
+                                                  QString::fromStdString(EncodePaymentAddress(entry.address)),
+                                                  QString::fromStdString(entry.op.hash.ToString()),
+                                                  CAmount(entry.note.value())
+                                             )
+                    );
+		}
             }
 
         }

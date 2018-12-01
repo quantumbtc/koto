@@ -285,6 +285,11 @@ void SendZCoinsDialog::on_sendButton_clicked()
 
         dlg.exec();
         strStatus = dlg.getResultStatus();
+    } catch (const UniValue& objError) {
+        const char *message = find_value(objError, "message").get_str().c_str();
+        qDebug("Error %s ", message);
+        QMessageBox msgBox("", message, QMessageBox::Critical, 0, 0, 0, this, Qt::WindowTitleHint | Qt::WindowSystemMenuHint);
+        msgBox.exec();
     } catch (std::exception &e) {
         qDebug("Error %s ", e.what());
         QMessageBox msgBox("", e.what(), QMessageBox::Critical, 0, 0, 0, this, Qt::WindowTitleHint | Qt::WindowSystemMenuHint);

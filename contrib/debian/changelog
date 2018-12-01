@@ -1,8 +1,14 @@
-koto (2.0.0) stable; urgency=medium
+zcash (2.0.1) stable; urgency=medium
 
-  * 2.0.0 release.
+  * 2.0.1 release.
 
- -- The Koto Developers <koto@ko-to.org>  Sat, 10 Nov 2018 17:30:00 +0900
+ -- Zcash Company <team@z.cash>  Sun, 14 Oct 2018 13:40:30 -0700
+
+zcash (2.0.1~rc1) stable; urgency=medium
+
+  * 2.0.1-rc1 release.
+
+ -- Zcash Company <team@z.cash>  Mon, 08 Oct 2018 12:40:54 -0700
 
 zcash (2.0.0) stable; urgency=medium
 
