@@ -13,6 +13,8 @@ from test_framework.authproxy import JSONRPCException
 from test_framework.util import assert_equal, assert_raises, \
     initialize_chain_clean, start_node, connect_nodes
 
+from decimal import Decimal
+
 
 class MerkleBlockTest(BitcoinTestFramework):
 
@@ -48,7 +50,10 @@ class MerkleBlockTest(BitcoinTestFramework):
         node0utxos = self.nodes[0].listunspent(1)
         tx1 = self.nodes[0].createrawtransaction([node0utxos.pop()], {self.nodes[1].getnewaddress(): 100})
         txid1 = self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransaction(tx1)["hex"])
-        tx2 = self.nodes[0].createrawtransaction([node0utxos.pop()], {self.nodes[1].getnewaddress(): 100})
+        utxo = node0utxos.pop()
+        while utxo['amount'] != Decimal('100'):
+            utxo = node0utxos.pop()
+        tx2 = self.nodes[0].createrawtransaction([utxo], {self.nodes[1].getnewaddress(): 100})
         txid2 = self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransaction(tx2)["hex"])
         assert_raises(JSONRPCException, self.nodes[0].gettxoutproof, [txid1])
 
