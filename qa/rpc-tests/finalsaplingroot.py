@@ -49,15 +49,18 @@ class FinalSaplingRootTest(BitcoinTestFramework):
 
         # Verify all generated blocks contain the empty root of the Sapling tree.
         blockcount = self.nodes[0].getblockcount()
-        for height in xrange(1, blockcount + 1):
+        for height in xrange(1, blockcount):
             blk = self.nodes[0].getblock(str(height))
-            assert_equal(blk["finalsaplingroot"], SAPLING_TREE_EMPTY_ROOT)
+            assert_equal(blk["finalsaplingroot"], NULL_FIELD)
+
+        blk = self.nodes[0].getblock("200")
+        assert_equal(blk["finalsaplingroot"], SAPLING_TREE_EMPTY_ROOT)
 
         # Node 0 shields some funds
         taddr0 = self.nodes[0].getnewaddress()
         saplingAddr0 = self.nodes[0].z_getnewaddress('sapling')
         recipients = []
-        recipients.append({"address": saplingAddr0, "amount": Decimal('20')})
+        recipients.append({"address": saplingAddr0, "amount": Decimal('200')})
         myopid = self.nodes[0].z_sendmany(taddr0, recipients, 1, 0)
         mytxid = wait_and_assert_operationid_status(self.nodes[0], myopid)
 
@@ -83,20 +86,20 @@ class FinalSaplingRootTest(BitcoinTestFramework):
 
         # Mine a block with a transparent tx and verify the final Sapling root does not change
         taddr1 = self.nodes[1].getnewaddress()
-        self.nodes[0].sendtoaddress(taddr1, Decimal("1.23"))
+        self.nodes[0].sendtoaddress(taddr1, Decimal("12.3"))
 
         self.sync_all()
         self.nodes[0].generate(1)
         self.sync_all()
 
         assert_equal(len(self.nodes[0].getblock("203")["tx"]), 2)
-        assert_equal(self.nodes[1].z_getbalance(taddr1), Decimal("1.23"))
+        assert_equal(self.nodes[1].z_getbalance(taddr1), Decimal("12.3"))
         assert_equal(root, self.nodes[0].getblock("203")["finalsaplingroot"])
 
         # Mine a block with a Sprout shielded tx and verify the final Sapling root does not change
         zaddr1 = self.nodes[1].z_getnewaddress('sprout')
         recipients = []
-        recipients.append({"address": zaddr1, "amount": Decimal('10')})
+        recipients.append({"address": zaddr1, "amount": Decimal('97')})
         myopid = self.nodes[0].z_sendmany(taddr0, recipients, 1, 0)
         wait_and_assert_operationid_status(self.nodes[0], myopid)
 
@@ -105,7 +108,7 @@ class FinalSaplingRootTest(BitcoinTestFramework):
         self.sync_all()
 
         assert_equal(len(self.nodes[0].getblock("204")["tx"]), 2)
-        assert_equal(self.nodes[1].z_getbalance(zaddr1), Decimal("10"))
+        assert_equal(self.nodes[1].z_getbalance(zaddr1), Decimal("97"))
         assert_equal(root, self.nodes[0].getblock("204")["finalsaplingroot"])
 
         # Mine a block with a Sapling shielded recipient and verify the final Sapling root changes
