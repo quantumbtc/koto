@@ -49,14 +49,10 @@ class MerkleBlockTest(BitcoinTestFramework):
 
         node0utxos = self.nodes[0].listunspent(1)
         utxo1 = node0utxos.pop()
-        while utxo1['amount'] != Decimal('100.00000000'):
-            utxo1 = node0utxos.pop()
-        tx1 = self.nodes[0].createrawtransaction([utxo1], {self.nodes[1].getnewaddress(): 100})
+        tx1 = self.nodes[0].createrawtransaction([utxo1], {self.nodes[1].getnewaddress(): utxo1['amount']})
         txid1 = self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransaction(tx1)["hex"])
         utxo2 = node0utxos.pop()
-        while utxo2['amount'] != Decimal('100.00000000') or utxo1['confirmations'] < utxo2['confirmations']:
-            utxo2 = node0utxos.pop()
-        tx2 = self.nodes[0].createrawtransaction([utxo2], {self.nodes[1].getnewaddress(): 100})
+        tx2 = self.nodes[0].createrawtransaction([utxo2], {self.nodes[1].getnewaddress(): utxo2['amount']})
         txid2 = self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransaction(tx2)["hex"])
         assert_raises(JSONRPCException, self.nodes[0].gettxoutproof, [txid1])
 
@@ -81,7 +77,7 @@ class MerkleBlockTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1, txid2], blockhash)), hashlist)
 
         txin_spent = self.nodes[1].listunspent(1).pop()
-        tx3 = self.nodes[1].createrawtransaction([txin_spent], {self.nodes[0].getnewaddress(): 100})
+        tx3 = self.nodes[1].createrawtransaction([txin_spent], {self.nodes[0].getnewaddress(): txin_spent['amount']})
         self.nodes[0].sendrawtransaction(self.nodes[1].signrawtransaction(tx3)["hex"])
         self.nodes[0].generate(1)
         self.sync_all()
@@ -98,7 +94,7 @@ class MerkleBlockTest(BitcoinTestFramework):
         # ...or if the first tx is not fully-spent
         assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid_unspent])), [txid_unspent_hash])
         try:
-            assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1, txid2])), txlist)
+            assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1, txid2])), hashlist)
         except JSONRPCException:
             assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid2, txid1])), hashlist)
         # ...or if we have a -txindex
