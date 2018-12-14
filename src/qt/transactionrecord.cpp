@@ -18,6 +18,9 @@
 
 #include <boost/foreach.hpp>
 
+/** Transaction Map for z_listreceivedbyaddress */
+static std::map<std::string, UniValue> ztxMap;
+
 /* Return positive answer if transaction should be shown in list.
  */
 bool TransactionRecord::showTransaction(const CWalletTx &wtx)
@@ -39,10 +42,17 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
     wallet->GetSproutPaymentAddresses(addresses);
     for (auto addr : addresses ) {
         if (wallet->HaveSproutSpendingKey(addr)) {
-            UniValue params(UniValue::VARR);
-            params.push_back(EncodePaymentAddress(addr));
-            params.push_back(0);
-            UniValue ret = z_listreceivedbyaddress(params, false);
+            std::string address = EncodePaymentAddress(addr);
+            UniValue ret;
+            if (ztxMap.count(address)) {
+                ret = ztxMap[address];
+            } else {
+                UniValue params(UniValue::VARR);
+                params.push_back(address);
+                params.push_back(0);
+                ret = z_listreceivedbyaddress(params, false);
+                ztxMap[address] = ret;
+            }
             for (const UniValue& entry : ret.getValues()) {
                 UniValue txid = find_value(entry, "txid");
                 UniValue amount = find_value(entry, "amount");
@@ -64,10 +74,17 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
         if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
             wallet->GetSaplingFullViewingKey(ivk, fvk) &&
             wallet->HaveSaplingSpendingKey(fvk)) {
-            UniValue params(UniValue::VARR);
-            params.push_back(EncodePaymentAddress(addr));
-            params.push_back(0);
-            UniValue ret = z_listreceivedbyaddress(params, false);
+            std::string address = EncodePaymentAddress(addr);
+            UniValue ret;
+            if (ztxMap.count(address)) {
+                ret = ztxMap[address];
+            } else {
+                UniValue params(UniValue::VARR);
+                params.push_back(address);
+                params.push_back(0);
+                ret = z_listreceivedbyaddress(params, false);
+                ztxMap[address] = ret;
+            }
             for (const UniValue& entry : ret.getValues()) {
                 UniValue txid = find_value(entry, "txid");
                 UniValue amount = find_value(entry, "amount");

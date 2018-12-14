@@ -7,6 +7,7 @@
 
 #include "amount.h"
 #include "uint256.h"
+#include "univalue.h"
 
 #include <QList>
 #include <QString>
