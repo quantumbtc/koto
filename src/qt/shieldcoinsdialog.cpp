@@ -43,7 +43,7 @@ ShieldCoinsDialog::ShieldCoinsDialog(const PlatformStyle *platformStyle, QWidget
     ui->customFee->setValue(ASYNC_RPC_OPERATION_DEFAULT_MINERS_FEE);
 
     ui->operationLimit->setMinimum(50);
-    ui->operationLimit->setMaximum(5000);
+    ui->operationLimit->setMaximum(15000);
     ui->operationLimit->setSingleStep(10);
     ui->operationLimit->setSuffix(" utxos");
 
