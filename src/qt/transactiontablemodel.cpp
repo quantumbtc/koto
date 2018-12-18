@@ -80,6 +80,7 @@ public:
     {
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
+	TransactionRecord::ztxMap.clear();
         {
             LOCK2(cs_main, wallet->cs_wallet);
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
@@ -138,6 +139,7 @@ public:
                     qWarning() << "TransactionTablePriv::updateWallet: Warning: Got CT_NEW, but transaction is not in wallet";
                     break;
                 }
+		TransactionRecord::ztxMap.clear();
                 // Added -- insert at the right position
                 QList<TransactionRecord> toInsert =
                         TransactionRecord::decomposeTransaction(wallet, mi->second);

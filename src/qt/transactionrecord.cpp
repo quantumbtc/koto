@@ -18,8 +18,7 @@
 
 #include <boost/foreach.hpp>
 
-/** Transaction Map for z_listreceivedbyaddress */
-static std::map<std::string, UniValue> ztxMap;
+std::map<std::string, UniValue> TransactionRecord::ztxMap;
 
 /* Return positive answer if transaction should be shown in list.
  */
