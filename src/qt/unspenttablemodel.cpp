@@ -140,10 +140,10 @@ public:
             }
 
             if (zaddrs.size() > 0) {
-                std::vector<CUnspentSproutNotePlaintextEntry> sproutEntries;
-                std::vector<UnspentSaplingNoteEntry> saplingEntries;
-                wallet->GetUnspentFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth);
-                for (CUnspentSproutNotePlaintextEntry & entry : sproutEntries) {
+                std::vector<CSproutNotePlaintextEntry> sproutEntries;
+                std::vector<SaplingNoteEntry> saplingEntries;
+                wallet->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth, true, true, false);
+                for (auto & entry : sproutEntries) {
                     UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("zunspent"));
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
                                                   QString::fromStdString(EncodePaymentAddress(entry.address)),
@@ -152,7 +152,7 @@ public:
                                              )
                     );
                 }
-                for (UnspentSaplingNoteEntry & entry : saplingEntries) {
+                for (SaplingNoteEntry & entry : saplingEntries) {
                     UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("zunspent"));
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
                                                   QString::fromStdString(EncodePaymentAddress(entry.address)),

@@ -43,12 +43,17 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
     def run_test (self):
         print "Mining blocks..."
 
+        if self.addr_type == 'sprout':
+            percentage = 1
+        else:
+            percentage = 0.97
+
         self.nodes[0].generate(1)
         do_not_shield_taddr = self.nodes[0].getnewaddress()
 
         self.nodes[0].generate(4)
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 3920000+400)
+        assert_equal(walletinfo['immature_balance'], (3920000+400)*percentage)
         assert_equal(walletinfo['balance'], 0)
         self.sync_all()
         self.nodes[2].generate(1)
@@ -59,9 +64,9 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
         self.sync_all()
         self.nodes[1].generate(101)
         self.sync_all()
-        assert_equal(self.nodes[0].getbalance(), 3920000+400)
-        assert_equal(self.nodes[1].getbalance(), 100)
-        assert_equal(self.nodes[2].getbalance(), 300)
+        assert_equal(self.nodes[0].getbalance(), (3920000+400)*percentage)
+        assert_equal(self.nodes[1].getbalance(), 100*percentage)
+        assert_equal(self.nodes[2].getbalance(), 300*percentage)
 
         # Prepare to send taddr->zaddr
         mytaddr = self.nodes[0].getnewaddress()
@@ -118,11 +123,15 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
         self.sync_all()
 
         # Confirm balances and that do_not_shield_taddr containing funds of 100 was left alone
-        assert_equal(self.nodes[0].getbalance(), 3920000)
-        assert_equal(self.nodes[0].z_getbalance(do_not_shield_taddr), Decimal('3920000.0'))
-        assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('399.99990000'))
-        assert_equal(self.nodes[1].getbalance(), 200)
-        assert_equal(self.nodes[2].getbalance(), 300)
+        assert_equal(self.nodes[0].getbalance(), 3920000*percentage)
+        if self.addr_type == 'sprout':
+            assert_equal(self.nodes[0].z_getbalance(do_not_shield_taddr), Decimal('3920000.0'))
+            assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('399.99990000'))
+        else:
+            assert_equal(self.nodes[0].z_getbalance(do_not_shield_taddr), Decimal('3802400.0'))
+            assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('387.99990000'))
+        assert_equal(self.nodes[1].getbalance(), 200*percentage)
+        assert_equal(self.nodes[2].getbalance(), 300*percentage)
 
         # Shield coinbase utxos from any node 2 taddr, and set fee to 0
         result = self.nodes[2].z_shieldcoinbase("*", myzaddr, 0)
@@ -131,9 +140,12 @@ class WalletShieldCoinbaseTest (BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance(), 3920000)
-        assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('699.99990000'))
-        assert_equal(self.nodes[1].getbalance(), 300)
+        assert_equal(self.nodes[0].getbalance(), 3920000*percentage)
+        if self.addr_type == 'sprout':
+            assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('699.99990000'))
+        else:
+            assert_equal(self.nodes[0].z_getbalance(myzaddr), Decimal('678.99990000'))
+        assert_equal(self.nodes[1].getbalance(), 300*percentage)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Generate 800 coinbase utxos on node 0, and 20 coinbase utxos on node 2

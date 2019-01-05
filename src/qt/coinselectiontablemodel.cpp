@@ -91,7 +91,7 @@ public:
             std::vector<COutput> vecOutputs;
             std::map<QString, std::vector<COutput> > mapCoins;
 
-            LOCK(wallet->cs_wallet);
+            LOCK2(cs_main, wallet->cs_wallet);
             wallet->AvailableCoins(vecOutputs, false, NULL, true);
 
             BOOST_FOREACH(const COutput& out, vecOutputs) {
@@ -120,8 +120,8 @@ public:
 
             // Z-CoinSelection
             std::set<libzcash::PaymentAddress> zaddrs = {};
-            std::map<QString, std::vector<CUnspentSproutNotePlaintextEntry> > mapZCoins;
-            std::map<QString, std::vector<UnspentSaplingNoteEntry> > mapSaplingZCoins;
+            std::map<QString, std::vector<CSproutNotePlaintextEntry> > mapZCoins;
+            std::map<QString, std::vector<SaplingNoteEntry> > mapSaplingZCoins;
             int nMinDepth = 1;
             int nMaxDepth = 9999999;
 
@@ -145,18 +145,18 @@ public:
             }
 
             if (zaddrs.size() > 0) {
-                std::vector<CUnspentSproutNotePlaintextEntry> sproutEntries;
-		std::vector<UnspentSaplingNoteEntry> saplingEntries;
-                wallet->GetUnspentFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth);
+                std::vector<CSproutNotePlaintextEntry> sproutEntries;
+		std::vector<SaplingNoteEntry> saplingEntries;
+                wallet->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth, true, true, false);
 		std::set<std::pair<libzcash::PaymentAddress, uint256>> nullifierSet = wallet->GetNullifiersForAddresses(zaddrs);
 
-                for (CUnspentSproutNotePlaintextEntry & entry : sproutEntries) {
+                for (auto & entry : sproutEntries) {
                     mapZCoins[QString::fromStdString(EncodePaymentAddress(entry.address))].push_back(entry);
                 }
-                BOOST_FOREACH(const PAIRTYPE(QString, std::vector<CUnspentSproutNotePlaintextEntry>)& coins, mapZCoins) {
+                BOOST_FOREACH(const PAIRTYPE(QString, std::vector<CSproutNotePlaintextEntry>)& coins, mapZCoins) {
                     QString sWalletAddress = coins.first;
                     CAmount nSum = 0;
-                    for (const CUnspentSproutNotePlaintextEntry& entry : coins.second)
+                    for (const auto & entry : coins.second)
                         nSum += CAmount(entry.plaintext.value());
                     if (nSum > 0)
                     {
@@ -165,13 +165,13 @@ public:
                     }
                 }
 
-                for (UnspentSaplingNoteEntry & entry : saplingEntries) {
+                for (SaplingNoteEntry & entry : saplingEntries) {
                     mapSaplingZCoins[QString::fromStdString(EncodePaymentAddress(entry.address))].push_back(entry);
                 }
-                BOOST_FOREACH(const PAIRTYPE(QString, std::vector<UnspentSaplingNoteEntry>)& coins, mapSaplingZCoins) {
+                BOOST_FOREACH(const PAIRTYPE(QString, std::vector<SaplingNoteEntry>)& coins, mapSaplingZCoins) {
                     QString sWalletAddress = coins.first;
                     CAmount nSum = 0;
-                    for (const UnspentSaplingNoteEntry& entry : coins.second)
+                    for (const SaplingNoteEntry& entry : coins.second)
                         nSum += CAmount(entry.note.value());
                     if (nSum > 0)
                     {

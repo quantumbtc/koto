@@ -75,7 +75,7 @@ class WalletProtectCoinbaseTest (BitcoinTestFramework):
 
         # Prepare to send taddr->zaddr
         mytaddr = self.nodes[0].getnewaddress()
-        myzaddr = self.nodes[0].z_getnewaddress()
+        myzaddr = self.nodes[0].z_getnewaddress('sprout')
 
         # Node 3 will test that watch only address utxos are not selected
         self.nodes[3].importaddress(mytaddr)
@@ -236,7 +236,7 @@ class WalletProtectCoinbaseTest (BitcoinTestFramework):
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
         wait_and_assert_operationid_status(self.nodes[0], myopid, "failed", "Insufficient transparent funds, have 100.00, need 100000.0001")
         myopid = self.nodes[0].z_sendmany(myzaddr, recipients)
-        wait_and_assert_operationid_status(self.nodes[0], myopid, "failed", "Insufficient shielded funds, have 9.9998, need 10000.0001")
+        wait_and_assert_operationid_status(self.nodes[0], myopid, "failed", "Insufficient shielded funds, have 99.9998, need 100000.0001")
 
         # Send will fail because of insufficient funds unless sender uses coinbase utxos
         try:
@@ -335,7 +335,7 @@ class WalletProtectCoinbaseTest (BitcoinTestFramework):
         custom_fee = Decimal('0.00012345')
         zbalance = self.nodes[0].z_getbalance(myzaddr)
         for i in xrange(0,num_recipients):
-            newzaddr = self.nodes[2].z_getnewaddress()
+            newzaddr = self.nodes[2].z_getnewaddress('sprout')
             recipients.append({"address":newzaddr, "amount":amount_per_recipient})
         myopid = self.nodes[0].z_sendmany(myzaddr, recipients, minconf, custom_fee)
         wait_and_assert_operationid_status(self.nodes[0], myopid)

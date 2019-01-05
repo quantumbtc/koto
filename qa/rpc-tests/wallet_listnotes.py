@@ -14,7 +14,7 @@ class WalletListNotes(BitcoinTestFramework):
     def setup_nodes(self):
         return start_nodes(4, self.options.tmpdir, [[
             '-nuparams=5ba81b19:202', # Overwinter
-            '-nuparams=76b809bb:204', # Sapling
+            '-nuparams=76b809bb:214', # Sapling
         ]] * 4)
 
     def run_test(self):
@@ -36,7 +36,7 @@ class WalletListNotes(BitcoinTestFramework):
         mining_addr = self.nodes[0].listunspent()[0]['address']
 
         # Shield coinbase funds (must be a multiple of 10, no change allowed pre-sapling)
-        receive_amount_10 = Decimal('10.0') - Decimal('0.0001')
+        receive_amount_10 = Decimal('100.0') - Decimal('0.0001')
         recipients = [{"address":sproutzaddr, "amount":receive_amount_10}]
         myopid = self.nodes[0].z_sendmany(mining_addr, recipients)
         txid_1 = wait_and_assert_operationid_status(self.nodes[0], myopid)
@@ -70,7 +70,7 @@ class WalletListNotes(BitcoinTestFramework):
         assert_equal(202, self.nodes[0].getblockcount())
 
         # Send 1.0 (actually 0.9999) from sproutzaddr to a new zaddr
-        sproutzaddr2 = self.nodes[0].z_getnewaddress()
+        sproutzaddr2 = self.nodes[0].z_getnewaddress('sprout')
         receive_amount_1 = Decimal('1.0') - Decimal('0.0001')
         change_amount_9 = receive_amount_10 - Decimal('1.0')
         assert_equal('sprout', self.nodes[0].z_validateaddress(sproutzaddr2)['type'])
@@ -105,9 +105,9 @@ class WalletListNotes(BitcoinTestFramework):
         assert_equal(unspent_tx[1], unspent_tx_filter[0])
         
         # Set current height to 204 -> Sapling
-        self.nodes[0].generate(2)
+        self.nodes[0].generate(12)
         self.sync_all()
-        assert_equal(204, self.nodes[0].getblockcount())
+        assert_equal(214, self.nodes[0].getblockcount())
         
         # No funds in saplingzaddr yet
         assert_equal(0, len(self.nodes[0].z_listunspent(0, 9999, False, [saplingzaddr])))

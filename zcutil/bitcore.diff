@@ -1,5 +1,5 @@
 diff --git a/.gitignore b/.gitignore
-index 2e148a9..fd2d404 100644
+index 2e148a932..fd2d40423 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -9,6 +9,7 @@ src/koto-tx
@@ -11,29 +11,29 @@ index 2e148a9..fd2d404 100644
  *zcashTest.pk
  *zcashTest.vk
 diff --git a/Makefile.am b/Makefile.am
-index 7a268e4..37676ce 100644
+index 6dbe9e9d9..a8f59b530 100644
 --- a/Makefile.am
 +++ b/Makefile.am
-@@ -16,6 +16,7 @@ BITCOIND_BIN=$(top_builddir)/src/$(BITCOIN_DAEMON_NAME)$(EXEEXT)
- BITCOIN_QT_BIN=$(top_builddir)/src/qt/$(BITCOIN_GUI_NAME)$(EXEEXT)
+@@ -21,6 +21,7 @@ BITCOIN_QT_BIN=$(top_builddir)/src/qt/$(BITCOIN_GUI_NAME)$(EXEEXT)
  BITCOIN_CLI_BIN=$(top_builddir)/src/$(BITCOIN_CLI_NAME)$(EXEEXT)
- BITCOIN_WIN_INSTALLER=$(PACKAGE)-$(PACKAGE_VERSION)-win64-setup$(EXEEXT)
+ BITCOIN_TX_BIN=$(top_builddir)/src/$(BITCOIN_TX_NAME)$(EXEEXT)
+ BITCOIN_WIN_INSTALLER=$(PACKAGE)-$(PACKAGE_VERSION)-win$(WINDOWS_BITS)-setup$(EXEEXT)
 +WALLET_UTILITY_BIN=$(top_builddir)/src/wallet-utility$(EXEEXT)
  
- OSX_APP=Koto-Qt.app
- OSX_DMG=$(PACKAGE)-$(PACKAGE_VERSION)-darwin
-@@ -158,6 +159,9 @@ $(BITCOIND_BIN): FORCE
- $(BITCOIN_CLI_BIN): FORCE
+ empty :=
+ space := $(empty) $(empty)
+@@ -193,6 +194,9 @@ $(BITCOIN_CLI_BIN): FORCE
+ $(BITCOIN_TX_BIN): FORCE
  	$(MAKE) -C src $(@F)
  
 +$(WALLET_UTILITY_BIN): FORCE
 +	$(MAKE) -C src $(@F)
 +
  if USE_LCOV
+ LCOV_FILTER_PATTERN=-p "/usr/include/" -p "/usr/lib/" -p "src/leveldb/" -p "src/univalue" -p "src/snark" -p "src/secp256k1"
  
- baseline.info:
 diff --git a/configure.ac b/configure.ac
-index ad56998..3a82fb7 100644
+index 7dad24f41..0b8f58b26 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -232,7 +232,7 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
@@ -45,7 +45,7 @@ index ad56998..3a82fb7 100644
    [build_bitcoin_utils=$withval],
    [build_bitcoin_utils=yes])
  
-@@ -815,7 +815,7 @@ AC_MSG_CHECKING([whether to build bitcoind])
+@@ -819,7 +819,7 @@ AC_MSG_CHECKING([whether to build bitcoind])
  AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_bitcoind = xyes])
  AC_MSG_RESULT($build_bitcoind)
  
@@ -55,10 +55,10 @@ index ad56998..3a82fb7 100644
  AC_MSG_RESULT($build_bitcoin_utils)
  
 diff --git a/qa/pull-tester/rpc-tests.sh b/qa/pull-tester/rpc-tests.sh
-index e8d8a00..610da2f 100755
+index 3d6be26dd..2cb244b52 100755
 --- a/qa/pull-tester/rpc-tests.sh
 +++ b/qa/pull-tester/rpc-tests.sh
-@@ -53,6 +53,9 @@ testScripts=(
+@@ -54,6 +54,9 @@ testScripts=(
      'key_import_export.py'
      'nodehandling.py'
      'reindex.py'
@@ -70,7 +70,7 @@ index e8d8a00..610da2f 100755
      'disablewallet.py'
 diff --git a/qa/rpc-tests/addressindex.py b/qa/rpc-tests/addressindex.py
 new file mode 100644
-index 0000000..8b0b6d3
+index 000000000..8b0b6d38a
 --- /dev/null
 +++ b/qa/rpc-tests/addressindex.py
 @@ -0,0 +1,349 @@
@@ -425,7 +425,7 @@ index 0000000..8b0b6d3
 +    AddressIndexTest().main()
 diff --git a/qa/rpc-tests/spentindex.py b/qa/rpc-tests/spentindex.py
 new file mode 100644
-index 0000000..1366dbe
+index 000000000..1366dbe31
 --- /dev/null
 +++ b/qa/rpc-tests/spentindex.py
 @@ -0,0 +1,139 @@
@@ -570,7 +570,7 @@ index 0000000..1366dbe
 +    SpentIndexTest().main()
 diff --git a/qa/rpc-tests/timestampindex.py b/qa/rpc-tests/timestampindex.py
 new file mode 100644
-index 0000000..289c81b
+index 000000000..289c81b2a
 --- /dev/null
 +++ b/qa/rpc-tests/timestampindex.py
 @@ -0,0 +1,61 @@
@@ -637,7 +637,7 @@ index 0000000..289c81b
 +    TimestampIndexTest().main()
 diff --git a/qa/rpc-tests/txindex.py b/qa/rpc-tests/txindex.py
 new file mode 100644
-index 0000000..b139253
+index 000000000..b139253b7
 --- /dev/null
 +++ b/qa/rpc-tests/txindex.py
 @@ -0,0 +1,73 @@
@@ -715,7 +715,7 @@ index 0000000..b139253
 +if __name__ == '__main__':
 +    TxIndexTest().main()
 diff --git a/src/Makefile.am b/src/Makefile.am
-index c67df60..7e1ca39 100644
+index 5ced97cb5..75abb576f 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -99,6 +99,9 @@ endif
@@ -737,7 +737,7 @@ index c67df60..7e1ca39 100644
    addrman.h \
    alert.h \
    amount.h \
-@@ -478,6 +483,14 @@ koto_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+@@ -482,6 +487,14 @@ koto_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
  koto_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
  koto_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
  
@@ -752,7 +752,7 @@ index c67df60..7e1ca39 100644
  if TARGET_WINDOWS
  koto_cli_SOURCES += bitcoin-cli-res.rc
  endif
-@@ -494,6 +507,22 @@ koto_cli_LDADD = \
+@@ -498,6 +511,22 @@ koto_cli_LDADD = \
    $(LIBSNARK) \
    $(LIBBITCOIN_CRYPTO) \
    $(LIBZCASH_LIBS)
@@ -776,7 +776,7 @@ index c67df60..7e1ca39 100644
  
  # zcash-tx binary #
 diff --git a/src/Makefile.test.include b/src/Makefile.test.include
-index 75083d1..4773e9b 100644
+index 75083d1a7..4773e9bf3 100644
 --- a/src/Makefile.test.include
 +++ b/src/Makefile.test.include
 @@ -15,7 +15,9 @@ EXTRA_DIST += \
@@ -811,7 +811,7 @@ index 75083d1..4773e9b 100644
  
 diff --git a/src/addressindex.h b/src/addressindex.h
 new file mode 100644
-index 0000000..9e734b8
+index 000000000..9e734b84d
 --- /dev/null
 +++ b/src/addressindex.h
 @@ -0,0 +1,82 @@
@@ -898,7 +898,7 @@ index 0000000..9e734b8
 +
 +#endif // BITCOIN_ADDRESSINDEX_H
 diff --git a/src/dbwrapper.cpp b/src/dbwrapper.cpp
-index b34be5a..3df99cc 100644
+index b34be5af7..3df99cc7e 100644
 --- a/src/dbwrapper.cpp
 +++ b/src/dbwrapper.cpp
 @@ -14,14 +14,14 @@
@@ -937,7 +937,7 @@ index b34be5a..3df99cc 100644
      if (fMemory) {
          penv = leveldb::NewMemEnv(leveldb::Env::Default());
 diff --git a/src/dbwrapper.h b/src/dbwrapper.h
-index e3f9a26..811367b 100644
+index e3f9a2652..811367b5a 100644
 --- a/src/dbwrapper.h
 +++ b/src/dbwrapper.h
 @@ -173,7 +173,7 @@ public:
@@ -950,7 +950,7 @@ index e3f9a26..811367b 100644
  
      template <typename K, typename V>
 diff --git a/src/init.cpp b/src/init.cpp
-index 0b17387..ba28db8 100644
+index 2f2411e32..f480ea2b5 100644
 --- a/src/init.cpp
 +++ b/src/init.cpp
 @@ -373,6 +373,10 @@ std::string HelpMessage(HelpMessageMode mode)
@@ -964,7 +964,7 @@ index 0b17387..ba28db8 100644
      strUsage += HelpMessageGroup(_("Connection options:"));
      strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
      strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), 100));
-@@ -1473,18 +1477,33 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
+@@ -1483,18 +1487,33 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
          }
      }
  
@@ -1000,7 +1000,7 @@ index 0b17387..ba28db8 100644
      LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
      LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
      LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
-@@ -1507,7 +1526,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
+@@ -1517,7 +1536,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                  delete pcoinscatcher;
                  delete pblocktree;
  
@@ -1010,7 +1010,7 @@ index 0b17387..ba28db8 100644
                  pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                  pcoinsTip = new CCoinsViewCache(pcoinscatcher);
 diff --git a/src/main.cpp b/src/main.cpp
-index e49e047..25a280f 100644
+index 7a987eca0..2dcfefb72 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
 @@ -21,6 +21,7 @@
@@ -1031,7 +1031,7 @@ index e49e047..25a280f 100644
  bool fHavePruned = false;
  bool fPruneMode = false;
  bool fIsBareMultisigStd = true;
-@@ -1581,6 +1585,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1595,6 +1599,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
  
          // Store transaction in memory
          pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
@@ -1048,7 +1048,7 @@ index e49e047..25a280f 100644
      }
  
      SyncWithWallets(tx, NULL);
-@@ -1588,6 +1602,55 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1602,6 +1616,55 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
      return true;
  }
  
@@ -1104,7 +1104,7 @@ index e49e047..25a280f 100644
  /** Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock */
  bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
  {
-@@ -2230,11 +2293,54 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2244,11 +2307,54 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
      if (blockUndo.vtxundo.size() + 1 != block.vtx.size())
          return error("DisconnectBlock(): block and undo data inconsistent");
  
@@ -1159,7 +1159,7 @@ index e49e047..25a280f 100644
          // Check that all outputs are available and match the outputs in the block itself
          // exactly.
          {
-@@ -2267,6 +2373,48 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2281,6 +2387,48 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
                  const CTxInUndo &undo = txundo.vprevout[j];
                  if (!ApplyTxInUndo(undo, view, out))
                      fClean = false;
@@ -1208,7 +1208,7 @@ index e49e047..25a280f 100644
              }
          }
      }
-@@ -2285,6 +2433,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2299,6 +2447,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
          view.PopAnchor(SaplingMerkleTree::empty_root(), SAPLING);
      }
  
@@ -1216,7 +1216,7 @@ index e49e047..25a280f 100644
      // move best block pointer to prevout block
      view.SetBestBlock(pindex->pprev->GetBlockHash());
  
-@@ -2293,6 +2442,15 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
+@@ -2307,6 +2456,15 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
          return true;
      }
  
@@ -1232,7 +1232,7 @@ index e49e047..25a280f 100644
      return fClean;
  }
  
-@@ -2460,6 +2618,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2474,6 +2632,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
      std::vector<std::pair<uint256, CDiskTxPos> > vPos;
      vPos.reserve(block.vtx.size());
      blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -1242,7 +1242,7 @@ index e49e047..25a280f 100644
  
      // Construct the incremental merkle tree at the current
      // block position,
-@@ -2490,6 +2651,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2504,6 +2665,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
      for (unsigned int i = 0; i < block.vtx.size(); i++)
      {
          const CTransaction &tx = block.vtx[i];
@@ -1250,7 +1250,7 @@ index e49e047..25a280f 100644
  
          nInputs += tx.vin.size();
          nSigOps += GetLegacySigOpCount(tx);
-@@ -2508,6 +2670,50 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2522,6 +2684,50 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                  return state.DoS(100, error("ConnectBlock(): JoinSplit requirements not met"),
                                   REJECT_INVALID, "bad-txns-joinsplit-requirements-not-met");
  
@@ -1301,7 +1301,7 @@ index e49e047..25a280f 100644
              // Add in sigops done by pay-to-script-hash inputs;
              // this is to prevent a "rogue miner" from creating
              // an incredibly-expensive-to-validate block.
-@@ -2529,6 +2735,43 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2543,6 +2749,43 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
              control.Add(vChecks);
          }
  
@@ -1345,7 +1345,7 @@ index e49e047..25a280f 100644
          CTxUndo undoDummy;
          if (i > 0) {
              blockundo.vtxundo.push_back(CTxUndo());
-@@ -2643,6 +2886,41 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
+@@ -2657,6 +2900,41 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
          if (!pblocktree->WriteTxIndex(vPos))
              return AbortNode(state, "Failed to write transaction index");
  
@@ -1387,7 +1387,7 @@ index e49e047..25a280f 100644
      // add this block to the view's block chain
      view.SetBestBlock(pindex->GetBlockHash());
  
-@@ -4126,6 +4404,18 @@ bool static LoadBlockIndexDB()
+@@ -4138,6 +4416,18 @@ bool static LoadBlockIndexDB()
      pblocktree->ReadFlag("txindex", fTxIndex);
      LogPrintf("%s: transaction index %s\n", __func__, fTxIndex ? "enabled" : "disabled");
  
@@ -1406,7 +1406,7 @@ index e49e047..25a280f 100644
      // Fill in-memory data
      BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
      {
-@@ -4459,6 +4749,18 @@ bool InitBlockIndex() {
+@@ -4471,6 +4761,18 @@ bool InitBlockIndex() {
      // Use the provided setting for -txindex in the new database
      fTxIndex = GetBoolArg("-txindex", false);
      pblocktree->WriteFlag("txindex", fTxIndex);
@@ -1426,7 +1426,7 @@ index e49e047..25a280f 100644
  
      // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
 diff --git a/src/main.h b/src/main.h
-index ca6cc8e..7cf4331 100644
+index 2859cb4db..6533bbd65 100644
 --- a/src/main.h
 +++ b/src/main.h
 @@ -22,6 +22,7 @@
@@ -1437,7 +1437,7 @@ index ca6cc8e..7cf4331 100644
  #include "sync.h"
  #include "tinyformat.h"
  #include "txmempool.h"
-@@ -99,6 +100,11 @@ static const unsigned int DATABASE_FLUSH_INTERVAL = 24 * 60 * 60;
+@@ -101,6 +102,11 @@ static const unsigned int DATABASE_FLUSH_INTERVAL = 24 * 60 * 60;
  /** Maximum length of reject messages. */
  static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
  static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
@@ -1449,7 +1449,7 @@ index ca6cc8e..7cf4331 100644
  
  // Sanity check the magic numbers when we change them
  BOOST_STATIC_ASSERT(DEFAULT_BLOCK_MAX_SIZE <= MAX_BLOCK_SIZE);
-@@ -264,6 +270,313 @@ struct CNodeStateStats {
+@@ -266,6 +272,313 @@ struct CNodeStateStats {
      std::vector<int> vHeightInFlight;
  };
  
@@ -1763,7 +1763,7 @@ index ca6cc8e..7cf4331 100644
  struct CDiskTxPos : public CDiskBlockPos
  {
      unsigned int nTxOffset; // after header
-@@ -428,6 +741,13 @@ public:
+@@ -436,6 +749,13 @@ public:
      ScriptError GetScriptError() const { return error; }
  };
  
@@ -1778,7 +1778,7 @@ index ca6cc8e..7cf4331 100644
  /** Functions for disk access for blocks */
  bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);
 diff --git a/src/rpc/blockchain.cpp b/src/rpc/blockchain.cpp
-index 4a9613d..7f77cb1 100644
+index 4a9613d4c..7f77cb15b 100644
 --- a/src/rpc/blockchain.cpp
 +++ b/src/rpc/blockchain.cpp
 @@ -4,6 +4,7 @@
@@ -2030,7 +2030,7 @@ index 4a9613d..7f77cb1 100644
      { "blockchain",         "getblockheader",         &getblockheader,         true  },
      { "blockchain",         "getchaintips",           &getchaintips,           true  },
 diff --git a/src/rpc/client.cpp b/src/rpc/client.cpp
-index 5288d97..23bd7bc 100644
+index 5288d977e..23bd7bcc4 100644
 --- a/src/rpc/client.cpp
 +++ b/src/rpc/client.cpp
 @@ -99,6 +99,15 @@ static const CRPCConvertParam vRPCConvertParams[] =
@@ -2050,7 +2050,7 @@ index 5288d97..23bd7bc 100644
      { "zcrawjoinsplit", 2 },
      { "zcrawjoinsplit", 3 },
 diff --git a/src/rpc/misc.cpp b/src/rpc/misc.cpp
-index 44c3988..e8b64fb 100644
+index 44c398865..e8b64fbc8 100644
 --- a/src/rpc/misc.cpp
 +++ b/src/rpc/misc.cpp
 @@ -11,6 +11,7 @@
@@ -2632,7 +2632,7 @@ index 44c3988..e8b64fb 100644
      { "hidden",             "setmocktime",            &setmocktime,            true  },
  };
 diff --git a/src/rpc/rawtransaction.cpp b/src/rpc/rawtransaction.cpp
-index 020cad6..3ea6b27 100644
+index 96ab47f86..83b068207 100644
 --- a/src/rpc/rawtransaction.cpp
 +++ b/src/rpc/rawtransaction.cpp
 @@ -66,7 +66,9 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
@@ -2849,7 +2849,7 @@ index 020cad6..3ea6b27 100644
  }
  
 diff --git a/src/script/script.cpp b/src/script/script.cpp
-index d5234ca..ede8ffa 100644
+index d5234cae8..ede8ffa10 100644
 --- a/src/script/script.cpp
 +++ b/src/script/script.cpp
 @@ -201,6 +201,20 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
@@ -2874,7 +2874,7 @@ index d5234ca..ede8ffa 100644
  {
      // Extra-fast test for pay-to-script-hash CScripts:
 diff --git a/src/script/script.h b/src/script/script.h
-index 781a097..21a99d6 100644
+index 781a09773..21a99d6c8 100644
 --- a/src/script/script.h
 +++ b/src/script/script.h
 @@ -565,6 +565,8 @@ public:
@@ -2887,7 +2887,7 @@ index 781a097..21a99d6 100644
  
      /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
 diff --git a/src/serialize.h b/src/serialize.h
-index a22a064..48578d5 100644
+index a22a0643c..48578d551 100644
 --- a/src/serialize.h
 +++ b/src/serialize.h
 @@ -26,6 +26,7 @@
@@ -2923,19 +2923,19 @@ index a22a064..48578d5 100644
  template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
  {
      uint64_t obj;
-@@ -513,6 +525,12 @@ template<typename Stream, unsigned int N, typename T, typename V> void Unseriali
+@@ -512,6 +524,12 @@ template<typename Stream, unsigned int N, typename T> void Unserialize_impl(Stre
+ template<typename Stream, unsigned int N, typename T, typename V> void Unserialize_impl(Stream& is, prevector<N, T>& v, const V&);
  template<typename Stream, unsigned int N, typename T> inline void Unserialize(Stream& is, prevector<N, T>& v);
  
- /**
++/**
 + * CScript
 + */
 +template<typename Stream> void Serialize(Stream& os, const CScript& v);
 +template<typename Stream> void Unserialize(Stream& is, CScript& v);
 +
-+/**
+ /**
   * vector
   * vectors of unsigned char are a special case and are intended to be serialized as a single opaque blob.
-  */
 @@ -748,7 +766,21 @@ inline void Unserialize(Stream& is, std::vector<T, A>& v)
      Unserialize_impl(is, v, T());
  }
@@ -2960,7 +2960,7 @@ index a22a064..48578d5 100644
   * optional
 diff --git a/src/spentindex.h b/src/spentindex.h
 new file mode 100644
-index 0000000..7b9da42
+index 000000000..7b9da423b
 --- /dev/null
 +++ b/src/spentindex.h
 @@ -0,0 +1,98 @@
@@ -3064,10 +3064,10 @@ index 0000000..7b9da42
 +#endif // BITCOIN_SPENTINDEX_H
 diff --git a/src/test/data/wallet.dat b/src/test/data/wallet.dat
 new file mode 100644
-index 0000000..e69de29
+index 000000000..e69de29bb
 diff --git a/src/test/script_P2PKH_tests.cpp b/src/test/script_P2PKH_tests.cpp
 new file mode 100644
-index 0000000..3a7dc16
+index 000000000..3a7dc1660
 --- /dev/null
 +++ b/src/test/script_P2PKH_tests.cpp
 @@ -0,0 +1,59 @@
@@ -3131,7 +3131,7 @@ index 0000000..3a7dc16
 +
 +BOOST_AUTO_TEST_SUITE_END()
 diff --git a/src/test/test_bitcoin.h b/src/test/test_bitcoin.h
-index ae528d6..9f80858 100644
+index ff1ad48e2..6f1a58abd 100644
 --- a/src/test/test_bitcoin.h
 +++ b/src/test/test_bitcoin.h
 @@ -1,6 +1,7 @@
@@ -3144,7 +3144,7 @@ index ae528d6..9f80858 100644
  #include "txdb.h"
 diff --git a/src/test/wallet-utility.py b/src/test/wallet-utility.py
 new file mode 100644
-index 0000000..b853a22
+index 000000000..b853a227e
 --- /dev/null
 +++ b/src/test/wallet-utility.py
 @@ -0,0 +1,61 @@
@@ -3210,7 +3210,7 @@ index 0000000..b853a22
 +        os.remove(datadir + '/db.log')
 +    sys.exit(0)
 diff --git a/src/txdb.cpp b/src/txdb.cpp
-index b4d7fb7..c48a54c 100644
+index b26b1a978..1b23b3143 100644
 --- a/src/txdb.cpp
 +++ b/src/txdb.cpp
 @@ -26,6 +26,11 @@ static const char DB_SAPLING_NULLIFIER = 'S';
@@ -3424,7 +3424,7 @@ index b4d7fb7..c48a54c 100644
  {
      boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 diff --git a/src/txdb.h b/src/txdb.h
-index a415ad2..5b2c8af 100644
+index a415ad2bb..5b2c8afd1 100644
 --- a/src/txdb.h
 +++ b/src/txdb.h
 @@ -17,6 +17,17 @@
@@ -3480,7 +3480,7 @@ index a415ad2..5b2c8af 100644
  
  #endif // BITCOIN_TXDB_H
 diff --git a/src/txmempool.cpp b/src/txmempool.cpp
-index cf04ad5..9287b8f 100644
+index cf04ad577..9287b8ffd 100644
 --- a/src/txmempool.cpp
 +++ b/src/txmempool.cpp
 @@ -121,6 +121,144 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
@@ -3638,7 +3638,7 @@ index cf04ad5..9287b8f 100644
      }
  }
 diff --git a/src/txmempool.h b/src/txmempool.h
-index ec8a851..e3465b0 100644
+index ec8a8518a..e3465b04a 100644
 --- a/src/txmempool.h
 +++ b/src/txmempool.h
 @@ -8,6 +8,8 @@
@@ -3691,7 +3691,7 @@ index ec8a851..e3465b0 100644
      void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags);
 diff --git a/src/wallet-utility.cpp b/src/wallet-utility.cpp
 new file mode 100644
-index 0000000..b54d7f6
+index 000000000..b54d7f67a
 --- /dev/null
 +++ b/src/wallet-utility.cpp
 @@ -0,0 +1,340 @@
