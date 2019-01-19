@@ -7,6 +7,7 @@ $(package)_dependencies=
 $(package)_config_opts=
 
 define $(package)_preprocess_cmds
+  sed -i.old "s/explicit_bzero //" configure.ac && \
   cd $($(package)_build_subdir); ./autogen.sh
 endef
 
