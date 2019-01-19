@@ -1,5 +1,5 @@
 Koto 2.0.2
-<img align="right" width="120" height="80" src="doc/imgs/logo.png">
+<img align="right" width="120" height="120" src="doc/imgs/logo.png">
 =============
 
 What is Koto?
