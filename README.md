@@ -1,6 +1,6 @@
-Koto 2.0.2
+Koto 2.0.3-rc1
 <img align="right" width="120" height="120" src="doc/imgs/logo.png">
-=============
+===========
 
 What is Koto?
 --------------

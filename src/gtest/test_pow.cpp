@@ -69,6 +69,8 @@ TEST(PoW, DifficultyAveraging) {
               GetNextWorkRequired(&blocks[lastBlk], nullptr, params));
 }
 
+#if 0
+/* Not yet activated min difficulty rule */
 TEST(PoW, MinDifficultyRules) {
     SelectParams(CBaseChainParams::TESTNET);
     const Consensus::Params& params = Params().GetConsensus();
@@ -109,3 +111,4 @@ TEST(PoW, MinDifficultyRules) {
     EXPECT_EQ(GetNextWorkRequired(&blocks[lastBlk], &next, params),
               UintToArith256(params.powLimit).GetCompact());
 }
+#endif

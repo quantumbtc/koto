@@ -623,24 +623,28 @@ void static BitcoinMiner()
             pblock->nNonce = 0;
 
             while (true) {
-                    hash = pblock->GetPoWHash();
-                    solutionTargetChecks.increment();
-                    if (UintToArith256(hash) <= hashTarget)
-                    {
-                        // Found a solution
-                        SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                        LogPrintf("KotoMiner:\n");
-                        LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
-                        ProcessBlockFound(pblock, *pwallet, reservekey);
-                        SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                hash = pblock->GetPoWHash();
+                solutionTargetChecks.increment();
+                if (UintToArith256(hash) <= hashTarget)
+                {
+                    // Found a solution
+                    SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                    LogPrintf("KotoMiner:\n");
+                    LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
+#ifdef ENABLE_WALLET
+                    ProcessBlockFound(pblock, *pwallet, reservekey);
+#else
+                    ProcessBlockFound(pblock));
+#endif
+                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
  
-                        // In regression test mode, stop mining after a block is found.
-                        if (chainparams.MineBlocksOnDemand())
-                            throw boost::thread_interrupted();
+                    // In regression test mode, stop mining after a block is found.
+                    if (chainparams.MineBlocksOnDemand())
+                        throw boost::thread_interrupted();
  
-                        break;
-                    }
-                     pblock->nNonce++;
+                    break;
+                }
+                pblock->nNonce++;
                 // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
@@ -694,6 +698,7 @@ void GenerateBitcoins(bool fGenerate, int nThreads)
     if (minerThreads != NULL)
     {
         minerThreads->interrupt_all();
+        minerThreads->join_all();
         delete minerThreads;
         minerThreads = NULL;
     }

@@ -16,6 +16,7 @@ zmqSubSocket.setsockopt(zmq.SUBSCRIBE, "hashblock")
 zmqSubSocket.setsockopt(zmq.SUBSCRIBE, "hashtx")
 zmqSubSocket.setsockopt(zmq.SUBSCRIBE, "rawblock")
 zmqSubSocket.setsockopt(zmq.SUBSCRIBE, "rawtx")
+zmqSubSocket.setsockopt(zmq.SUBSCRIBE, "checkedblock")
 zmqSubSocket.connect("tcp://127.0.0.1:%i" % port)
 
 try:
@@ -35,10 +36,13 @@ try:
             print binascii.hexlify(body)
         elif topic == "rawblock":
             print '- RAW BLOCK HEADER ('+sequence+') -'
-            print binascii.hexlify(body[:80])
+            print binascii.hexlify(body[:112])
         elif topic == "rawtx":
             print '- RAW TX ('+sequence+') -'
             print binascii.hexlify(body)
+        elif topic == "checkedblock":
+            print '- CHECKED BLOCK ('+sequence+') -'
+            print binascii.hexlify(body[:112])
 
 except KeyboardInterrupt:
     zmqContext.destroy()
