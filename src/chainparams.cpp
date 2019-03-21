@@ -109,7 +109,7 @@ public:
         consensus.vUpgrades[Consensus::UPGRADE_SAPLING].nActivationHeight = 556500;
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000c7fbecc758aa");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000d9b55f618ba4");
 
         /**
          * The message start string should be awesome! ⓩ❤
@@ -169,11 +169,15 @@ public:
             (77500, uint256S("0x8ed5cf1de772152f15cb392fd5e686796f77c08386eba922cbe109d4df96381a"))
             (150000, uint256S("0x31d1e2c5aa0a4ece690cb68912ddce8db49f837919bf141e163135dc95ae2bc4"))
             (200000, uint256S("0x134c68f3769274f2757fa32795c0cc9aa2fbf18b47ac3670e57652721011d3b4"))
-            (250000, uint256S("0x5c8d462b6ad46befcc02e50bf8c8ed025e5e8ae41128459f4ab44a265017b055")),
-            1528204155,     // * UNIX timestamp of last checkpoint block
-            872908,         // * total number of transactions between genesis and last checkpoint
+            (300000, uint256S("0xf1fddcac288c30e451a498bd049c8db9d45663f4e7d7c37c37353d2f317b3634"))
+            (400000, uint256S("0x852027615028ba35a7c7173e69b6e59eff0d60585c30658eb0d2c67ba453e029"))
+            (500000, uint256S("0xf2fdfd332036ec8674ba2d1c1a10f2cf2291f41a068ef12c5cb21bd45f7116ed"))
+            (600000, uint256S("0x322d57bb27260cd770a258f8e43b1e08d548f2c6014fbaa38ef65f7ebd521547"))
+            (650000, uint256S("0x825a9cfc0eea84e7c34e524a7cef5f56b5532fa164f3980390419358b530a2ec")),
+            1552309876,     // * UNIX timestamp of last checkpoint block
+            2327592,        // * total number of transactions between genesis and last checkpoint
                             //   (the tx=... number in the SetBestChain debug.log lines)
-            5208            // * estimated number of transactions per day after checkpoint
+            5156            // * estimated number of transactions per day after checkpoint
                             //   total number of tx / (checkpoint block height / (24 * 60))
         };
 
@@ -282,6 +286,14 @@ public:
             86482,
             1465
         };
+
+        // Hardcoded fallback value for the Sprout shielded value pool balance
+        // for nodes that have not reindexed since the introduction of monitoring
+        // in #2795.
+        nSproutValuePoolCheckpointHeight = 478416;
+        nSproutValuePoolCheckpointBalance = 254952316712485;
+        fZIP209Enabled = true;
+        hashSproutValuePoolCheckpointBlock = uint256S("564e2778bed6de32e887109f2aa1d2407db3073cd4f5cbb44398e00b4e458237");
 
 	// Founders reward script expects a vector of multisig addresses
 	vFoundersRewardAddress = {
