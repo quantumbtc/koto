@@ -8,25 +8,20 @@ $(package)_git_commit=06da3b9ac8f278e5d4ae13088cf0a4c03d2c13f5
 $(package)_dependencies=rust $(rust_crates)
 $(package)_patches=cargo.config 0001-Start-using-cargo-clippy-for-CI.patch remove-dev-dependencies.diff
 
+$(package)_rust_target=$(if $(rust_rust_target_$(canonical_host)),$(rust_rust_target_$(canonical_host)),$(canonical_host))
+
 ifeq ($(host_os),mingw32)
 $(package)_library_file=target/x86_64-pc-windows-gnu/release/rustzcash.lib
-else ifeq ($(host_os),darwin)
-ifneq ($(build_os),darwin)
-$(package)_library_file=target/x86_64-apple-darwin/release/librustzcash.a
-else
-$(package)_library_file=target/release/librustzcash.a
-endif
+else ifneq ($(canonical_host),$(build))
+$(package)_library_file=target/$($(package)_rust_target)/release/librustzcash.a
 else
 $(package)_library_file=target/release/librustzcash.a
 endif
 
 define $(package)_set_vars
 $(package)_build_opts=--frozen --release
-$(package)_build_opts_mingw32=--target=x86_64-pc-windows-gnu
-ifeq ($(host_os),darwin)
-ifneq ($(build_os),darwin)
-$(package)_build_opts_darwin=--target=x86_64-apple-darwin
-endif
+ifneq ($(canonical_host),$(build))
+$(package)_build_opts+=--target=$($(package)_rust_target)
 endif
 endef
 
@@ -38,7 +33,7 @@ define $(package)_preprocess_cmds
 endef
 
 define $(package)_build_cmds
-  cargo build --package librustzcash $($(package)_build_opts)
+  $(host_prefix)/native/bin/cargo build --package librustzcash $($(package)_build_opts)
 endef
 
 define $(package)_stage_cmds
