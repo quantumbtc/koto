@@ -89,7 +89,7 @@ class WalletProtectCoinbaseTest (BitcoinTestFramework):
         # This send will fail because our wallet does not allow any change when protecting a coinbase utxo,
         # as it's currently not possible to specify a change address in z_sendmany.
         recipients = []
-        recipients.append({"address":myzaddr, "amount":Decimal('1.23456789')})
+        recipients.append({"address":myzaddr, "amount":Decimal('91.23456789')})
         
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
         error_result = wait_and_assert_operationid_status_result(self.nodes[0], myopid, "failed", ("Change 8.76533211 not allowed. "
@@ -103,7 +103,7 @@ class WalletProtectCoinbaseTest (BitcoinTestFramework):
         assert_equal(params["minconf"], Decimal('1')) # default
         assert_equal(params["fromaddress"], mytaddr)
         assert_equal(params["amounts"][0]["address"], myzaddr)
-        assert_equal(params["amounts"][0]["amount"], Decimal('1.23456789'))
+        assert_equal(params["amounts"][0]["amount"], Decimal('91.23456789'))
 
         # Add viewing key for myzaddr to Node 3
         myviewingkey = self.nodes[0].z_exportviewingkey(myzaddr)

@@ -92,26 +92,26 @@ class TurnstileTest (BitcoinTestFramework):
         dest_addr = self.nodes[0].z_getnewaddress(POOL_NAME.lower())
         taddr0 = get_coinbase_address(self.nodes[0])
         recipients = []
-        recipients.append({"address": dest_addr, "amount": Decimal('10')})
+        recipients.append({"address": dest_addr, "amount": Decimal('3920000')})
         myopid = self.nodes[0].z_sendmany(taddr0, recipients, 1, 0)
         wait_and_assert_operationid_status(self.nodes[0], myopid)
         self.sync_all()
         self.nodes[0].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[0].z_getbalance(dest_addr), Decimal('10'))
+        assert_equal(self.nodes[0].z_getbalance(dest_addr), Decimal('3920000'))
 
         # Verify size of shielded pool
-        self.assert_pool_balance(self.nodes[0], POOL_NAME.lower(), Decimal('10'))
-        self.assert_pool_balance(self.nodes[1], POOL_NAME.lower(), Decimal('10'))
-        self.assert_pool_balance(self.nodes[2], POOL_NAME.lower(), Decimal('10'))
+        self.assert_pool_balance(self.nodes[0], POOL_NAME.lower(), Decimal('3920000'))
+        self.assert_pool_balance(self.nodes[1], POOL_NAME.lower(), Decimal('3920000'))
+        self.assert_pool_balance(self.nodes[2], POOL_NAME.lower(), Decimal('3920000'))
 
         # Relaunch node 0 with in-memory size of value pools set to zero.
         self.restart_and_sync_node(0, TURNSTILE_ARGS)
 
         # Verify size of shielded pool
         self.assert_pool_balance(self.nodes[0], POOL_NAME.lower(), Decimal('0'))
-        self.assert_pool_balance(self.nodes[1], POOL_NAME.lower(), Decimal('10'))
-        self.assert_pool_balance(self.nodes[2], POOL_NAME.lower(), Decimal('10'))
+        self.assert_pool_balance(self.nodes[1], POOL_NAME.lower(), Decimal('3920000'))
+        self.assert_pool_balance(self.nodes[2], POOL_NAME.lower(), Decimal('3920000'))
 
         # Node 0 creates an unshielding transaction
         recipients = []
@@ -172,8 +172,8 @@ class TurnstileTest (BitcoinTestFramework):
 
         # Verify size of shielded pool
         self.assert_pool_balance(self.nodes[0], POOL_NAME.lower(), Decimal('0'))
-        self.assert_pool_balance(self.nodes[1], POOL_NAME.lower(), Decimal('9'))
-        self.assert_pool_balance(self.nodes[2], POOL_NAME.lower(), Decimal('9'))
+        self.assert_pool_balance(self.nodes[1], POOL_NAME.lower(), Decimal('3919999'))
+        self.assert_pool_balance(self.nodes[2], POOL_NAME.lower(), Decimal('3919999'))
 
         # Stop node 0 and check logs to verify the block was rejected as a turnstile violation
         self.nodes[0].stop()

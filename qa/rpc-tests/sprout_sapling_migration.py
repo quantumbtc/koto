@@ -33,12 +33,12 @@ class SproutSaplingMigration(BitcoinTestFramework):
         sproutAddr = self.nodes[0].z_getnewaddress('sprout')
         saplingAddr = self.nodes[0].z_getnewaddress('sapling')
 
-        opid = self.nodes[0].z_sendmany(tAddr, [{"address": sproutAddr, "amount": Decimal('10')}], 1, 0)
+        opid = self.nodes[0].z_sendmany(tAddr, [{"address": sproutAddr, "amount": Decimal('3920000')}], 1, 0)
         wait_and_assert_operationid_status(self.nodes[0], opid)
         self.nodes[0].generate(1)
         self.sync_all()
 
-        assert_equal(self.nodes[0].z_getbalance(sproutAddr), Decimal('10'))
+        assert_equal(self.nodes[0].z_getbalance(sproutAddr), Decimal('3920000'))
         assert_equal(self.nodes[0].z_getbalance(saplingAddr), Decimal('0'))
 
         # Migrate
@@ -73,7 +73,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
 
         # At 498 the mempool will be empty and no funds will have moved
         assert_equal(0, len(self.nodes[0].getrawmempool()), "mempool size at 498")
-        assert_equal(self.nodes[0].z_getbalance(sproutAddr), Decimal('10'))
+        assert_equal(self.nodes[0].z_getbalance(sproutAddr), Decimal('3920000'))
         assert_equal(self.nodes[0].z_getbalance(saplingAddr), Decimal('0'))
 
         self.nodes[0].generate(1)
@@ -92,9 +92,9 @@ class SproutSaplingMigration(BitcoinTestFramework):
         sprout_balance = self.nodes[0].z_getbalance(sproutAddr)
         sapling_balance = self.nodes[0].z_getbalance(saplingAddr)
         print "sprout balance: {}, sapling balance: {}".format(sprout_balance, sapling_balance)
-        assert_true(sprout_balance < Decimal('10'), "Should have less Sprout funds")
+        assert_true(sprout_balance < Decimal('3920000'), "Should have less Sprout funds")
         assert_true(sapling_balance > Decimal('0'), "Should have more Sapling funds")
-        assert_true(sprout_balance + sapling_balance, Decimal('9.9999'))
+        assert_true(sprout_balance + sapling_balance, Decimal('3919999.9999'))
 
 
 if __name__ == '__main__':
