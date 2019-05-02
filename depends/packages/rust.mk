@@ -4,7 +4,7 @@ $(package)_download_path=https://static.rust-lang.org/dist
 $(package)_file_name_linux=rust-$($(package)_version)-x86_64-unknown-linux-gnu.tar.gz
 $(package)_sha256_hash_linux=e024698320d76b74daf0e6e71be3681a1e7923122e3ebd03673fcac3ecc23810
 $(package)_file_name_darwin=rust-$($(package)_version)-x86_64-apple-darwin.tar.gz
-$(package)_sha256_hash_darwin=b736d035a97f830585360e54e3f8877b68c942211cf0a75e805f34bfb36103a6
+$(package)_sha256_hash_darwin=f0dfba507192f9b5c330b5984ba71d57d434475f3d62bd44a39201e36fa76304
 
 # Mapping from GCC canonical hosts to Rust targets
 # If a mapping is not present, we assume they are identical
@@ -17,6 +17,7 @@ endif
 $(package)_rust_std_sha256_hash_aarch64-unknown-linux-gnu=346efe3aef2aff7b71a611bf7661bcec5f9bc4025a599c2866ec5fd330247cb9
 $(package)_rust_std_sha256_hash_x86_64-unknown-linux-gnu=9f2705a3ed3217c13fd55569406c52f590030752f57520312e135223ae930caf
 $(package)_rust_std_sha256_hash_x86_64-pc-windows-gnu=cad5f1454d591c13eeb3657f1c9dbfeb30e648f59680bd0765b94c63e7afc49e
+$(package)_rust_std_sha256_hash_x86_64-apple-darwin=b736d035a97f830585360e54e3f8877b68c942211cf0a75e805f34bfb36103a6
 
 ifneq ($(canonical_host),$(build))
 $(package)_rust_target=$(if $($(package)_rust_target_$(canonical_host)),$($(package)_rust_target_$(canonical_host)),$(canonical_host))
