@@ -7,6 +7,7 @@ $(package)_dependencies=openssl
 
 define $(package)_set_vars
   $(package)_config_opts=--disable-shared --with-ssl
+  $(package)_cflags_aarch64_linux=-fPIC
 endef
 
 define $(package)_config_cmds
