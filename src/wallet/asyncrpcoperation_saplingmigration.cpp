@@ -9,9 +9,11 @@
 #include "tinyformat.h"
 #include "transaction_builder.h"
 #include "util.h"
+#include "utilmoneystr.h"
 #include "wallet.h"
 
 const CAmount FEE = 10000;
+const int MIGRATION_EXPIRY_DELTA = 450;
 
 AsyncRPCOperation_saplingmigration::AsyncRPCOperation_saplingmigration(int targetHeight) : targetHeight_(targetHeight) {}
 
@@ -66,6 +68,7 @@ void AsyncRPCOperation_saplingmigration::main() {
 }
 
 bool AsyncRPCOperation_saplingmigration::main_impl() {
+    LogPrint("zrpcunsafe", "%s: Beginning AsyncRPCOperation_saplingmigration.\n", getId());
     std::vector<CSproutNotePlaintextEntry> sproutEntries;
     std::vector<SaplingNoteEntry> saplingEntries;
     {
@@ -77,11 +80,13 @@ bool AsyncRPCOperation_saplingmigration::main_impl() {
     }
     CAmount availableFunds = 0;
     for (const CSproutNotePlaintextEntry& sproutEntry : sproutEntries) {
-        availableFunds = sproutEntry.plaintext.value();
+        availableFunds += sproutEntry.plaintext.value();
     }
     // If the remaining amount to be migrated is less than 0.01 ZEC, end the migration.
     if (availableFunds < CENT) {
-        setMigrationResult(0);
+        LogPrint("zrpcunsafe", "%s: Available Sprout balance (%s) less than required minimum (%s). Stopping.\n",
+            getId(), FormatMoney(availableFunds), FormatMoney(CENT));
+        setMigrationResult(0, 0, std::vector<std::string>());
         return true;
     }
 
@@ -92,10 +97,15 @@ bool AsyncRPCOperation_saplingmigration::main_impl() {
 
     // Up to the limit of 5, as many transactions are sent as are needed to migrate the remaining funds
     int numTxCreated = 0;
+    CAmount amountMigrated = 0;
+    std::vector<std::string> migrationTxIds;
     int noteIndex = 0;
+    CCoinsViewCache coinsView(pcoinsTip);
     do {
         CAmount amountToSend = chooseAmount(availableFunds);
-        auto builder = TransactionBuilder(consensusParams, targetHeight_, pwalletMain, pzcashParams);
+        auto builder = TransactionBuilder(consensusParams, targetHeight_, MIGRATION_EXPIRY_DELTA, pwalletMain, pzcashParams,
+                                          &coinsView, &cs_main);
+        LogPrint("zrpcunsafe", "%s: Beginning creating transaction with Sapling output amount=%s\n", getId(), FormatMoney(amountToSend - FEE));
         std::vector<CSproutNotePlaintextEntry> fromNotes;
         CAmount fromNoteAmount = 0;
         while (fromNoteAmount < amountToSend) {
@@ -105,6 +115,15 @@ bool AsyncRPCOperation_saplingmigration::main_impl() {
         }
         availableFunds -= fromNoteAmount;
         for (const CSproutNotePlaintextEntry& sproutEntry : fromNotes) {
+            std::string data(sproutEntry.plaintext.memo().begin(), sproutEntry.plaintext.memo().end());
+            LogPrint("zrpcunsafe", "%s: Adding Sprout note input (txid=%s, vjoinsplit=%d, jsoutindex=%d, amount=%s, memo=%s)\n",
+                getId(),
+                sproutEntry.jsop.hash.ToString().substr(0, 10),
+                sproutEntry.jsop.js,
+                int(sproutEntry.jsop.n),  // uint8_t
+                FormatMoney(sproutEntry.plaintext.value()),
+                HexStr(data).substr(0, 10)
+                );
             libzcash::SproutNote sproutNote = sproutEntry.plaintext.note(sproutEntry.address);
             libzcash::SproutSpendingKey sproutSk;
             pwalletMain->GetSproutSpendingKey(sproutEntry.address, sproutSk);
@@ -123,19 +142,30 @@ bool AsyncRPCOperation_saplingmigration::main_impl() {
         builder.AddSaplingOutput(ovkForShieldingFromTaddr(seed), migrationDestAddress, amountToSend - FEE);
         CTransaction tx = builder.Build().GetTxOrThrow();
         if (isCancelled()) {
+            LogPrint("zrpcunsafe", "%s: Canceled. Stopping.\n", getId());
             break;
         }
         pwalletMain->AddPendingSaplingMigrationTx(tx);
+        LogPrint("zrpcunsafe", "%s: Added pending migration transaction with txid=%s\n", getId(), tx.GetHash().ToString());
         ++numTxCreated;
+        amountMigrated += amountToSend - FEE;
+        migrationTxIds.push_back(tx.GetHash().ToString());
     } while (numTxCreated < 5 && availableFunds > CENT);
 
-    setMigrationResult(numTxCreated);
+    LogPrint("zrpcunsafe", "%s: Created %d transactions with total Sapling output amount=%s\n", getId(), numTxCreated, FormatMoney(amountMigrated));
+    setMigrationResult(numTxCreated, amountMigrated, migrationTxIds);
     return true;
 }
 
-void AsyncRPCOperation_saplingmigration::setMigrationResult(int numTxCreated) {
+void AsyncRPCOperation_saplingmigration::setMigrationResult(int numTxCreated, const CAmount& amountMigrated, const std::vector<std::string>& migrationTxIds) {
     UniValue res(UniValue::VOBJ);
     res.push_back(Pair("num_tx_created", numTxCreated));
+    res.push_back(Pair("amount_migrated", FormatMoney(amountMigrated)));
+    UniValue txIds(UniValue::VARR);
+    for (const std::string& txId : migrationTxIds) {
+        txIds.push_back(txId);
+    }
+    res.push_back(Pair("migration_txids", txIds));
     set_result(res);
 }
 
@@ -177,7 +207,7 @@ libzcash::SaplingPaymentAddress AsyncRPCOperation_saplingmigration::getMigration
     libzcash::SaplingExtendedSpendingKey xsk = m_32h_cth.Derive(0 | ZIP32_HARDENED_KEY_LIMIT);
 
     libzcash::SaplingPaymentAddress toAddress = xsk.DefaultAddress();
-    
+
     // Refactor: this is similar logic as in the visitor HaveSpendingKeyForPaymentAddress and is used elsewhere
     libzcash::SaplingIncomingViewingKey ivk;
     libzcash::SaplingFullViewingKey fvk;
@@ -189,6 +219,10 @@ libzcash::SaplingPaymentAddress AsyncRPCOperation_saplingmigration::getMigration
     }
 
     return toAddress;
+}
+
+void AsyncRPCOperation_saplingmigration::cancel() {
+    set_state(OperationStatus::CANCELLED);
 }
 
 UniValue AsyncRPCOperation_saplingmigration::getStatus() const {

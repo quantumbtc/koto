@@ -3892,7 +3892,7 @@ UniValue z_sendmany(const UniValue& params, bool fHelp)
     // Builder (used if Sapling addresses are involved)
     boost::optional<TransactionBuilder> builder;
     if (noSproutAddrs) {
-        builder = TransactionBuilder(Params().GetConsensus(), nextBlockHeight, pwalletMain);
+        builder = TransactionBuilder(Params().GetConsensus(), nextBlockHeight, expiryDelta, pwalletMain);
     }
 
     // Contextual transaction we will build on
@@ -3925,7 +3925,7 @@ UniValue z_setmigration(const UniValue& params, bool fHelp) {
             "Sprout balance, this process may take several weeks. The migration works by sending, up to 5, as many\n"
             "transactions as possible whenever the blockchain reaches a height equal to 499 modulo 500. The transaction\n"
             "amounts are picked according to the random distribution specified in ZIP 308. The migration will end once\n"
-            "the wallet’s Sprout balance is below" + strprintf("%s %s", FormatMoney(CENT), CURRENCY_UNIT) + ".\n"
+            "the wallet’s Sprout balance is below " + strprintf("%s %s", FormatMoney(CENT), CURRENCY_UNIT) + ".\n"
             "\nArguments:\n"
             "1. enabled  (boolean, required) 'true' or 'false' to enable or disable respectively.\n"
         );
@@ -3971,7 +3971,10 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
     {
         std::vector<CSproutNotePlaintextEntry> sproutEntries;
         std::vector<SaplingNoteEntry> saplingEntries;
-        pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, "", 1);
+        std::set<PaymentAddress> noFilter;
+        // Here we are looking for any and all Sprout notes for which we have the spending key, including those
+        // which are locked and/or only exist in the mempool, as they should be included in the unmigrated amount.
+        pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, noFilter, 0, INT_MAX, true, true, false);
         CAmount unmigratedAmount = 0;
         for (const auto& sproutEntry : sproutEntries) {
             unmigratedAmount += sproutEntry.plaintext.value();
@@ -4004,7 +4007,6 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
                 continue;
             }
             migrationTxids.push_back(txPair.first.ToString());
-            CBlockIndex* blockIndex = mapBlockIndex[tx.hashBlock];
             //  A transaction is "finalized" iff it has at least 10 confirmations.
             // TODO: subject to change, if the recommended number of confirmations changes.
             if (tx.GetDepthInMainChain() >= 10) {
@@ -4013,6 +4015,11 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
             } else {
                 unfinalizedMigratedAmount -= tx.valueBalance;
             }
+            // If the transaction is in the mempool it will not be associated with a block yet
+            if (tx.hashBlock.IsNull() || mapBlockIndex[tx.hashBlock] == nullptr) {
+                continue;
+            }
+            CBlockIndex* blockIndex = mapBlockIndex[tx.hashBlock];
             //  The value of "time_started" is the earliest Unix timestamp of any known
             // migration transaction involving this wallet; if there is no such transaction,
             // then the field is absent.
@@ -4226,7 +4233,7 @@ UniValue z_shieldcoinbase(const UniValue& params, bool fHelp)
 
     // Builder (used if Sapling addresses are involved)
     TransactionBuilder builder = TransactionBuilder(
-        Params().GetConsensus(), nextBlockHeight, pwalletMain);
+        Params().GetConsensus(), nextBlockHeight, expiryDelta, pwalletMain);
 
     // Contextual transaction we will build on
     // (used if no Sapling addresses are involved)
@@ -4643,7 +4650,7 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
     // Builder (used if Sapling addresses are involved)
     boost::optional<TransactionBuilder> builder;
     if (isToSaplingZaddr || saplingNoteInputs.size() > 0) {
-        builder = TransactionBuilder(Params().GetConsensus(), nextBlockHeight, pwalletMain);
+        builder = TransactionBuilder(Params().GetConsensus(), nextBlockHeight, expiryDelta, pwalletMain);
     }
     // Create operation and add to global queue
     std::shared_ptr<AsyncRPCQueue> q = getAsyncRPCQueue();
