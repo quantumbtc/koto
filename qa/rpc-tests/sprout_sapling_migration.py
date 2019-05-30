@@ -118,7 +118,10 @@ class SproutSaplingMigration(BitcoinTestFramework):
         # Check that unmigrated amount + unfinalized = starting balance - fee
         status = node.z_getmigrationstatus()
         print("status: {}".format(status))
-        assert_equal(Decimal('9.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
+        if target_height == 500:
+            assert_equal(Decimal('3919999.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
+        else:
+            assert_equal(Decimal('96.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
 
         # The transaction in the mempool should be the one listed in migration_txids,
         # and it should expire at the next 450 % 500.
