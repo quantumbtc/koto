@@ -1,831 +1,11 @@
-diff --git a/.gitignore b/.gitignore
-index 2e148a9..fd2d404 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -9,6 +9,7 @@ src/koto-tx
- src/test/test_bitcoin
- src/test/test_bitcoin_fuzzy
- src/qt/test/test_koto-qt
-+src/wallet-utility
- 
- *zcashTest.pk
- *zcashTest.vk
-diff --git a/Makefile.am b/Makefile.am
-index 6dbe9e9..a8f59b5 100644
---- a/Makefile.am
-+++ b/Makefile.am
-@@ -21,6 +21,7 @@ BITCOIN_QT_BIN=$(top_builddir)/src/qt/$(BITCOIN_GUI_NAME)$(EXEEXT)
- BITCOIN_CLI_BIN=$(top_builddir)/src/$(BITCOIN_CLI_NAME)$(EXEEXT)
- BITCOIN_TX_BIN=$(top_builddir)/src/$(BITCOIN_TX_NAME)$(EXEEXT)
- BITCOIN_WIN_INSTALLER=$(PACKAGE)-$(PACKAGE_VERSION)-win$(WINDOWS_BITS)-setup$(EXEEXT)
-+WALLET_UTILITY_BIN=$(top_builddir)/src/wallet-utility$(EXEEXT)
- 
- empty :=
- space := $(empty) $(empty)
-@@ -193,6 +194,9 @@ $(BITCOIN_CLI_BIN): FORCE
- $(BITCOIN_TX_BIN): FORCE
- 	$(MAKE) -C src $(@F)
- 
-+$(WALLET_UTILITY_BIN): FORCE
-+	$(MAKE) -C src $(@F)
-+
- if USE_LCOV
- LCOV_FILTER_PATTERN=-p "/usr/include/" -p "/usr/lib/" -p "src/leveldb/" -p "src/univalue" -p "src/snark" -p "src/secp256k1"
- 
-diff --git a/configure.ac b/configure.ac
-index 68b7e26..e7e5033 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -232,7 +232,7 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
- 
- AC_ARG_WITH([utils],
-   [AS_HELP_STRING([--with-utils],
--  [build koto-cli koto-tx (default=yes)])],
-+  [build koto-cli koto-tx wallet-utility (default=yes)])],
-   [build_bitcoin_utils=$withval],
-   [build_bitcoin_utils=yes])
- 
-@@ -827,7 +827,7 @@ AC_MSG_CHECKING([whether to build bitcoind])
- AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_bitcoind = xyes])
- AC_MSG_RESULT($build_bitcoind)
- 
--AC_MSG_CHECKING([whether to build utils (koto-cli koto-tx)])
-+AC_MSG_CHECKING([whether to build utils (koto-cli koto-tx wallet-utility)])
- AM_CONDITIONAL([BUILD_BITCOIN_UTILS], [test x$build_bitcoin_utils = xyes])
- AC_MSG_RESULT($build_bitcoin_utils)
- 
-diff --git a/qa/pull-tester/rpc-tests.sh b/qa/pull-tester/rpc-tests.sh
-index 3d6be26..2cb244b 100755
---- a/qa/pull-tester/rpc-tests.sh
-+++ b/qa/pull-tester/rpc-tests.sh
-@@ -54,6 +54,9 @@ testScripts=(
-     'key_import_export.py'
-     'nodehandling.py'
-     'reindex.py'
-+    'addressindex.py'
-+    'timestampindex.py'
-+    'spentindex.py'
-     'decodescript.py'
-     'blockchain.py'
-     'disablewallet.py'
-diff --git a/qa/rpc-tests/addressindex.py b/qa/rpc-tests/addressindex.py
-new file mode 100644
-index 0000000..8b0b6d3
---- /dev/null
-+++ b/qa/rpc-tests/addressindex.py
-@@ -0,0 +1,349 @@
-+#!/usr/bin/env python2
-+# Copyright (c) 2014-2015 The Bitcoin Core developers
-+# Distributed under the MIT software license, see the accompanying
-+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#
-+# Test addressindex generation and fetching
-+#
-+
-+import time
-+from test_framework.test_framework import BitcoinTestFramework
-+from test_framework.util import *
-+from test_framework.script import *
-+from test_framework.mininode import *
-+import binascii
-+
-+class AddressIndexTest(BitcoinTestFramework):
-+
-+    def setup_chain(self):
-+        print("Initializing test directory "+self.options.tmpdir)
-+        initialize_chain_clean(self.options.tmpdir, 4)
-+
-+    def setup_network(self):
-+        self.nodes = []
-+        # Nodes 0/1 are "wallet" nodes
-+        self.nodes.append(start_node(0, self.options.tmpdir, ["-debug", "-relaypriority=0"]))
-+        self.nodes.append(start_node(1, self.options.tmpdir, ["-debug", "-addressindex"]))
-+        # Nodes 2/3 are used for testing
-+        self.nodes.append(start_node(2, self.options.tmpdir, ["-debug", "-addressindex", "-relaypriority=0"]))
-+        self.nodes.append(start_node(3, self.options.tmpdir, ["-debug", "-addressindex"]))
-+        connect_nodes(self.nodes[0], 1)
-+        connect_nodes(self.nodes[0], 2)
-+        connect_nodes(self.nodes[0], 3)
-+
-+        self.is_network_split = False
-+        self.sync_all()
-+
-+    def run_test(self):
-+        print "Mining blocks..."
-+        self.nodes[0].generate(105)
-+        self.sync_all()
-+
-+        chain_height = self.nodes[1].getblockcount()
-+        assert_equal(chain_height, 105)
-+        assert_equal(self.nodes[1].getbalance(), 0)
-+        assert_equal(self.nodes[2].getbalance(), 0)
-+
-+        # Check that balances are correct
-+        balance0 = self.nodes[1].getaddressbalance("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br")
-+        assert_equal(balance0["balance"], 0)
-+
-+        # Check p2pkh and p2sh address indexes
-+        print "Testing p2pkh and p2sh address index..."
-+
-+        txid0 = self.nodes[0].sendtoaddress("mo9ncXisMeAoXwqcV5EWuyncbmCcQN4rVs", 10)
-+        self.nodes[0].generate(1)
-+
-+        txidb0 = self.nodes[0].sendtoaddress("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br", 10)
-+        self.nodes[0].generate(1)
-+
-+        txid1 = self.nodes[0].sendtoaddress("mo9ncXisMeAoXwqcV5EWuyncbmCcQN4rVs", 15)
-+        self.nodes[0].generate(1)
-+
-+        txidb1 = self.nodes[0].sendtoaddress("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br", 15)
-+        self.nodes[0].generate(1)
-+
-+        txid2 = self.nodes[0].sendtoaddress("mo9ncXisMeAoXwqcV5EWuyncbmCcQN4rVs", 20)
-+        self.nodes[0].generate(1)
-+
-+        txidb2 = self.nodes[0].sendtoaddress("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br", 20)
-+        self.nodes[0].generate(1)
-+
-+        self.sync_all()
-+
-+        txids = self.nodes[1].getaddresstxids("mo9ncXisMeAoXwqcV5EWuyncbmCcQN4rVs")
-+        assert_equal(len(txids), 3)
-+        assert_equal(txids[0], txid0)
-+        assert_equal(txids[1], txid1)
-+        assert_equal(txids[2], txid2)
-+
-+        txidsb = self.nodes[1].getaddresstxids("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br")
-+        assert_equal(len(txidsb), 3)
-+        assert_equal(txidsb[0], txidb0)
-+        assert_equal(txidsb[1], txidb1)
-+        assert_equal(txidsb[2], txidb2)
-+
-+        # Check that limiting by height works
-+        print "Testing querying txids by range of block heights.."
-+        height_txids = self.nodes[1].getaddresstxids({
-+            "addresses": ["2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br"],
-+            "start": 105,
-+            "end": 110
-+        })
-+        assert_equal(len(height_txids), 2)
-+        assert_equal(height_txids[0], txidb0)
-+        assert_equal(height_txids[1], txidb1)
-+
-+        # Check that multiple addresses works
-+        multitxids = self.nodes[1].getaddresstxids({"addresses": ["2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br", "mo9ncXisMeAoXwqcV5EWuyncbmCcQN4rVs"]})
-+        assert_equal(len(multitxids), 6)
-+        assert_equal(multitxids[0], txid0)
-+        assert_equal(multitxids[1], txidb0)
-+        assert_equal(multitxids[2], txid1)
-+        assert_equal(multitxids[3], txidb1)
-+        assert_equal(multitxids[4], txid2)
-+        assert_equal(multitxids[5], txidb2)
-+
-+        # Check that balances are correct
-+        balance0 = self.nodes[1].getaddressbalance("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br")
-+        assert_equal(balance0["balance"], 45 * 100000000)
-+
-+        # Check that outputs with the same address will only return one txid
-+        print "Testing for txid uniqueness..."
-+        addressHash = "6349a418fc4578d10a372b54b45c280cc8c4382f".decode("hex")
-+        scriptPubKey = CScript([OP_HASH160, addressHash, OP_EQUAL])
-+        unspent = self.nodes[0].listunspent()
-+        tx = CTransaction()
-+        tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-+        tx.vout = [CTxOut(10, scriptPubKey), CTxOut(11, scriptPubKey)]
-+        tx.rehash()
-+
-+        signed_tx = self.nodes[0].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], True)
-+
-+        self.nodes[0].generate(1)
-+        self.sync_all()
-+
-+        txidsmany = self.nodes[1].getaddresstxids("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br")
-+        assert_equal(len(txidsmany), 4)
-+        assert_equal(txidsmany[3], sent_txid)
-+
-+        # Check that balances are correct
-+        print "Testing balances..."
-+        balance0 = self.nodes[1].getaddressbalance("2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br")
-+        assert_equal(balance0["balance"], 45 * 100000000 + 21)
-+
-+        # Check that balances are correct after spending
-+        print "Testing balances after spending..."
-+        privkey2 = "cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG"
-+        address2 = "mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW"
-+        addressHash2 = "0b2f0a0c31bfe0406b0ccc1381fdbe311946dadc".decode("hex")
-+        scriptPubKey2 = CScript([OP_DUP, OP_HASH160, addressHash2, OP_EQUALVERIFY, OP_CHECKSIG])
-+        self.nodes[0].importprivkey(privkey2)
-+
-+        unspent = self.nodes[0].listunspent()
-+        tx = CTransaction()
-+        tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-+        amount = unspent[0]["amount"] * 100000000
-+        tx.vout = [CTxOut(amount, scriptPubKey2)]
-+        tx.rehash()
-+        signed_tx = self.nodes[0].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        spending_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], True)
-+        self.nodes[0].generate(1)
-+        self.sync_all()
-+        balance1 = self.nodes[1].getaddressbalance(address2)
-+        assert_equal(balance1["balance"], amount)
-+
-+        tx = CTransaction()
-+        tx.vin = [CTxIn(COutPoint(int(spending_txid, 16), 0))]
-+        send_amount = 1 * 100000000 + 12840
-+        change_amount = amount - send_amount - 10000
-+        tx.vout = [CTxOut(change_amount, scriptPubKey2), CTxOut(send_amount, scriptPubKey)]
-+        tx.rehash()
-+
-+        signed_tx = self.nodes[0].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], True)
-+        self.nodes[0].generate(1)
-+        self.sync_all()
-+
-+        balance2 = self.nodes[1].getaddressbalance(address2)
-+        assert_equal(balance2["balance"], change_amount)
-+
-+        # Check that deltas are returned correctly
-+        deltas = self.nodes[1].getaddressdeltas({"addresses": [address2], "start": 1, "end": 200})
-+        balance3 = 0
-+        for delta in deltas:
-+            balance3 += delta["satoshis"]
-+        assert_equal(balance3, change_amount)
-+        assert_equal(deltas[0]["address"], address2)
-+        assert_equal(deltas[0]["blockindex"], 1)
-+
-+        # Check that entire range will be queried
-+        deltasAll = self.nodes[1].getaddressdeltas({"addresses": [address2]})
-+        assert_equal(len(deltasAll), len(deltas))
-+
-+        # Check that deltas can be returned from range of block heights
-+        deltas = self.nodes[1].getaddressdeltas({"addresses": [address2], "start": 113, "end": 113})
-+        assert_equal(len(deltas), 1)
-+
-+        # Check that unspent outputs can be queried
-+        print "Testing utxos..."
-+        utxos = self.nodes[1].getaddressutxos({"addresses": [address2]})
-+        assert_equal(len(utxos), 1)
-+        assert_equal(utxos[0]["satoshis"], change_amount)
-+
-+        # Check that indexes will be updated with a reorg
-+        print "Testing reorg..."
-+
-+        best_hash = self.nodes[0].getbestblockhash()
-+        self.nodes[0].invalidateblock(best_hash)
-+        self.nodes[1].invalidateblock(best_hash)
-+        self.nodes[2].invalidateblock(best_hash)
-+        self.nodes[3].invalidateblock(best_hash)
-+        self.sync_all()
-+
-+        balance4 = self.nodes[1].getaddressbalance(address2)
-+        assert_equal(balance4, balance1)
-+
-+        utxos2 = self.nodes[1].getaddressutxos({"addresses": [address2]})
-+        assert_equal(len(utxos2), 1)
-+        assert_equal(utxos2[0]["satoshis"], amount)
-+
-+        # Check sorting of utxos
-+        self.nodes[2].generate(150)
-+
-+        txidsort1 = self.nodes[2].sendtoaddress(address2, 50)
-+        self.nodes[2].generate(1)
-+        txidsort2 = self.nodes[2].sendtoaddress(address2, 50)
-+        self.nodes[2].generate(1)
-+        self.sync_all()
-+
-+        utxos3 = self.nodes[1].getaddressutxos({"addresses": [address2]})
-+        assert_equal(len(utxos3), 3)
-+        assert_equal(utxos3[0]["height"], 114)
-+        assert_equal(utxos3[1]["height"], 264)
-+        assert_equal(utxos3[2]["height"], 265)
-+
-+        # Check mempool indexing
-+        print "Testing mempool indexing..."
-+
-+        privKey3 = "cVfUn53hAbRrDEuMexyfgDpZPhF7KqXpS8UZevsyTDaugB7HZ3CD"
-+        address3 = "mw4ynwhS7MmrQ27hr82kgqu7zryNDK26JB"
-+        addressHash3 = "aa9872b5bbcdb511d89e0e11aa27da73fd2c3f50".decode("hex")
-+        scriptPubKey3 = CScript([OP_DUP, OP_HASH160, addressHash3, OP_EQUALVERIFY, OP_CHECKSIG])
-+        address4 = "2N8oFVB2vThAKury4vnLquW2zVjsYjjAkYQ"
-+        scriptPubKey4 = CScript([OP_HASH160, addressHash3, OP_EQUAL])
-+        unspent = self.nodes[2].listunspent()
-+
-+        tx = CTransaction()
-+        tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-+        amount = unspent[0]["amount"] * 100000000
-+        tx.vout = [CTxOut(amount, scriptPubKey3)]
-+        tx.rehash()
-+        signed_tx = self.nodes[2].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        memtxid1 = self.nodes[2].sendrawtransaction(signed_tx["hex"], True)
-+        time.sleep(2)
-+
-+        tx2 = CTransaction()
-+        tx2.vin = [CTxIn(COutPoint(int(unspent[1]["txid"], 16), unspent[1]["vout"]))]
-+        amount = unspent[1]["amount"] * 100000000
-+        tx2.vout = [
-+            CTxOut(amount / 4, scriptPubKey3),
-+            CTxOut(amount / 4, scriptPubKey3),
-+            CTxOut(amount / 4, scriptPubKey4),
-+            CTxOut(amount / 4, scriptPubKey4)
-+        ]
-+        tx2.rehash()
-+        signed_tx2 = self.nodes[2].signrawtransaction(binascii.hexlify(tx2.serialize()).decode("utf-8"))
-+        memtxid2 = self.nodes[2].sendrawtransaction(signed_tx2["hex"], True)
-+        time.sleep(2)
-+
-+        mempool = self.nodes[2].getaddressmempool({"addresses": [address3]})
-+        assert_equal(len(mempool), 3)
-+        assert_equal(mempool[0]["txid"], memtxid1)
-+        assert_equal(mempool[0]["address"], address3)
-+        assert_equal(mempool[0]["index"], 0)
-+        assert_equal(mempool[1]["txid"], memtxid2)
-+        assert_equal(mempool[1]["index"], 0)
-+        assert_equal(mempool[2]["txid"], memtxid2)
-+        assert_equal(mempool[2]["index"], 1)
-+
-+        self.nodes[2].generate(1);
-+        self.sync_all();
-+        mempool2 = self.nodes[2].getaddressmempool({"addresses": [address3]})
-+        assert_equal(len(mempool2), 0)
-+
-+        tx = CTransaction()
-+        tx.vin = [
-+            CTxIn(COutPoint(int(memtxid2, 16), 0)),
-+            CTxIn(COutPoint(int(memtxid2, 16), 1))
-+        ]
-+        tx.vout = [CTxOut(amount / 2 - 10000, scriptPubKey2)]
-+        tx.rehash()
-+        self.nodes[2].importprivkey(privKey3)
-+        signed_tx3 = self.nodes[2].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        memtxid3 = self.nodes[2].sendrawtransaction(signed_tx3["hex"], True)
-+        time.sleep(2)
-+
-+        mempool3 = self.nodes[2].getaddressmempool({"addresses": [address3]})
-+        assert_equal(len(mempool3), 2)
-+        assert_equal(mempool3[0]["prevtxid"], memtxid2)
-+        assert_equal(mempool3[0]["prevout"], 0)
-+        assert_equal(mempool3[1]["prevtxid"], memtxid2)
-+        assert_equal(mempool3[1]["prevout"], 1)
-+
-+        # sending and receiving to the same address
-+        privkey1 = "cQY2s58LhzUCmEXN8jtAp1Etnijx78YRZ466w4ikX1V4UpTpbsf8"
-+        address1 = "myAUWSHnwsQrhuMWv4Br6QsCnpB41vFwHn"
-+        address1hash = "c192bff751af8efec15135d42bfeedf91a6f3e34".decode("hex")
-+        address1script = CScript([OP_DUP, OP_HASH160, address1hash, OP_EQUALVERIFY, OP_CHECKSIG])
-+
-+        self.nodes[0].sendtoaddress(address1, 10)
-+        self.nodes[0].generate(1)
-+        self.sync_all()
-+
-+        utxos = self.nodes[1].getaddressutxos({"addresses": [address1]})
-+        assert_equal(len(utxos), 1)
-+
-+        tx = CTransaction()
-+        tx.vin = [
-+            CTxIn(COutPoint(int(utxos[0]["txid"], 16), utxos[0]["outputIndex"]))
-+        ]
-+        amount = utxos[0]["satoshis"] - 1000
-+        tx.vout = [CTxOut(amount, address1script)]
-+        tx.rehash()
-+        self.nodes[0].importprivkey(privkey1)
-+        signed_tx = self.nodes[0].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        mem_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], True)
-+
-+        self.sync_all()
-+        mempool_deltas = self.nodes[2].getaddressmempool({"addresses": [address1]})
-+        assert_equal(len(mempool_deltas), 2)
-+
-+        # Include chaininfo in results
-+        print "Testing results with chain info..."
-+
-+        deltas_with_info = self.nodes[1].getaddressdeltas({
-+            "addresses": [address2],
-+            "start": 1,
-+            "end": 200,
-+            "chainInfo": True
-+        })
-+        start_block_hash = self.nodes[1].getblockhash(1);
-+        end_block_hash = self.nodes[1].getblockhash(200);
-+        assert_equal(deltas_with_info["start"]["height"], 1)
-+        assert_equal(deltas_with_info["start"]["hash"], start_block_hash)
-+        assert_equal(deltas_with_info["end"]["height"], 200)
-+        assert_equal(deltas_with_info["end"]["hash"], end_block_hash)
-+
-+        utxos_with_info = self.nodes[1].getaddressutxos({"addresses": [address2], "chainInfo": True})
-+        expected_tip_block_hash = self.nodes[1].getblockhash(267);
-+        assert_equal(utxos_with_info["height"], 267)
-+        assert_equal(utxos_with_info["hash"], expected_tip_block_hash)
-+
-+        print "Passed\n"
-+
-+
-+if __name__ == '__main__':
-+    AddressIndexTest().main()
-diff --git a/qa/rpc-tests/spentindex.py b/qa/rpc-tests/spentindex.py
-new file mode 100644
-index 0000000..1366dbe
---- /dev/null
-+++ b/qa/rpc-tests/spentindex.py
-@@ -0,0 +1,139 @@
-+#!/usr/bin/env python2
-+# Copyright (c) 2014-2015 The Bitcoin Core developers
-+# Distributed under the MIT software license, see the accompanying
-+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#
-+# Test addressindex generation and fetching
-+#
-+
-+import time
-+from test_framework.test_framework import BitcoinTestFramework
-+from test_framework.util import *
-+from test_framework.script import *
-+from test_framework.mininode import *
-+import binascii
-+
-+class SpentIndexTest(BitcoinTestFramework):
-+
-+    def setup_chain(self):
-+        print("Initializing test directory "+self.options.tmpdir)
-+        initialize_chain_clean(self.options.tmpdir, 4)
-+
-+    def setup_network(self):
-+        self.nodes = []
-+        # Nodes 0/1 are "wallet" nodes
-+        self.nodes.append(start_node(0, self.options.tmpdir, ["-debug"]))
-+        self.nodes.append(start_node(1, self.options.tmpdir, ["-debug", "-spentindex"]))
-+        # Nodes 2/3 are used for testing
-+        self.nodes.append(start_node(2, self.options.tmpdir, ["-debug", "-spentindex"]))
-+        self.nodes.append(start_node(3, self.options.tmpdir, ["-debug", "-spentindex", "-txindex"]))
-+        connect_nodes(self.nodes[0], 1)
-+        connect_nodes(self.nodes[0], 2)
-+        connect_nodes(self.nodes[0], 3)
-+
-+        self.is_network_split = False
-+        self.sync_all()
-+
-+    def run_test(self):
-+        print "Mining blocks..."
-+        self.nodes[0].generate(105)
-+        self.sync_all()
-+
-+        chain_height = self.nodes[1].getblockcount()
-+        assert_equal(chain_height, 105)
-+
-+        # Check that
-+        print "Testing spent index..."
-+
-+        privkey = "cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG"
-+        address = "mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW"
-+        addressHash = "0b2f0a0c31bfe0406b0ccc1381fdbe311946dadc".decode("hex")
-+        scriptPubKey = CScript([OP_DUP, OP_HASH160, addressHash, OP_EQUALVERIFY, OP_CHECKSIG])
-+        unspent = self.nodes[0].listunspent()
-+        tx = CTransaction()
-+        amount = unspent[0]["amount"] * 100000000
-+        tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-+        tx.vout = [CTxOut(amount, scriptPubKey)]
-+        tx.rehash()
-+
-+        signed_tx = self.nodes[0].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], True)
-+        self.nodes[0].generate(1)
-+        self.sync_all()
-+
-+        print "Testing getspentinfo method..."
-+
-+        # Check that the spentinfo works standalone
-+        info = self.nodes[1].getspentinfo({"txid": unspent[0]["txid"], "index": unspent[0]["vout"]})
-+        assert_equal(info["txid"], txid)
-+        assert_equal(info["index"], 0)
-+        assert_equal(info["height"], 106)
-+
-+        print "Testing getrawtransaction method..."
-+
-+        # Check that verbose raw transaction includes spent info
-+        txVerbose = self.nodes[3].getrawtransaction(unspent[0]["txid"], 1)
-+        assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentTxId"], txid)
-+        assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentIndex"], 0)
-+        assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentHeight"], 106)
-+
-+        # Check that verbose raw transaction includes input values
-+        txVerbose2 = self.nodes[3].getrawtransaction(txid, 1)
-+        assert_equal(txVerbose2["vin"][0]["value"], Decimal(unspent[0]["amount"]))
-+        assert_equal(txVerbose2["vin"][0]["valueSat"], amount)
-+
-+        # Check that verbose raw transaction includes address values and input values
-+        privkey2 = "cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG"
-+        address2 = "mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW"
-+        addressHash2 = "0b2f0a0c31bfe0406b0ccc1381fdbe311946dadc".decode("hex")
-+        scriptPubKey2 = CScript([OP_DUP, OP_HASH160, addressHash2, OP_EQUALVERIFY, OP_CHECKSIG])
-+        tx2 = CTransaction()
-+        tx2.vin = [CTxIn(COutPoint(int(txid, 16), 0))]
-+        tx2.vout = [CTxOut(amount, scriptPubKey2)]
-+        tx.rehash()
-+        self.nodes[0].importprivkey(privkey)
-+        signed_tx2 = self.nodes[0].signrawtransaction(binascii.hexlify(tx2.serialize()).decode("utf-8"))
-+        txid2 = self.nodes[0].sendrawtransaction(signed_tx2["hex"], True)
-+
-+        # Check the mempool index
-+        self.sync_all()
-+        txVerbose3 = self.nodes[1].getrawtransaction(txid2, 1)
-+        assert_equal(txVerbose3["vin"][0]["address"], address2)
-+        assert_equal(txVerbose3["vin"][0]["value"], Decimal(unspent[0]["amount"]))
-+        assert_equal(txVerbose3["vin"][0]["valueSat"], amount)
-+
-+        # Check the database index
-+        block_hash = self.nodes[0].generate(1)
-+        self.sync_all()
-+
-+        txVerbose4 = self.nodes[3].getrawtransaction(txid2, 1)
-+        assert_equal(txVerbose4["vin"][0]["address"], address2)
-+        assert_equal(txVerbose4["vin"][0]["value"], Decimal(unspent[0]["amount"]))
-+        assert_equal(txVerbose4["vin"][0]["valueSat"], amount)
-+
-+
-+        # Check block deltas
-+        print "Testing getblockdeltas..."
-+
-+        block = self.nodes[3].getblockdeltas(block_hash[0])
-+        assert_equal(len(block["deltas"]), 2)
-+        assert_equal(block["deltas"][0]["index"], 0)
-+        assert_equal(len(block["deltas"][0]["inputs"]), 0)
-+        assert_equal(len(block["deltas"][0]["outputs"]), 0)
-+        assert_equal(block["deltas"][1]["index"], 1)
-+        assert_equal(block["deltas"][1]["txid"], txid2)
-+        assert_equal(block["deltas"][1]["inputs"][0]["index"], 0)
-+        assert_equal(block["deltas"][1]["inputs"][0]["address"], "mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW")
-+        assert_equal(block["deltas"][1]["inputs"][0]["satoshis"], amount * -1)
-+        assert_equal(block["deltas"][1]["inputs"][0]["prevtxid"], txid)
-+        assert_equal(block["deltas"][1]["inputs"][0]["prevout"], 0)
-+        assert_equal(block["deltas"][1]["outputs"][0]["index"], 0)
-+        assert_equal(block["deltas"][1]["outputs"][0]["address"], "mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW")
-+        assert_equal(block["deltas"][1]["outputs"][0]["satoshis"], amount)
-+
-+        print "Passed\n"
-+
-+
-+if __name__ == '__main__':
-+    SpentIndexTest().main()
-diff --git a/qa/rpc-tests/timestampindex.py b/qa/rpc-tests/timestampindex.py
-new file mode 100644
-index 0000000..289c81b
---- /dev/null
-+++ b/qa/rpc-tests/timestampindex.py
-@@ -0,0 +1,61 @@
-+#!/usr/bin/env python2
-+# Copyright (c) 2014-2015 The Bitcoin Core developers
-+# Distributed under the MIT software license, see the accompanying
-+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#
-+# Test timestampindex generation and fetching
-+#
-+
-+import time
-+
-+from test_framework.test_framework import BitcoinTestFramework
-+from test_framework.util import *
-+
-+
-+class TimestampIndexTest(BitcoinTestFramework):
-+
-+    def setup_chain(self):
-+        print("Initializing test directory "+self.options.tmpdir)
-+        initialize_chain_clean(self.options.tmpdir, 4)
-+
-+    def setup_network(self):
-+        self.nodes = []
-+        # Nodes 0/1 are "wallet" nodes
-+        self.nodes.append(start_node(0, self.options.tmpdir, ["-debug"]))
-+        self.nodes.append(start_node(1, self.options.tmpdir, ["-debug", "-timestampindex"]))
-+        # Nodes 2/3 are used for testing
-+        self.nodes.append(start_node(2, self.options.tmpdir, ["-debug"]))
-+        self.nodes.append(start_node(3, self.options.tmpdir, ["-debug", "-timestampindex"]))
-+        connect_nodes(self.nodes[0], 1)
-+        connect_nodes(self.nodes[0], 2)
-+        connect_nodes(self.nodes[0], 3)
-+
-+        self.is_network_split = False
-+        self.sync_all()
-+
-+    def run_test(self):
-+        print "Mining 25 blocks..."
-+        blockhashes = self.nodes[0].generate(25)
-+        time.sleep(3)
-+        print "Mining 25 blocks..."
-+        blockhashes.extend(self.nodes[0].generate(25))
-+        time.sleep(3)
-+        print "Mining 25 blocks..."
-+        blockhashes.extend(self.nodes[0].generate(25))
-+        self.sync_all()
-+        low = self.nodes[1].getblock(blockhashes[0])["time"]
-+        high = low + 76
-+
-+        print "Checking timestamp index..."
-+        hashes = self.nodes[1].getblockhashes(high, low)
-+
-+        assert_equal(len(hashes), len(blockhashes))
-+
-+        assert_equal(hashes, blockhashes)
-+
-+        print "Passed\n"
-+
-+
-+if __name__ == '__main__':
-+    TimestampIndexTest().main()
-diff --git a/qa/rpc-tests/txindex.py b/qa/rpc-tests/txindex.py
-new file mode 100644
-index 0000000..b139253
---- /dev/null
-+++ b/qa/rpc-tests/txindex.py
-@@ -0,0 +1,73 @@
-+#!/usr/bin/env python2
-+# Copyright (c) 2014-2015 The Bitcoin Core developers
-+# Distributed under the MIT software license, see the accompanying
-+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#
-+# Test txindex generation and fetching
-+#
-+
-+import time
-+from test_framework.test_framework import BitcoinTestFramework
-+from test_framework.util import *
-+from test_framework.script import *
-+from test_framework.mininode import *
-+import binascii
-+
-+class TxIndexTest(BitcoinTestFramework):
-+
-+    def setup_chain(self):
-+        print("Initializing test directory "+self.options.tmpdir)
-+        initialize_chain_clean(self.options.tmpdir, 4)
-+
-+    def setup_network(self):
-+        self.nodes = []
-+        # Nodes 0/1 are "wallet" nodes
-+        self.nodes.append(start_node(0, self.options.tmpdir, ["-debug"]))
-+        self.nodes.append(start_node(1, self.options.tmpdir, ["-debug", "-txindex"]))
-+        # Nodes 2/3 are used for testing
-+        self.nodes.append(start_node(2, self.options.tmpdir, ["-debug", "-txindex"]))
-+        self.nodes.append(start_node(3, self.options.tmpdir, ["-debug", "-txindex"]))
-+        connect_nodes(self.nodes[0], 1)
-+        connect_nodes(self.nodes[0], 2)
-+        connect_nodes(self.nodes[0], 3)
-+
-+        self.is_network_split = False
-+        self.sync_all()
-+
-+    def run_test(self):
-+        print "Mining blocks..."
-+        self.nodes[0].generate(105)
-+        self.sync_all()
-+
-+        chain_height = self.nodes[1].getblockcount()
-+        assert_equal(chain_height, 105)
-+
-+        print "Testing transaction index..."
-+
-+        privkey = "cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG"
-+        address = "mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW"
-+        addressHash = "0b2f0a0c31bfe0406b0ccc1381fdbe311946dadc".decode("hex")
-+        scriptPubKey = CScript([OP_DUP, OP_HASH160, addressHash, OP_EQUALVERIFY, OP_CHECKSIG])
-+        unspent = self.nodes[0].listunspent()
-+        tx = CTransaction()
-+        amount = unspent[0]["amount"] * 100000000
-+        tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-+        tx.vout = [CTxOut(amount, scriptPubKey)]
-+        tx.rehash()
-+
-+        signed_tx = self.nodes[0].signrawtransaction(binascii.hexlify(tx.serialize()).decode("utf-8"))
-+        txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], True)
-+        self.nodes[0].generate(1)
-+        self.sync_all()
-+
-+        # Check verbose raw transaction results
-+        verbose = self.nodes[3].getrawtransaction(unspent[0]["txid"], 1)
-+        assert_equal(verbose["vout"][0]["valueSat"], 5000000000);
-+        assert_equal(verbose["vout"][0]["value"], 50);
-+
-+        print "Passed\n"
-+
-+
-+if __name__ == '__main__':
-+    TxIndexTest().main()
-diff --git a/src/Makefile.am b/src/Makefile.am
-index 4e6910b..9364021 100644
---- a/src/Makefile.am
-+++ b/src/Makefile.am
-@@ -99,6 +99,9 @@ endif
- 
- if BUILD_BITCOIN_UTILS
-   bin_PROGRAMS += koto-cli koto-tx
-+if ENABLE_WALLET
-+  bin_PROGRAMS += wallet-utility
-+endif
- endif
- 
- LIBZCASH_H = \
-@@ -116,6 +119,8 @@ LIBZCASH_H = \
- .PHONY: FORCE collate-libsnark check-symbols check-security
- # bitcoin core #
- BITCOIN_CORE_H = \
-+  addressindex.h \
-+  spentindex.h \
-   addrman.h \
-   alert.h \
-   amount.h \
-@@ -480,6 +485,14 @@ koto_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
- koto_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
- koto_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
- 
-+# wallet-utility binary #
-+if ENABLE_WALLET
-+wallet_utility_SOURCES = wallet-utility.cpp
-+wallet_utility_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-+wallet_utility_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-+wallet_utility_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-+endif
-+
- if TARGET_WINDOWS
- koto_cli_SOURCES += bitcoin-cli-res.rc
- endif
-@@ -496,6 +509,22 @@ koto_cli_LDADD = \
-   $(LIBSNARK) \
-   $(LIBBITCOIN_CRYPTO) \
-   $(LIBZCASH_LIBS)
-+
-+if ENABLE_WALLET
-+wallet_utility_LDADD = \
-+  libbitcoin_wallet.a \
-+  $(LIBBITCOIN_COMMON) \
-+  $(LIBBITCOIN_CRYPTO) \
-+  $(LIBSECP256K1) \
-+  $(LIBBITCOIN_UTIL) \
-+  $(BOOST_LIBS) \
-+  $(BDB_LIBS) \
-+  $(CRYPTO_LIBS) \
-+  $(LIBZCASH) \
-+  $(LIBSNARK) \
-+  $(LIBZCASH_LIBS)
-+endif
-+
- #
- 
- # zcash-tx binary #
-diff --git a/src/Makefile.test.include b/src/Makefile.test.include
-index 75083d1..4773e9b 100644
---- a/src/Makefile.test.include
-+++ b/src/Makefile.test.include
-@@ -15,7 +15,9 @@ EXTRA_DIST += \
- 	test/data/tx394b54bb.hex \
- 	test/data/txcreate1.hex \
- 	test/data/txcreate2.hex \
--	test/data/txcreatesign.hex
-+	test/data/txcreatesign.hex \
-+	test/wallet-utility.py \
-+	test/data/wallet.dat
- 
- JSON_TEST_FILES = \
-   test/data/script_valid.json \
-@@ -86,6 +88,7 @@ BITCOIN_TESTS =\
-   test/sanity_tests.cpp \
-   test/scheduler_tests.cpp \
-   test/script_P2SH_tests.cpp \
-+  test/script_P2PKH_tests.cpp \
-   test/script_tests.cpp \
-   test/scriptnum_tests.cpp \
-   test/serialize_tests.cpp \
-@@ -149,6 +152,10 @@ bitcoin_test_clean : FORCE
- check-local:
- 	@echo "Running test/bitcoin-util-test.py..."
- 	$(AM_V_at)srcdir=$(srcdir) PYTHONPATH=$(builddir)/test $(srcdir)/test/bitcoin-util-test.py
-+if ENABLE_WALLET
-+	@echo "Running test/wallet-utility.py..."
-+	$(AM_V_at)srcdir=$(srcdir) PYTHONPATH=$(builddir)/test $(srcdir)/test/wallet-utility.py
-+endif
- 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C secp256k1 check
- 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C univalue check
- 
 diff --git a/src/addressindex.h b/src/addressindex.h
-new file mode 100644
-index 0000000..9e734b8
---- /dev/null
+index e83c9fc..b89eff4 100644
+--- a/src/addressindex.h
 +++ b/src/addressindex.h
-@@ -0,0 +1,82 @@
-+// Copyright (c) 2009-2010 Satoshi Nakamoto
-+// Copyright (c) 2009-2015 The Bitcoin Core developers
-+// Distributed under the MIT software license, see the accompanying
-+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#ifndef BITCOIN_ADDRESSINDEX_H
-+#define BITCOIN_ADDRESSINDEX_H
-+
-+#include "uint256.h"
-+#include "amount.h"
-+
+@@ -222,4 +222,74 @@ struct CAddressIndexIteratorHeightKey {
+     }
+ };
+ 
 +struct CMempoolAddressDelta
 +{
 +    int64_t time;
@@ -896,142 +76,20 @@ index 0000000..9e734b8
 +    }
 +};
 +
-+#endif // BITCOIN_ADDRESSINDEX_H
-diff --git a/src/dbwrapper.cpp b/src/dbwrapper.cpp
-index b34be5a..3df99cc 100644
---- a/src/dbwrapper.cpp
-+++ b/src/dbwrapper.cpp
-@@ -14,14 +14,14 @@
- #include <memenv.h>
- #include <stdint.h>
- 
--static leveldb::Options GetOptions(size_t nCacheSize)
-+static leveldb::Options GetOptions(size_t nCacheSize, bool compression, int maxOpenFiles)
- {
-     leveldb::Options options;
-     options.block_cache = leveldb::NewLRUCache(nCacheSize / 2);
-     options.write_buffer_size = nCacheSize / 4; // up to two write buffers may be held in memory simultaneously
-     options.filter_policy = leveldb::NewBloomFilterPolicy(10);
--    options.compression = leveldb::kNoCompression;
--    options.max_open_files = 64;
-+    options.compression = compression ? leveldb::kSnappyCompression : leveldb::kNoCompression;
-+    options.max_open_files = maxOpenFiles;
-     if (leveldb::kMajorVersion > 1 || (leveldb::kMajorVersion == 1 && leveldb::kMinorVersion >= 16)) {
-         // LevelDB versions before 1.16 consider short writes to be corruption. Only trigger error
-         // on corruption in later versions.
-@@ -30,14 +30,14 @@ static leveldb::Options GetOptions(size_t nCacheSize)
-     return options;
- }
- 
--CDBWrapper::CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory, bool fWipe)
-+CDBWrapper::CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory, bool fWipe, bool compression, int maxOpenFiles)
- {
-     penv = NULL;
-     readoptions.verify_checksums = true;
-     iteroptions.verify_checksums = true;
-     iteroptions.fill_cache = false;
-     syncoptions.sync = true;
--    options = GetOptions(nCacheSize);
-+    options = GetOptions(nCacheSize, compression, maxOpenFiles);
-     options.create_if_missing = true;
-     if (fMemory) {
-         penv = leveldb::NewMemEnv(leveldb::Env::Default());
-diff --git a/src/dbwrapper.h b/src/dbwrapper.h
-index e3f9a26..811367b 100644
---- a/src/dbwrapper.h
-+++ b/src/dbwrapper.h
-@@ -173,7 +173,7 @@ public:
-      * @param[in] fMemory     If true, use leveldb's memory environment.
-      * @param[in] fWipe       If true, remove all existing data.
-      */
--    CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
-+    CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false, bool compression = false, int maxOpenFiles = 64);
-     ~CDBWrapper();
- 
-     template <typename K, typename V>
-diff --git a/src/init.cpp b/src/init.cpp
-index b5d1423..f88980c 100644
---- a/src/init.cpp
-+++ b/src/init.cpp
-@@ -370,6 +370,10 @@ std::string HelpMessage(HelpMessageMode mode)
- #endif
-     strUsage += HelpMessageOpt("-txindex", strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), 0));
- 
-+    strUsage += HelpMessageOpt("-addressindex", strprintf(_("Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses (default: %u)"), DEFAULT_ADDRESSINDEX));
-+    strUsage += HelpMessageOpt("-timestampindex", strprintf(_("Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)"), DEFAULT_TIMESTAMPINDEX));
-+    strUsage += HelpMessageOpt("-spentindex", strprintf(_("Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)"), DEFAULT_SPENTINDEX));
-+
-     strUsage += HelpMessageGroup(_("Connection options:"));
-     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
-     strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), 100));
-@@ -1490,18 +1494,33 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
-         }
-     }
- 
-+    // block tree db settings
-+    int dbMaxOpenFiles = GetArg("-dbmaxopenfiles", DEFAULT_DB_MAX_OPEN_FILES);
-+    bool dbCompression = GetBoolArg("-dbcompression", DEFAULT_DB_COMPRESSION);
-+
-+    LogPrintf("Block index database configuration:\n");
-+    LogPrintf("* Using %d max open files\n", dbMaxOpenFiles);
-+    LogPrintf("* Compression is %s\n", dbCompression ? "enabled" : "disabled");
-+
-     // cache size calculations
-     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
-     nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
-     nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greated than nMaxDbcache
-     int64_t nBlockTreeDBCache = nTotalCache / 8;
--    if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", false))
--        nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
-+    if (GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) || GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
-+        // enable 3/4 of the cache if addressindex and/or spentindex is enabled
-+        nBlockTreeDBCache = nTotalCache * 3 / 4;
-+    } else {
-+        if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", false)) {
-+            nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
-+        }
-+    }
-     nTotalCache -= nBlockTreeDBCache;
-     int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
-     nTotalCache -= nCoinDBCache;
-     nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
-     LogPrintf("Cache configuration:\n");
-+    LogPrintf("* Max cache setting possible %.1fMiB\n", nMaxDbCache);
-     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
-     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
-     LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
-@@ -1524,7 +1543,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
-                 delete pcoinscatcher;
-                 delete pblocktree;
- 
--                pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-+                pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex, dbCompression, dbMaxOpenFiles);
-                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
-                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
-                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+ #endif // BITCOIN_ADDRESSINDEX_H
 diff --git a/src/main.cpp b/src/main.cpp
-index a95e466..a53b8bd 100644
+index 289b82c..2db370f 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
-@@ -21,6 +21,7 @@
+@@ -21,7 +21,6 @@
  #include "metrics.h"
  #include "net.h"
  #include "pow.h"
-+#include "pubkey.h"
- #include "txdb.h"
+-#include "txdb.h"
  #include "txmempool.h"
  #include "ui_interface.h"
-@@ -67,6 +68,9 @@ bool fExperimentalMode = false;
- bool fImporting = false;
- bool fReindex = false;
- bool fTxIndex = false;
-+bool fAddressIndex = false;
-+bool fTimestampIndex = false;
-+bool fSpentIndex = false;
- bool fHavePruned = false;
- bool fPruneMode = false;
- bool fIsBareMultisigStd = true;
-@@ -1595,6 +1599,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+ #include "undo.h"
+@@ -1599,6 +1598,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
  
          // Store transaction in memory
          pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
@@ -1048,7 +106,7 @@ index a95e466..a53b8bd 100644
      }
  
      SyncWithWallets(tx, NULL);
-@@ -1602,6 +1616,55 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1606,6 +1615,49 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
      return true;
  }
  
@@ -1067,18 +125,12 @@ index a95e466..a53b8bd 100644
 +{
 +    if (!fSpentIndex)
 +        return false;
-+
-+    if (mempool.getSpentIndex(key, value))
-+        return true;
-+
-+    if (!pblocktree->ReadSpentIndex(key, value))
-+        return false;
-+
-+    return true;
++    return pblocktree->ReadSpentIndex(key, value);
 +}
 +
 +bool GetAddressIndex(uint160 addressHash, int type,
-+                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex, int start, int end)
++                     std::vector<CAddressIndexDbEntry> &addressIndex,
++                     int start, int end)
 +{
 +    if (!fAddressIndex)
 +        return error("address index not enabled");
@@ -1090,7 +142,7 @@ index a95e466..a53b8bd 100644
 +}
 +
 +bool GetAddressUnspent(uint160 addressHash, int type,
-+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
++                       std::vector<CAddressUnspentDbEntry> &unspentOutputs)
 +{
 +    if (!fAddressIndex)
 +        return error("address index not enabled");
@@ -1104,719 +156,82 @@ index a95e466..a53b8bd 100644
  /** Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock */
  bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
  {
-@@ -2256,11 +2319,54 @@ DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex,
-         return DISCONNECT_FAILED;
-     }
+@@ -4412,6 +4464,7 @@ bool static LoadBlockIndexDB()
+     LogPrintf("%s: insight explorer %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+     fAddressIndex = fInsightExplorer;
+     fSpentIndex = fInsightExplorer;
++    fTimestampIndex = fInsightExplorer;
  
-+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
-+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
-+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
-+
-     // undo transactions in reverse order
-     for (int i = block.vtx.size() - 1; i >= 0; i--) {
-         const CTransaction &tx = block.vtx[i];
-         uint256 hash = tx.GetHash();
- 
-+        if (fAddressIndex) {
-+
-+            for (unsigned int k = tx.vout.size(); k-- > 0;) {
-+                const CTxOut &out = tx.vout[k];
-+
-+                if (out.scriptPubKey.IsPayToScriptHash()) {
-+                    vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
-+
-+                    // undo receiving activity
-+                    addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
-+
-+                    // undo unspent index
-+                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), hash, k), CAddressUnspentValue()));
-+
-+                } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-+                    vector<unsigned char> hashBytes;
-+                    if (out.scriptPubKey.size() == 25) {
-+                        hashBytes = vector <unsigned char>(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
-+                    } else {
-+                        vector<unsigned char> pubkeyBytes(out.scriptPubKey.begin()+1, out.scriptPubKey.begin()+34);
-+                        CPubKey pubkey(pubkeyBytes);
-+                        CKeyID pubkeyHash = pubkey.GetID();
-+                        hashBytes = vector <unsigned char>(pubkeyHash.begin(), pubkeyHash.end());
-+                    }
-+
-+                    // undo receiving activity
-+                    addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
-+
-+                    // undo unspent index
-+                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, uint160(hashBytes), hash, k), CAddressUnspentValue()));
-+
-+                } else {
-+                    continue;
-+                }
-+
-+            }
-+
-+        }
-+
-         // Check that all outputs are available and match the outputs in the block itself
-         // exactly.
-         {
-@@ -2295,6 +2401,48 @@ DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex,
-                 const CTxInUndo &undo = txundo.vprevout[j];
-                 if (!ApplyTxInUndo(undo, view, out))
-                     fClean = false;
-+
-+                const CTxIn input = tx.vin[j];
-+
-+                if (fSpentIndex) {
-+                    // undo and delete the spent index
-+                    spentIndex.push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
-+                }
-+
-+                if (fAddressIndex) {
-+                    const CTxOut &prevout = view.GetOutputFor(tx.vin[j]);
-+                    if (prevout.scriptPubKey.IsPayToScriptHash()) {
-+                        vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
-+
-+                        // undo spending activity
-+                        addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
-+
-+                        // restore unspent index
-+                        addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undo.nHeight)));
-+
-+
-+                    } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-+                        vector<unsigned char> hashBytes;
-+                        if (prevout.scriptPubKey.size() == 25) {
-+                            hashBytes = vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
-+                        } else {
-+                            vector<unsigned char> pubkeyBytes(prevout.scriptPubKey.begin()+1, prevout.scriptPubKey.begin()+34);
-+                            CPubKey pubkey(pubkeyBytes);
-+                            CKeyID pubkeyHash = pubkey.GetID();
-+                            hashBytes = vector <unsigned char>(pubkeyHash.begin(), pubkeyHash.end());
-+                        }
-+
-+                        // undo spending activity
-+                        addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
-+
-+                        // restore unspent index
-+                        addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, uint160(hashBytes), input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undo.nHeight)));
-+
-+                    } else {
-+                        continue;
-+                    }
-+                }
-+
-             }
-         }
-     }
-@@ -2313,9 +2461,21 @@ DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex,
-         view.PopAnchor(SaplingMerkleTree::empty_root(), SAPLING);
-     }
- 
-+
-     // move best block pointer to prevout block
-     view.SetBestBlock(pindex->pprev->GetBlockHash());
- 
-+    if (fAddressIndex) {
-+        if (!pblocktree->EraseAddressIndex(addressIndex)) {
-+            AbortNode("Failed to delete address index");
-+            return DISCONNECT_FAILED;
-+        }
-+        if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-+            AbortNode("Failed to write address unspent index");
-+            return DISCONNECT_FAILED;
-+        }
-+    }
-+
-     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
- }
- 
-@@ -2512,6 +2672,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
-     std::vector<std::pair<uint256, CDiskTxPos> > vPos;
-     vPos.reserve(block.vtx.size());
-     blockundo.vtxundo.reserve(block.vtx.size() - 1);
-+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
-+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
-+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
- 
-     // Construct the incremental merkle tree at the current
-     // block position,
-@@ -2542,6 +2705,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
-     for (unsigned int i = 0; i < block.vtx.size(); i++)
-     {
-         const CTransaction &tx = block.vtx[i];
-+        const uint256 txhash = tx.GetHash();
- 
-         nInputs += tx.vin.size();
-         nSigOps += GetLegacySigOpCount(tx);
-@@ -2560,6 +2724,50 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
-                 return state.DoS(100, error("ConnectBlock(): JoinSplit requirements not met"),
-                                  REJECT_INVALID, "bad-txns-joinsplit-requirements-not-met");
- 
-+            if (fAddressIndex || fSpentIndex)
-+            {
-+                for (size_t j = 0; j < tx.vin.size(); j++) {
-+
-+                    const CTxIn input = tx.vin[j];
-+                    const CTxOut &prevout = view.GetOutputFor(tx.vin[j]);
-+                    uint160 hashBytes;
-+                    int addressType;
-+
-+                    if (prevout.scriptPubKey.IsPayToScriptHash()) {
-+                        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
-+                        addressType = 2;
-+                    } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-+                        if (prevout.scriptPubKey.size() == 25) {
-+                            hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
-+                        } else {
-+                            vector<unsigned char> pubkeyBytes(prevout.scriptPubKey.begin()+1, prevout.scriptPubKey.begin()+34);
-+                            CPubKey pubkey(pubkeyBytes);
-+                            CKeyID pubkeyHash = pubkey.GetID();
-+                            hashBytes = uint160(vector <unsigned char>(pubkeyHash.begin(), pubkeyHash.end()));
-+                        }
-+                        addressType = 1;
-+                    } else {
-+                        hashBytes.SetNull();
-+                        addressType = 0;
-+                    }
-+
-+                    if (fAddressIndex && addressType > 0) {
-+                        // record spending activity
-+                        addressIndex.push_back(make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
-+
-+                        // remove address from unspent index
-+                        addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
-+                    }
-+
-+                    if (fSpentIndex) {
-+                        // add the spent index to determine the txid and input that spent an output
-+                        // and to find the amount and address from an input
-+                        spentIndex.push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, addressType, hashBytes)));
-+                    }
-+                }
-+
-+            }
-+
-             // Add in sigops done by pay-to-script-hash inputs;
-             // this is to prevent a "rogue miner" from creating
-             // an incredibly-expensive-to-validate block.
-@@ -2582,6 +2790,43 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
-             control.Add(vChecks);
-         }
- 
-+        if (fAddressIndex) {
-+            for (unsigned int k = 0; k < tx.vout.size(); k++) {
-+                const CTxOut &out = tx.vout[k];
-+
-+                if (out.scriptPubKey.IsPayToScriptHash()) {
-+                    vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
-+
-+                    // record receiving activity
-+                    addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
-+
-+                    // record unspent output
-+                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
-+
-+                } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-+                    vector<unsigned char> hashBytes;
-+                    if (out.scriptPubKey.size() == 25) {
-+                        hashBytes = vector <unsigned char>(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
-+                    } else {
-+                        vector<unsigned char> pubkeyBytes(out.scriptPubKey.begin()+1, out.scriptPubKey.begin()+34);
-+                        CPubKey pubkey(pubkeyBytes);
-+                        CKeyID pubkeyHash = pubkey.GetID();
-+                        hashBytes = vector <unsigned char>(pubkeyHash.begin(), pubkeyHash.end());
-+                    }
-+
-+                    // record receiving activity
-+                    addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
-+
-+                    // record unspent output
-+                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
-+
-+                } else {
-+                    continue;
-+                }
-+
-+            }
-+        }
-+
-         CTxUndo undoDummy;
-         if (i > 0) {
-             blockundo.vtxundo.push_back(CTxUndo());
-@@ -2696,6 +2941,41 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
-         if (!pblocktree->WriteTxIndex(vPos))
-             return AbortNode(state, "Failed to write transaction index");
- 
-+    if (fAddressIndex) {
-+        if (!pblocktree->WriteAddressIndex(addressIndex)) {
-+            return AbortNode(state, "Failed to write address index");
-+        }
-+
-+        if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-+            return AbortNode(state, "Failed to write address unspent index");
-+        }
-+    }
-+
-+    if (fSpentIndex)
-+        if (!pblocktree->UpdateSpentIndex(spentIndex))
-+            return AbortNode(state, "Failed to write transaction index");
-+
-+    if (fTimestampIndex) {
-+        unsigned int logicalTS = pindex->nTime;
-+        unsigned int prevLogicalTS = 0;
-+
-+        // retrieve logical timestamp of the previous block
-+        if (pindex->pprev)
-+            if (!pblocktree->ReadTimestampBlockIndex(pindex->pprev->GetBlockHash(), prevLogicalTS))
-+                LogPrintf("%s: Failed to read previous block's logical timestamp\n", __func__);
-+
-+        if (logicalTS <= prevLogicalTS) {
-+            logicalTS = prevLogicalTS + 1;
-+            LogPrintf("%s: Previous logical timestamp is newer Actual[%d] prevLogical[%d] Logical[%d]\n", __func__, pindex->nTime, prevLogicalTS, logicalTS);
-+        }
-+
-+        if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(logicalTS, pindex->GetBlockHash())))
-+            return AbortNode(state, "Failed to write timestamp index");
-+
-+        if (!pblocktree->WriteTimestampBlockIndex(CTimestampBlockIndexKey(pindex->GetBlockHash()), CTimestampBlockIndexValue(logicalTS)))
-+            return AbortNode(state, "Failed to write blockhash index");
-+    }
-+
-     // add this block to the view's block chain
-     view.SetBestBlock(pindex->GetBlockHash());
- 
-@@ -4222,6 +4502,18 @@ bool static LoadBlockIndexDB()
-     pblocktree->ReadFlag("txindex", fTxIndex);
-     LogPrintf("%s: transaction index %s\n", __func__, fTxIndex ? "enabled" : "disabled");
- 
-+    // Check whether we have an address index
-+    pblocktree->ReadFlag("addressindex", fAddressIndex);
-+    LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
-+
-+    // Check whether we have a timestamp index
-+    pblocktree->ReadFlag("timestampindex", fTimestampIndex);
-+    LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
-+
-+    // Check whether we have a spent index
-+    pblocktree->ReadFlag("spentindex", fSpentIndex);
-+    LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
-+
      // Fill in-memory data
      BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
-     {
-@@ -4557,6 +4849,18 @@ bool InitBlockIndex() {
-     // Use the provided setting for -txindex in the new database
-     fTxIndex = GetBoolArg("-txindex", false);
-     pblocktree->WriteFlag("txindex", fTxIndex);
-+
-+    // Use the provided setting for -addressindex in the new database
-+    fAddressIndex = GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
-+    pblocktree->WriteFlag("addressindex", fAddressIndex);
-+
-+    // Use the provided setting for -timestampindex in the new database
-+    fTimestampIndex = GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
-+    pblocktree->WriteFlag("timestampindex", fTimestampIndex);
-+
-+    fSpentIndex = GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
-+    pblocktree->WriteFlag("spentindex", fSpentIndex);
-+
-     LogPrintf("Initializing databases...\n");
+@@ -5091,7 +5144,7 @@ std::string GetWarnings(const std::string& strFor)
  
-     // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
+     if (!CLIENT_VERSION_IS_RELEASE) {
+         strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
+-	strGUI = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
++        strGUI = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
+     }
+ 
+     if (GetBoolArg("-testsafemode", false))
+@@ -5136,7 +5189,7 @@ std::string GetWarnings(const std::string& strFor)
+     }
+ 
+     if (strFor == "gui")
+-	return strGUI;
++        return strGUI;
+     if (strFor == "statusbar")
+         return strStatusBar;
+     else if (strFor == "rpc")
 diff --git a/src/main.h b/src/main.h
-index 0c7ff8a..8945031 100644
+index e0a3045..70d3311 100644
 --- a/src/main.h
 +++ b/src/main.h
-@@ -22,6 +22,7 @@
- #include "script/script.h"
- #include "script/sigcache.h"
+@@ -24,6 +24,7 @@
  #include "script/standard.h"
-+#include "spentindex.h"
  #include "sync.h"
  #include "tinyformat.h"
++#include "txdb.h"
  #include "txmempool.h"
-@@ -101,6 +102,11 @@ static const unsigned int DATABASE_FLUSH_INTERVAL = 24 * 60 * 60;
- /** Maximum length of reject messages. */
- static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
- static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
-+static const bool DEFAULT_ADDRESSINDEX = false;
-+static const bool DEFAULT_TIMESTAMPINDEX = false;
-+static const bool DEFAULT_SPENTINDEX = false;
-+static const unsigned int DEFAULT_DB_MAX_OPEN_FILES = 1000;
-+static const bool DEFAULT_DB_COMPRESSION = true;
+ #include "uint256.h"
+ #include "addressindex.h"
+@@ -461,6 +462,12 @@ bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::M
+ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos);
+ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex);
  
- // Sanity check the magic numbers when we change them
- BOOST_STATIC_ASSERT(DEFAULT_BLOCK_MAX_SIZE <= MAX_BLOCK_SIZE);
-@@ -266,6 +272,313 @@ struct CNodeStateStats {
-     std::vector<int> vHeightInFlight;
- };
- 
-+struct CTimestampIndexIteratorKey {
-+    unsigned int timestamp;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata32be(s, timestamp);
-+    }
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        timestamp = ser_readdata32be(s);
-+    }
-+
-+    CTimestampIndexIteratorKey(unsigned int time) {
-+        timestamp = time;
-+    }
-+
-+    CTimestampIndexIteratorKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        timestamp = 0;
-+    }
-+};
-+
-+struct CTimestampIndexKey {
-+    unsigned int timestamp;
-+    uint256 blockHash;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata32be(s, timestamp);
-+        blockHash.Serialize(s);
-+    }
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        timestamp = ser_readdata32be(s);
-+        blockHash.Unserialize(s);
-+    }
-+
-+    CTimestampIndexKey(unsigned int time, uint256 hash) {
-+        timestamp = time;
-+        blockHash = hash;
-+    }
-+
-+    CTimestampIndexKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        timestamp = 0;
-+        blockHash.SetNull();
-+    }
-+};
-+
-+struct CTimestampBlockIndexKey {
-+    uint256 blockHash;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        blockHash.Serialize(s);
-+    }
-+
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        blockHash.Unserialize(s);
-+    }
-+
-+    CTimestampBlockIndexKey(uint256 hash) {
-+        blockHash = hash;
-+    }
-+
-+    CTimestampBlockIndexKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        blockHash.SetNull();
-+    }
-+};
-+
-+struct CTimestampBlockIndexValue {
-+    unsigned int ltimestamp;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata32be(s, ltimestamp);
-+    }
-+
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        ltimestamp = ser_readdata32be(s);
-+    }
-+
-+    CTimestampBlockIndexValue (unsigned int time) {
-+        ltimestamp = time;
-+    }
-+
-+    CTimestampBlockIndexValue() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        ltimestamp = 0;
-+    }
-+};
-+
-+struct CAddressUnspentKey {
-+    unsigned int type;
-+    uint160 hashBytes;
-+    uint256 txhash;
-+    size_t index;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata8(s, type);
-+        hashBytes.Serialize(s);
-+        txhash.Serialize(s);
-+        ser_writedata32(s, index);
-+    }
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        type = ser_readdata8(s);
-+        hashBytes.Unserialize(s);
-+        txhash.Unserialize(s);
-+        index = ser_readdata32(s);
-+    }
-+
-+    CAddressUnspentKey(unsigned int addressType, uint160 addressHash, uint256 txid, size_t indexValue) {
-+        type = addressType;
-+        hashBytes = addressHash;
-+        txhash = txid;
-+        index = indexValue;
-+    }
-+
-+    CAddressUnspentKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        type = 0;
-+        hashBytes.SetNull();
-+        txhash.SetNull();
-+        index = 0;
-+    }
-+};
-+
-+struct CAddressUnspentValue {
-+    CAmount satoshis;
-+    CScript script;
-+    int blockHeight;
-+
-+    ADD_SERIALIZE_METHODS;
-+
-+    template <typename Stream, typename Operation>
-+    inline void SerializationOp(Stream& s, Operation ser_action) {
-+        READWRITE(satoshis);
-+        READWRITE(script);
-+        READWRITE(blockHeight);
-+    }
-+
-+    CAddressUnspentValue(CAmount sats, CScript scriptPubKey, int height) {
-+        satoshis = sats;
-+        script = scriptPubKey;
-+        blockHeight = height;
-+    }
-+
-+    CAddressUnspentValue() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        satoshis = -1;
-+        script.clear();
-+        blockHeight = 0;
-+    }
-+
-+    bool IsNull() const {
-+        return (satoshis == -1);
-+    }
-+};
-+
-+struct CAddressIndexKey {
-+    unsigned int type;
-+    uint160 hashBytes;
-+    int blockHeight;
-+    unsigned int txindex;
-+    uint256 txhash;
-+    size_t index;
-+    bool spending;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata8(s, type);
-+        hashBytes.Serialize(s);
-+        // Heights are stored big-endian for key sorting in LevelDB
-+        ser_writedata32be(s, blockHeight);
-+        ser_writedata32be(s, txindex);
-+        txhash.Serialize(s);
-+        ser_writedata32(s, index);
-+        char f = spending;
-+        ser_writedata8(s, f);
-+    }
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        type = ser_readdata8(s);
-+        hashBytes.Unserialize(s);
-+        blockHeight = ser_readdata32be(s);
-+        txindex = ser_readdata32be(s);
-+        txhash.Unserialize(s);
-+        index = ser_readdata32(s);
-+        char f = ser_readdata8(s);
-+        spending = f;
-+    }
-+
-+    CAddressIndexKey(unsigned int addressType, uint160 addressHash, int height, int blockindex,
-+                     uint256 txid, size_t indexValue, bool isSpending) {
-+        type = addressType;
-+        hashBytes = addressHash;
-+        blockHeight = height;
-+        txindex = blockindex;
-+        txhash = txid;
-+        index = indexValue;
-+        spending = isSpending;
-+    }
-+
-+    CAddressIndexKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        type = 0;
-+        hashBytes.SetNull();
-+        blockHeight = 0;
-+        txindex = 0;
-+        txhash.SetNull();
-+        index = 0;
-+        spending = false;
-+    }
-+
-+};
-+
-+struct CAddressIndexIteratorKey {
-+    unsigned int type;
-+    uint160 hashBytes;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata8(s, type);
-+        hashBytes.Serialize(s);
-+    }
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        type = ser_readdata8(s);
-+        hashBytes.Unserialize(s);
-+    }
-+
-+    CAddressIndexIteratorKey(unsigned int addressType, uint160 addressHash) {
-+        type = addressType;
-+        hashBytes = addressHash;
-+    }
-+
-+    CAddressIndexIteratorKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        type = 0;
-+        hashBytes.SetNull();
-+    }
-+};
-+
-+struct CAddressIndexIteratorHeightKey {
-+    unsigned int type;
-+    uint160 hashBytes;
-+    int blockHeight;
-+
-+    template<typename Stream>
-+    void Serialize(Stream& s) const {
-+        ser_writedata8(s, type);
-+        hashBytes.Serialize(s);
-+        ser_writedata32be(s, blockHeight);
-+    }
-+    template<typename Stream>
-+    void Unserialize(Stream& s) {
-+        type = ser_readdata8(s);
-+        hashBytes.Unserialize(s);
-+        blockHeight = ser_readdata32be(s);
-+    }
-+
-+    CAddressIndexIteratorHeightKey(unsigned int addressType, uint160 addressHash, int height) {
-+        type = addressType;
-+        hashBytes = addressHash;
-+        blockHeight = height;
-+    }
-+
-+    CAddressIndexIteratorHeightKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        type = 0;
-+        hashBytes.SetNull();
-+        blockHeight = 0;
-+    }
-+};
-+
- struct CDiskTxPos : public CDiskBlockPos
- {
-     unsigned int nTxOffset; // after header
-@@ -436,6 +749,13 @@ public:
-     ScriptError GetScriptError() const { return error; }
- };
- 
-+bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes);
 +bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
 +bool GetAddressIndex(uint160 addressHash, int type,
-+                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
-+                     int start = 0, int end = 0);
-+bool GetAddressUnspent(uint160 addressHash, int type,
-+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs);
++        std::vector<CAddressIndexDbEntry> &addressIndex,
++        int start = 0, int end = 0);
++bool GetAddressUnspent(uint160 addressHash, int type, std::vector<CAddressUnspentDbEntry> &unspentOutputs);
++bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes);
  
- /** Functions for disk access for blocks */
- bool WriteBlockToDisk(CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);
+ /** Functions for validating blocks and updating the block tree */
+ 
 diff --git a/src/rpc/blockchain.cpp b/src/rpc/blockchain.cpp
-index c5783d5..d663502 100644
+index c5783d5..dc0ddab 100644
 --- a/src/rpc/blockchain.cpp
 +++ b/src/rpc/blockchain.cpp
-@@ -4,6 +4,7 @@
- // file COPYING or http://www.opensource.org/licenses/mit-license.php.
- 
- #include "amount.h"
-+#include "base58.h"
- #include "chain.h"
+@@ -8,6 +8,7 @@
  #include "chainparams.h"
  #include "checkpoints.h"
-@@ -11,9 +12,14 @@
+ #include "consensus/validation.h"
++#include "key_io.h"
  #include "main.h"
  #include "primitives/transaction.h"
  #include "rpc/server.h"
-+#include "script/script.h"
-+#include "script/script_error.h"
-+#include "script/sign.h"
-+#include "script/standard.h"
- #include "streams.h"
- #include "sync.h"
- #include "util.h"
-+#include "key_io.h"
- 
- #include <stdint.h>
- 
-@@ -124,6 +130,112 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
+@@ -124,6 +125,102 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
      return result;
  }
  
++// insightexplorer
 +UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
 +{
 +    UniValue result(UniValue::VOBJ);
 +    result.push_back(Pair("hash", block.GetHash().GetHex()));
-+    int confirmations = -1;
 +    // Only report confirmations if the block is on the main chain
-+    if (chainActive.Contains(blockindex)) {
-+        confirmations = chainActive.Height() - blockindex->nHeight + 1;
-+    } else {
++    if (!chainActive.Contains(blockindex))
 +        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block is an orphan");
-+    }
++    int confirmations = chainActive.Height() - blockindex->nHeight + 1;
 +    result.push_back(Pair("confirmations", confirmations));
 +    result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
 +    result.push_back(Pair("height", blockindex->nHeight));
@@ -1824,7 +239,6 @@ index c5783d5..d663502 100644
 +    result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
 +
 +    UniValue deltas(UniValue::VARR);
-+
 +    for (unsigned int i = 0; i < block.vtx.size(); i++) {
 +        const CTransaction &tx = block.vtx[i];
 +        const uint256 txhash = tx.GetHash();
@@ -1834,67 +248,60 @@ index c5783d5..d663502 100644
 +        entry.push_back(Pair("index", (int)i));
 +
 +        UniValue inputs(UniValue::VARR);
-+
 +        if (!tx.IsCoinBase()) {
-+
 +            for (size_t j = 0; j < tx.vin.size(); j++) {
 +                const CTxIn input = tx.vin[j];
-+
 +                UniValue delta(UniValue::VOBJ);
-+
 +                CSpentIndexValue spentInfo;
 +                CSpentIndexKey spentKey(input.prevout.hash, input.prevout.n);
 +
-+                if (GetSpentIndex(spentKey, spentInfo)) {
-+                    if (spentInfo.addressType == 1) {
-+                        delta.push_back(Pair("address", EncodeDestination(CKeyID(spentInfo.addressHash))));
-+                    } else if (spentInfo.addressType == 2)  {
-+                        delta.push_back(Pair("address", EncodeDestination(CScriptID(spentInfo.addressHash))));
-+                    } else {
-+                        continue;
-+                    }
-+                    delta.push_back(Pair("satoshis", -1 * spentInfo.satoshis));
-+                    delta.push_back(Pair("index", (int)j));
-+                    delta.push_back(Pair("prevtxid", input.prevout.hash.GetHex()));
-+                    delta.push_back(Pair("prevout", (int)input.prevout.n));
-+
-+                    inputs.push_back(delta);
-+                } else {
++                if (!GetSpentIndex(spentKey, spentInfo)) {
 +                    throw JSONRPCError(RPC_INTERNAL_ERROR, "Spent information not available");
 +                }
++                switch (spentInfo.addressType) {
++                case 1:
++                    delta.push_back(Pair("address",
++                                         EncodeDestination(CKeyID(spentInfo.addressHash))));
++                    break;
++                case 2:
++                    delta.push_back(Pair("address",
++                                         EncodeDestination(CScriptID(spentInfo.addressHash))));
++                    break;
++                default:
++                    break;
++                }
++                delta.push_back(Pair("satoshis", -1 * spentInfo.satoshis));
++                delta.push_back(Pair("index", (int)j));
++                delta.push_back(Pair("prevtxid", input.prevout.hash.GetHex()));
++                delta.push_back(Pair("prevout", (int)input.prevout.n));
 +
++                inputs.push_back(delta);
 +            }
 +        }
-+
 +        entry.push_back(Pair("inputs", inputs));
 +
 +        UniValue outputs(UniValue::VARR);
-+
 +        for (unsigned int k = 0; k < tx.vout.size(); k++) {
 +            const CTxOut &out = tx.vout[k];
-+
 +            UniValue delta(UniValue::VOBJ);
++            const uint160 addrhash = out.scriptPubKey.AddressHash();
++            CTxDestination dest;
 +
 +            if (out.scriptPubKey.IsPayToScriptHash()) {
-+                vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
-+                delta.push_back(Pair("address", EncodeDestination(CScriptID(uint160(hashBytes)))));
-+
++                dest = CScriptID(addrhash);
 +            } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-+                vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
-+                delta.push_back(Pair("address", EncodeDestination(CKeyID(uint160(hashBytes)))));
++                dest = CKeyID(addrhash);
 +            } else {
 +                continue;
 +            }
-+
++            delta.push_back(Pair("address", EncodeDestination(dest)));
 +            delta.push_back(Pair("satoshis", out.nValue));
 +            delta.push_back(Pair("index", (int)k));
 +
 +            outputs.push_back(delta);
 +        }
-+
 +        entry.push_back(Pair("outputs", outputs));
 +        deltas.push_back(entry);
-+
 +    }
 +    result.push_back(Pair("deltas", deltas));
 +    result.push_back(Pair("time", block.GetBlockTime()));
@@ -1915,10 +322,11 @@ index c5783d5..d663502 100644
  UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false)
  {
      UniValue result(UniValue::VOBJ);
-@@ -311,6 +423,102 @@ UniValue getrawmempool(const UniValue& params, bool fHelp)
+@@ -311,6 +408,101 @@ UniValue getrawmempool(const UniValue& params, bool fHelp)
      return mempoolToJSON(fVerbose);
  }
  
++// insightexplorer
 +UniValue getblockdeltas(const UniValue& params, bool fHelp)
 +{
 +    if (fHelp || params.size() != 1)
@@ -1970,7 +378,7 @@ index c5783d5..d663502 100644
 +            + HelpExampleCli("getblockhashes", "1231614698 1231024505")
 +            + HelpExampleRpc("getblockhashes", "1231614698, 1231024505")
 +            + HelpExampleCli("getblockhashes", "1231614698 1231024505 '{\"noOrphans\":false, \"logicalTimes\":true}'")
-+            );
++        );
 +
 +    unsigned int high = params[0].get_int();
 +    unsigned int low = params[1].get_int();
@@ -1991,17 +399,16 @@ index c5783d5..d663502 100644
 +    }
 +
 +    std::vector<std::pair<uint256, unsigned int> > blockHashes;
-+
-+    if (fActiveOnly)
++    {
 +        LOCK(cs_main);
-+
-+    if (!GetTimestampIndex(high, low, fActiveOnly, blockHashes)) {
-+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
++        if (!GetTimestampIndex(high, low, fActiveOnly, blockHashes)) {
++            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
++                               "No information available for block hashes");
++        }
 +    }
-+
 +    UniValue result(UniValue::VARR);
-+
-+    for (std::vector<std::pair<uint256, unsigned int> >::const_iterator it=blockHashes.begin(); it!=blockHashes.end(); it++) {
++    for (std::vector<std::pair<uint256, unsigned int> >::const_iterator it=blockHashes.begin();
++         it!=blockHashes.end(); it++) {
 +        if (fLogicalTS) {
 +            UniValue item(UniValue::VOBJ);
 +            item.push_back(Pair("blockhash", it->first.GetHex()));
@@ -2011,24 +418,25 @@ index c5783d5..d663502 100644
 +            result.push_back(it->first.GetHex());
 +        }
 +    }
-+
 +    return result;
 +}
 +
  UniValue getblockhash(const UniValue& params, bool fHelp)
  {
      if (fHelp || params.size() != 1)
-@@ -1034,6 +1242,8 @@ static const CRPCCommand commands[] =
-     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true  },
-     { "blockchain",         "getblockcount",          &getblockcount,          true  },
-     { "blockchain",         "getblock",               &getblock,               true  },
+@@ -1044,6 +1236,10 @@ static const CRPCCommand commands[] =
+     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true  },
+     { "blockchain",         "verifychain",            &verifychain,            true  },
+ 
++    // insightexplorer
 +    { "blockchain",         "getblockdeltas",         &getblockdeltas,         false },
 +    { "blockchain",         "getblockhashes",         &getblockhashes,         true  },
-     { "blockchain",         "getblockhash",           &getblockhash,           true  },
-     { "blockchain",         "getblockheader",         &getblockheader,         true  },
-     { "blockchain",         "getchaintips",           &getchaintips,           true  },
++
+     /* Not shown in help */
+     { "hidden",             "invalidateblock",        &invalidateblock,        true  },
+     { "hidden",             "reconsiderblock",        &reconsiderblock,        true  },
 diff --git a/src/rpc/client.cpp b/src/rpc/client.cpp
-index 5288d97..23bd7bc 100644
+index 8838bd2..155b026 100644
 --- a/src/rpc/client.cpp
 +++ b/src/rpc/client.cpp
 @@ -99,6 +99,15 @@ static const CRPCConvertParam vRPCConvertParams[] =
@@ -2048,7 +456,7 @@ index 5288d97..23bd7bc 100644
      { "zcrawjoinsplit", 2 },
      { "zcrawjoinsplit", 3 },
 diff --git a/src/rpc/misc.cpp b/src/rpc/misc.cpp
-index 44c3988..e8b64fb 100644
+index 44c3988..18d86f6 100644
 --- a/src/rpc/misc.cpp
 +++ b/src/rpc/misc.cpp
 @@ -11,6 +11,7 @@
@@ -2059,7 +467,7 @@ index 44c3988..e8b64fb 100644
  #include "util.h"
  #ifdef ENABLE_WALLET
  #include "wallet/wallet.h"
-@@ -483,6 +484,553 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
+@@ -483,6 +484,550 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
      return NullUniValue;
  }
  
@@ -2075,28 +483,29 @@ index 44c3988..e8b64fb 100644
 +    return true;
 +}
 +
-+bool getIndexKey(CTxDestination address, uint160& hashBytes, int& type)
++// This function accepts an address and returns in the output parameters
++// the version and raw bytes for the RIPEMD-160 hash.
++bool getIndexKey(const CTxDestination& dest, uint160& hashBytes, int& type)
 +{
-+    if (!IsValidDestination(address)) {
++    if (!IsValidDestination(dest)) {
 +        return false;
-+    } else if (boost::get<CKeyID>(&address) != nullptr) {
-+	CKeyID keyID = boost::get<CKeyID>(address);
-+        memcpy(&hashBytes, keyID.begin(), 20);
++    } else if (dest.type() == typeid(CKeyID)) {
++        auto x = boost::get<CKeyID>(&dest);
++        memcpy(&hashBytes, x->begin(), 20);
 +        type = 1;
 +        return true;
-+    } else if (boost::get<CScriptID>(&address) != nullptr) {
-+	CScriptID scriptID = boost::get<CScriptID>(address);
-+        memcpy(&hashBytes, scriptID.begin(), 20);
++    } else if (dest.type() == typeid(CScriptID)) {
++        auto x = boost::get<CScriptID>(&dest);
++        memcpy(&hashBytes, x->begin(), 20);
 +        type = 2;
 +        return true;
 +    }
-+
 +    return false;
 +}
 +
 +bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
 +{
-+   if (params[0].isStr()) {
++    if (params[0].isStr()) {
 +        CTxDestination address = DecodeDestination(params[0].get_str());
 +        uint160 hashBytes;
 +        int type = 0;
@@ -2115,7 +524,7 @@ index 44c3988..e8b64fb 100644
 +
 +        for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
 +
-+	    CTxDestination address = DecodeDestination(it->get_str());
++            CTxDestination address = DecodeDestination(it->get_str());
 +            uint160 hashBytes;
 +            int type = 0;
 +            if (!getIndexKey(address, hashBytes, type)) {
@@ -2130,8 +539,8 @@ index 44c3988..e8b64fb 100644
 +    return true;
 +}
 +
-+bool heightSort(std::pair<CAddressUnspentKey, CAddressUnspentValue> a,
-+                std::pair<CAddressUnspentKey, CAddressUnspentValue> b) {
++bool heightSort(CAddressUnspentDbEntry a,
++                CAddressUnspentDbEntry b) {
 +    return a.second.blockHeight < b.second.blockHeight;
 +}
 +
@@ -2140,224 +549,36 @@ index 44c3988..e8b64fb 100644
 +    return a.second.time < b.second.time;
 +}
 +
-+UniValue getaddressbalance(const UniValue& params, bool fHelp)
-+{
-+    if (fHelp || params.size() != 1)
-+        throw runtime_error(
-+            "getaddressbalance\n"
-+            "\nReturns the balance for an address(es) (requires addressindex to be enabled).\n"
-+            "\nArguments:\n"
-+            "{\n"
-+            "  \"addresses\"\n"
-+            "    [\n"
-+            "      \"address\"  (string) The base58check encoded address\n"
-+            "      ,...\n"
-+            "    ]\n"
-+            "}\n"
-+            "\nResult:\n"
-+            "{\n"
-+            "  \"balance\"  (string) The current balance in satoshis\n"
-+            "  \"received\"  (string) The total number of satoshis received (including change)\n"
-+            "}\n"
-+            "\nExamples:\n"
-+            + HelpExampleCli("getaddressbalance", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
-+            + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
-+        );
-+
-+    std::vector<std::pair<uint160, int> > addresses;
-+
-+    if (!getAddressesFromParams(params, addresses)) {
-+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-+    }
-+
-+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
-+
-+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-+        if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
-+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-+        }
-+    }
-+
-+    CAmount balance = 0;
-+    CAmount received = 0;
-+
-+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
-+        if (it->second > 0) {
-+            received += it->second;
-+        }
-+        balance += it->second;
-+    }
-+
-+    UniValue result(UniValue::VOBJ);
-+    result.push_back(Pair("balance", balance));
-+    result.push_back(Pair("received", received));
-+
-+    return result;
-+
-+}
-+
-+
-+UniValue getaddresstxids(const UniValue& params, bool fHelp)
-+{
-+    if (fHelp || params.size() != 1)
-+        throw runtime_error(
-+            "getaddresstxids\n"
-+            "\nReturns the txids for an address(es) (requires addressindex to be enabled).\n"
-+            "\nArguments:\n"
-+            "{\n"
-+            "  \"addresses\"\n"
-+            "    [\n"
-+            "      \"address\"  (string) The base58check encoded address\n"
-+            "      ,...\n"
-+            "    ]\n"
-+            "  \"start\" (number) The start block height\n"
-+            "  \"end\" (number) The end block height\n"
-+            "}\n"
-+            "\nResult:\n"
-+            "[\n"
-+            "  \"transactionid\"  (string) The transaction id\n"
-+            "  ,...\n"
-+            "]\n"
-+            "\nExamples:\n"
-+            + HelpExampleCli("getaddresstxids", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
-+            + HelpExampleRpc("getaddresstxids", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
-+        );
-+
-+    std::vector<std::pair<uint160, int> > addresses;
-+
-+    if (!getAddressesFromParams(params, addresses)) {
-+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-+    }
-+
-+    int start = 0;
-+    int end = 0;
-+    if (params[0].isObject()) {
-+        UniValue startValue = find_value(params[0].get_obj(), "start");
-+        UniValue endValue = find_value(params[0].get_obj(), "end");
-+        if (startValue.isNum() && endValue.isNum()) {
-+            start = startValue.get_int();
-+            end = endValue.get_int();
-+        }
-+    }
-+
-+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
-+
-+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-+        if (start > 0 && end > 0) {
-+            if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end)) {
-+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-+            }
-+        } else {
-+            if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
-+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-+            }
-+        }
-+    }
-+
-+    std::set<std::pair<int, std::string> > txids;
-+    UniValue result(UniValue::VARR);
-+
-+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
-+        int height = it->first.blockHeight;
-+        std::string txid = it->first.txhash.GetHex();
-+
-+        if (addresses.size() > 1) {
-+            txids.insert(std::make_pair(height, txid));
-+        } else {
-+            if (txids.insert(std::make_pair(height, txid)).second) {
-+                result.push_back(txid);
-+            }
-+        }
-+    }
-+
-+    if (addresses.size() > 1) {
-+        for (std::set<std::pair<int, std::string> >::const_iterator it=txids.begin(); it!=txids.end(); it++) {
-+            result.push_back(it->second);
-+        }
-+    }
-+
-+    return result;
-+
-+}
-+
-+UniValue getspentinfo(const UniValue& params, bool fHelp)
-+{
-+
-+    if (fHelp || params.size() != 1 || !params[0].isObject())
-+        throw runtime_error(
-+            "getspentinfo\n"
-+            "\nReturns the txid and index where an output is spent.\n"
-+            "\nArguments:\n"
-+            "{\n"
-+            "  \"txid\" (string) The hex string of the txid\n"
-+            "  \"index\" (number) The start block height\n"
-+            "}\n"
-+            "\nResult:\n"
-+            "{\n"
-+            "  \"txid\"  (string) The transaction id\n"
-+            "  \"index\"  (number) The spending input index\n"
-+            "  ,...\n"
-+            "}\n"
-+            "\nExamples:\n"
-+            + HelpExampleCli("getspentinfo", "'{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}'")
-+            + HelpExampleRpc("getspentinfo", "{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}")
-+        );
-+
-+    UniValue txidValue = find_value(params[0].get_obj(), "txid");
-+    UniValue indexValue = find_value(params[0].get_obj(), "index");
-+
-+    if (!txidValue.isStr() || !indexValue.isNum()) {
-+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid txid or index");
-+    }
-+
-+    uint256 txid = ParseHashV(txidValue, "txid");
-+    int outputIndex = indexValue.get_int();
-+
-+    CSpentIndexKey key(txid, outputIndex);
-+    CSpentIndexValue value;
-+
-+    if (!GetSpentIndex(key, value)) {
-+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get spent info");
-+    }
-+
-+    UniValue obj(UniValue::VOBJ);
-+    obj.push_back(Pair("txid", value.txid.GetHex()));
-+    obj.push_back(Pair("index", (int)value.inputIndex));
-+    obj.push_back(Pair("height", value.blockHeight));
-+
-+    return obj;
-+}
-+
 +UniValue getaddressmempool(const UniValue& params, bool fHelp)
 +{
 +    if (fHelp || params.size() != 1)
 +        throw runtime_error(
 +            "getaddressmempool\n"
-+            "\nReturns all mempool deltas for an address (requires addressindex to be enabled).\n"
-+            "\nArguments:\n"
-+            "{\n"
-+            "  \"addresses\"\n"
-+            "    [\n"
-+            "      \"address\"  (string) The base58check encoded address\n"
-+            "      ,...\n"
-+            "    ]\n"
-+            "}\n"
-+            "\nResult:\n"
-+            "[\n"
-+            "  {\n"
-+            "    \"address\"  (string) The base58check encoded address\n"
-+            "    \"txid\"  (string) The related txid\n"
-+            "    \"index\"  (number) The related input or output index\n"
-+            "    \"satoshis\"  (number) The difference of satoshis\n"
-+            "    \"timestamp\"  (number) The time the transaction entered the mempool (seconds)\n"
-+            "    \"prevtxid\"  (string) The previous txid (if spending)\n"
-+            "    \"prevout\"  (string) The previous transaction output index (if spending)\n"
-+            "  }\n"
-+            "]\n"
-+            "\nExamples:\n"
-+            + HelpExampleCli("getaddressmempool", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
-+            + HelpExampleRpc("getaddressmempool", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
-+        );
++	    "\nReturns all mempool deltas for an address (requires addressindex to be enabled).\n"
++	    "\nArguments:\n"
++	    "{\n"
++	    "  \"addresses\"\n"
++	    "    [\n"
++	    "      \"address\"  (string) The base58check encoded address\n"
++	    "      ,...\n"
++	    "    ]\n"
++	    "}\n"
++	    "\nResult:\n"
++	    "[\n"
++	    "  {\n"
++	    "    \"address\"  (string) The base58check encoded address\n"
++	    "    \"txid\"  (string) The related txid\n"
++	    "    \"index\"  (number) The related input or output index\n"
++	    "    \"satoshis\"  (number) The difference of satoshis\n"
++	    "    \"timestamp\"  (number) The time the transaction entered the mempool (seconds)\n"
++	    "    \"prevtxid\"  (string) The previous txid (if spending)\n"
++	    "    \"prevout\"  (string) The previous transaction output index (if spending)\n"
++	    "  }\n"
++	    "]\n"
++	    "\nExamples:\n"
++	    + HelpExampleCli("getaddressmempool", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
++	    + HelpExampleRpc("getaddressmempool", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
++    );
 +
 +    std::vector<std::pair<uint160, int> > addresses;
 +
@@ -2403,32 +624,32 @@ index 44c3988..e8b64fb 100644
 +{
 +    if (fHelp || params.size() != 1)
 +        throw runtime_error(
-+            "getaddressutxos\n"
-+            "\nReturns all unspent outputs for an address (requires addressindex to be enabled).\n"
-+            "\nArguments:\n"
-+            "{\n"
-+            "  \"addresses\"\n"
-+            "    [\n"
-+            "      \"address\"  (string) The base58check encoded address\n"
-+            "      ,...\n"
-+            "    ],\n"
-+            "  \"chainInfo\"  (boolean) Include chain info with results\n"
-+            "}\n"
-+            "\nResult\n"
-+            "[\n"
-+            "  {\n"
-+            "    \"address\"  (string) The address base58check encoded\n"
-+            "    \"txid\"  (string) The output txid\n"
-+            "    \"height\"  (number) The block height\n"
-+            "    \"outputIndex\"  (number) The output index\n"
-+            "    \"script\"  (strin) The script hex encoded\n"
-+            "    \"satoshis\"  (number) The number of satoshis of the output\n"
-+            "  }\n"
-+            "]\n"
-+            "\nExamples:\n"
-+            + HelpExampleCli("getaddressutxos", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
-+            + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
-+            );
++	    "getaddressutxos\n"
++	    "\nReturns all unspent outputs for an address (requires addressindex to be enabled).\n"
++	    "\nArguments:\n"
++	    "{\n"
++	    "  \"addresses\"\n"
++	    "    [\n"
++	    "      \"address\"  (string) The base58check encoded address\n"
++	    "      ,...\n"
++	    "    ],\n"
++	    "  \"chainInfo\"  (boolean) Include chain info with results\n"
++	    "}\n"
++	    "\nResult\n"
++	    "[\n"
++	    "  {\n"
++	    "    \"address\"  (string) The address base58check encoded\n"
++	    "    \"txid\"  (string) The output txid\n"
++	    "    \"height\"  (number) The block height\n"
++	    "    \"outputIndex\"  (number) The output index\n"
++	    "    \"script\"  (strin) The script hex encoded\n"
++	    "    \"satoshis\"  (number) The number of satoshis of the output\n"
++	    "  }\n"
++	    "]\n"
++	    "\nExamples:\n"
++	    + HelpExampleCli("getaddressutxos", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
++	    + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
++    );
 +
 +    bool includeChainInfo = false;
 +    if (params[0].isObject()) {
@@ -2444,7 +665,7 @@ index 44c3988..e8b64fb 100644
 +        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
 +    }
 +
-+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
++    std::vector<CAddressUnspentDbEntry> unspentOutputs;
 +
 +    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
 +        if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
@@ -2456,7 +677,7 @@ index 44c3988..e8b64fb 100644
 +
 +    UniValue utxos(UniValue::VARR);
 +
-+    for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
++    for (std::vector<CAddressUnspentDbEntry>::const_iterator it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
 +        UniValue output(UniValue::VOBJ);
 +        std::string address;
 +        if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address)) {
@@ -2489,32 +710,32 @@ index 44c3988..e8b64fb 100644
 +{
 +    if (fHelp || params.size() != 1 || !params[0].isObject())
 +        throw runtime_error(
-+            "getaddressdeltas\n"
-+            "\nReturns all changes for an address (requires addressindex to be enabled).\n"
-+            "\nArguments:\n"
-+            "{\n"
-+            "  \"addresses\"\n"
-+            "    [\n"
-+            "      \"address\"  (string) The base58check encoded address\n"
-+            "      ,...\n"
-+            "    ]\n"
-+            "  \"start\" (number) The start block height\n"
-+            "  \"end\" (number) The end block height\n"
-+            "  \"chainInfo\" (boolean) Include chain info in results, only applies if start and end specified\n"
-+            "}\n"
-+            "\nResult:\n"
-+            "[\n"
-+            "  {\n"
-+            "    \"satoshis\"  (number) The difference of satoshis\n"
-+            "    \"txid\"  (string) The related txid\n"
-+            "    \"index\"  (number) The related input or output index\n"
-+            "    \"height\"  (number) The block height\n"
-+            "    \"address\"  (string) The base58check encoded address\n"
-+            "  }\n"
-+            "]\n"
-+            "\nExamples:\n"
-+            + HelpExampleCli("getaddressdeltas", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
-+            + HelpExampleRpc("getaddressdeltas", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
++	    "getaddressdeltas\n"
++	    "\nReturns all changes for an address (requires addressindex to be enabled).\n"
++	    "\nArguments:\n"
++	    "{\n"
++	    "  \"addresses\"\n"
++	    "    [\n"
++	    "      \"address\"  (string) The base58check encoded address\n"
++	    "      ,...\n"
++	    "    ]\n"
++	    "  \"start\" (number) The start block height\n"
++	    "  \"end\" (number) The end block height\n"
++	    "  \"chainInfo\" (boolean) Include chain info in results, only applies if start and end specified\n"
++	    "}\n"
++	    "\nResult:\n"
++	    "[\n"
++	    "  {\n"
++	    "    \"satoshis\"  (number) The difference of satoshis\n"
++	    "    \"txid\"  (string) The related txid\n"
++	    "    \"index\"  (number) The related input or output index\n"
++	    "    \"height\"  (number) The block height\n"
++	    "    \"address\"  (string) The base58check encoded address\n"
++	    "  }\n"
++	    "]\n"
++	    "\nExamples:\n"
++	    + HelpExampleCli("getaddressdeltas", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
++	    + HelpExampleRpc("getaddressdeltas", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
 +        );
 +
 +
@@ -2610,54 +831,225 @@ index 44c3988..e8b64fb 100644
 +    }
 +}
 +
++UniValue getaddressbalance(const UniValue& params, bool fHelp)
++{
++    if (fHelp || params.size() != 1)
++        throw runtime_error(
++	    "getaddressbalance\n"
++	    "\nReturns the balance for an address(es) (requires addressindex to be enabled).\n"
++	    "\nArguments:\n"
++	    "{\n"
++	    "  \"addresses\"\n"
++	    "    [\n"
++	    "      \"address\"  (string) The base58check encoded address\n"
++	    "      ,...\n"
++	    "    ]\n"
++	    "}\n"
++	    "\nResult:\n"
++	    "{\n"
++	    "  \"balance\"  (string) The current balance in satoshis\n"
++	    "  \"received\"  (string) The total number of satoshis received (including change)\n"
++	    "}\n"
++	    "\nExamples:\n"
++	    + HelpExampleCli("getaddressbalance", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
++	    + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
++    );
++
++    std::vector<std::pair<uint160, int> > addresses;
++
++    if (!getAddressesFromParams(params, addresses)) {
++        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
++    }
++
++    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
++
++    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
++        if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
++            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
++        }
++    }
++
++    CAmount balance = 0;
++    CAmount received = 0;
++
++    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
++        if (it->second > 0) {
++            received += it->second;
++        }
++        balance += it->second;
++    }
++
++    UniValue result(UniValue::VOBJ);
++    result.push_back(Pair("balance", balance));
++    result.push_back(Pair("received", received));
++
++    return result;
++
++}
++
++UniValue getaddresstxids(const UniValue& params, bool fHelp)
++{
++    if (fHelp || params.size() != 1)
++        throw runtime_error(
++	    "getaddresstxids\n"
++	    "\nReturns the txids for an address(es) (requires addressindex to be enabled).\n"
++	    "\nArguments:\n"
++	    "{\n"
++	    "  \"addresses\"\n"
++	    "    [\n"
++	    "      \"address\"  (string) The base58check encoded address\n"
++	    "      ,...\n"
++	    "    ]\n"
++	    "  \"start\" (number) The start block height\n"
++	    "  \"end\" (number) The end block height\n"
++	    "}\n"
++	    "\nResult:\n"
++	    "[\n"
++	    "  \"transactionid\"  (string) The transaction id\n"
++	    "  ,...\n"
++	    "]\n"
++	    "\nExamples:\n"
++	    + HelpExampleCli("getaddresstxids", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
++	    + HelpExampleRpc("getaddresstxids", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
++        );
++
++    std::vector<std::pair<uint160, int> > addresses;
++
++    if (!getAddressesFromParams(params, addresses)) {
++        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
++    }
++
++    int start = 0;
++    int end = 0;
++    if (params[0].isObject()) {
++        UniValue startValue = find_value(params[0].get_obj(), "start");
++        UniValue endValue = find_value(params[0].get_obj(), "end");
++        if (startValue.isNum() && endValue.isNum()) {
++            start = startValue.get_int();
++            end = endValue.get_int();
++        }
++    }
++
++    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
++
++    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
++        if (start > 0 && end > 0) {
++            if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end)) {
++                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
++            }
++        } else {
++            if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
++                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
++            }
++        }
++    }
++
++    std::set<std::pair<int, std::string> > txids;
++    UniValue result(UniValue::VARR);
++
++    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
++        int height = it->first.blockHeight;
++        std::string txid = it->first.txhash.GetHex();
++
++        if (addresses.size() > 1) {
++            txids.insert(std::make_pair(height, txid));
++        } else {
++            if (txids.insert(std::make_pair(height, txid)).second) {
++                result.push_back(txid);
++            }
++        }
++    }
++
++    if (addresses.size() > 1) {
++        for (std::set<std::pair<int, std::string> >::const_iterator it=txids.begin(); it!=txids.end(); it++) {
++            result.push_back(it->second);
++        }
++    }
++
++    return result;
++
++}
++
++UniValue getspentinfo(const UniValue& params, bool fHelp)
++{
++    if (fHelp || params.size() != 1 || !params[0].isObject())
++        throw runtime_error(
++	    "getspentinfo\n"
++	    "\nReturns the txid and index where an output is spent.\n"
++	    "\nArguments:\n"
++	    "{\n"
++	    "  \"txid\" (string) The hex string of the txid\n"
++	    "  \"index\" (number) The start block height\n"
++	    "}\n"
++	    "\nResult:\n"
++	    "{\n"
++	    "  \"txid\"  (string) The transaction id\n"
++	    "  \"index\"  (number) The spending input index\n"
++	    "  ,...\n"
++	    "}\n"
++	    "\nExamples:\n"
++	    + HelpExampleCli("getspentinfo", "'{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}'")
++	    + HelpExampleRpc("getspentinfo", "{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}")
++        );
++
++    UniValue txidValue = find_value(params[0].get_obj(), "txid");
++    UniValue indexValue = find_value(params[0].get_obj(), "index");
++
++    if (!txidValue.isStr() || !indexValue.isNum()) {
++        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid txid or index");
++    }
++    uint256 txid = ParseHashV(txidValue, "txid");
++    int outputIndex = indexValue.get_int();
++
++    CSpentIndexKey key(txid, outputIndex);
++    CSpentIndexValue value;
++
++    if (!GetSpentIndex(key, value)) {
++        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get spent info");
++    }
++    UniValue obj(UniValue::VOBJ);
++    obj.push_back(Pair("txid", value.txid.GetHex()));
++    obj.push_back(Pair("index", (int)value.inputIndex));
++    obj.push_back(Pair("height", value.blockHeight));
++
++    return obj;
++}
++
  static const CRPCCommand commands[] =
  { //  category              name                      actor (function)         okSafeMode
    //  --------------------- ------------------------  -----------------------  ----------
-@@ -492,6 +1040,15 @@ static const CRPCCommand commands[] =
+@@ -492,6 +1037,16 @@ static const CRPCCommand commands[] =
      { "util",               "createmultisig",         &createmultisig,         true  },
      { "util",               "verifymessage",          &verifymessage,          true  },
  
-+    { "blockchain",         "getspentinfo",           &getspentinfo,           false },
-+
++    // START insightexplorer
 +    /* Address index */
-+    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true  },
-+    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false },
-+    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
-+    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
-+    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
++    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false }, /* insight explorer */
++    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false }, /* insight explorer */
++    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false }, /* insight explorer */
++    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false }, /* insight explorer */
++    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true  }, /* insight explorer */
++    { "blockchain",         "getspentinfo",           &getspentinfo,           false }, /* insight explorer */
++    // END insightexplorer
 +
      /* Not shown in help */
      { "hidden",             "setmocktime",            &setmocktime,            true  },
  };
 diff --git a/src/rpc/rawtransaction.cpp b/src/rpc/rawtransaction.cpp
-index 96ab47f..83b0682 100644
+index 1be6282..5c5a3b5 100644
 --- a/src/rpc/rawtransaction.cpp
 +++ b/src/rpc/rawtransaction.cpp
-@@ -66,7 +66,9 @@ UniValue TxJoinSplitToJSON(const CTransaction& tx) {
-         UniValue joinsplit(UniValue::VOBJ);
+@@ -149,7 +149,8 @@ UniValue TxShieldedOutputsToJSON(const CTransaction& tx) {
  
-         joinsplit.push_back(Pair("vpub_old", ValueFromAmount(jsdescription.vpub_old)));
-+        joinsplit.push_back(Pair("vpub_oldZat", jsdescription.vpub_old));
-         joinsplit.push_back(Pair("vpub_new", ValueFromAmount(jsdescription.vpub_new)));
-+        joinsplit.push_back(Pair("vpub_newZat", jsdescription.vpub_new));
- 
-         joinsplit.push_back(Pair("anchor", jsdescription.anchor.GetHex()));
- 
-@@ -145,9 +147,11 @@ UniValue TxShieldedOutputsToJSON(const CTransaction& tx) {
-     return vdesc;
- }
- 
--void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
-+void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue& entry,
-+                      int nHeight = 0, int nConfirmations = 0, int nBlockTime = 0)
+ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
  {
 -    entry.push_back(Pair("txid", tx.GetHash().GetHex()));
-+    uint256 txid = tx.GetHash();
++    const uint256 txid = tx.GetHash();
 +    entry.push_back(Pair("txid", txid.GetHex()));
      entry.push_back(Pair("hash", tx.GetScriptSigHash().GetHex()));
      entry.push_back(Pair("overwintered", tx.fOverwintered));
      entry.push_back(Pair("version", tx.nVersion));
-@@ -170,6 +174,20 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+@@ -172,6 +173,19 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
              o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
              o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
              in.push_back(Pair("scriptSig", o));
@@ -2674,21 +1066,13 @@ index 96ab47f..83b0682 100644
 +                    in.push_back(Pair("address", EncodeDestination(CScriptID(spentInfo.addressHash))));
 +                }
 +            }
-+
          }
          in.push_back(Pair("sequence", (int64_t)txin.nSequence));
          vin.push_back(in);
-@@ -180,11 +198,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
-         const CTxOut& txout = tx.vout[i];
-         UniValue out(UniValue::VOBJ);
-         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
--        out.push_back(Pair("valueZat", txout.nValue));
-+        out.push_back(Pair("valueSat", txout.nValue));
-         out.push_back(Pair("n", (int64_t)i));
+@@ -187,6 +201,14 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
          UniValue o(UniValue::VOBJ);
          ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
          out.push_back(Pair("scriptPubKey", o));
-+
 +        // Add spent information if spentindex is enabled
 +        CSpentIndexValue spentInfo;
 +        CSpentIndexKey spentKey(txid, i);
@@ -2697,103 +1081,10 @@ index 96ab47f..83b0682 100644
 +            out.push_back(Pair("spentIndex", (int)spentInfo.inputIndex));
 +            out.push_back(Pair("spentHeight", spentInfo.blockHeight));
 +        }
-+
          vout.push_back(out);
      }
      entry.push_back(Pair("vout", vout));
-@@ -203,18 +231,89 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
-         }
-     }
- 
-+    if (tx.fOverwintered && tx.nVersion >= SAPLING_TX_VERSION) {
-+        entry.push_back(Pair("valueBalance", ValueFromAmount(tx.valueBalance)));
-+        entry.push_back(Pair("valueBalanceZat", tx.valueBalance));
-+        UniValue vspenddesc = TxShieldedSpendsToJSON(tx);
-+        entry.push_back(Pair("vShieldedSpend", vspenddesc));
-+        UniValue voutputdesc = TxShieldedOutputsToJSON(tx);
-+        entry.push_back(Pair("vShieldedOutput", voutputdesc));
-+        if (!(vspenddesc.empty() && voutputdesc.empty())) {
-+            entry.push_back(Pair("bindingSig", HexStr(tx.bindingSig.begin(), tx.bindingSig.end())));
-+        }
-+    }
-+
-+    if (!hashBlock.IsNull()) {
-+        entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-+
-+        if (nConfirmations > 0) {
-+            entry.push_back(Pair("height", nHeight));
-+            entry.push_back(Pair("confirmations", nConfirmations));
-+            entry.push_back(Pair("time", nBlockTime));
-+            entry.push_back(Pair("blocktime", nBlockTime));
-+        } else {
-+            entry.push_back(Pair("height", -1));
-+            entry.push_back(Pair("confirmations", 0));
-+        }
-+    }
-+
-+}
-+
-+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
-+{
-+
-+    uint256 txid = tx.GetHash();
-+    entry.push_back(Pair("txid", txid.GetHex()));
-+    entry.push_back(Pair("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
-+    entry.push_back(Pair("version", tx.nVersion));
-+    entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
-+
-+    UniValue vin(UniValue::VARR);
-+    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
-+        UniValue in(UniValue::VOBJ);
-+        if (tx.IsCoinBase())
-+            in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-+        else {
-+            in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
-+            in.push_back(Pair("vout", (int64_t)txin.prevout.n));
-+            UniValue o(UniValue::VOBJ);
-+	    o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
-+            o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-+            in.push_back(Pair("scriptSig", o));
-+        }
-+        in.push_back(Pair("sequence", (int64_t)txin.nSequence));
-+        vin.push_back(in);
-+    }
-+    entry.push_back(Pair("vin", vin));
-+
-+    UniValue vout(UniValue::VARR);
-+    for (unsigned int i = 0; i < tx.vout.size(); i++) {
-+        const CTxOut& txout = tx.vout[i];
-+        UniValue out(UniValue::VOBJ);
-+        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-+        out.push_back(Pair("valueSat", txout.nValue));
-+        out.push_back(Pair("n", (int64_t)i));
-+        UniValue o(UniValue::VOBJ);
-+        ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
-+        out.push_back(Pair("scriptPubKey", o));
-+        vout.push_back(out);
-+    }
-+    entry.push_back(Pair("vout", vout));
-+
-     if (!hashBlock.IsNull()) {
-         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
-         if (mi != mapBlockIndex.end() && (*mi).second) {
-             CBlockIndex* pindex = (*mi).second;
-             if (chainActive.Contains(pindex)) {
-+                entry.push_back(Pair("height", pindex->nHeight));
-                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
-                 entry.push_back(Pair("time", pindex->GetBlockTime()));
-                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
--            }
--            else
-+            } else {
-+                entry.push_back(Pair("height", -1));
-                 entry.push_back(Pair("confirmations", 0));
-+            }
-         }
-     }
- }
-@@ -313,8 +412,6 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+@@ -318,14 +340,14 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
              + HelpExampleRpc("getrawtransaction", "\"mytxid\", 1")
          );
  
@@ -2802,686 +1093,57 @@ index 96ab47f..83b0682 100644
      uint256 hash = ParseHashV(params[0], "parameter 1");
  
      bool fVerbose = false;
-@@ -322,9 +419,31 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
+     if (params.size() > 1)
          fVerbose = (params[1].get_int() != 0);
  
++    LOCK(cs_main);
++
      CTransaction tx;
-+
      uint256 hashBlock;
--    if (!GetTransaction(hash, tx, hashBlock, true))
--        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
-+    int nHeight = 0;
-+    int nConfirmations = 0;
-+    int nBlockTime = 0;
-+
-+    {
-+        LOCK(cs_main);
-+        if (!GetTransaction(hash, tx, hashBlock, true))
-+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
-+
-+        BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
-+        if (mi != mapBlockIndex.end() && (*mi).second) {
-+            CBlockIndex* pindex = (*mi).second;
-+            if (chainActive.Contains(pindex)) {
-+                nHeight = pindex->nHeight;
-+                nConfirmations = 1 + chainActive.Height() - pindex->nHeight;
-+                nBlockTime = pindex->GetBlockTime();
-+            } else {
-+                nHeight = -1;
-+                nConfirmations = 0;
-+                nBlockTime = pindex->GetBlockTime();
-+            }
+     if (!GetTransaction(hash, tx, hashBlock, true))
+@@ -414,8 +436,8 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
+     BOOST_FOREACH(const CTransaction&tx, block.vtx) {
+         if (setTxids.count(tx.GetHash())) {
+             ntxFound++;
+-	    setHashes.insert(tx.GetScriptSigHash());
+-	}
++            setHashes.insert(tx.GetScriptSigHash());
 +        }
-+    }
- 
-     string strHex = EncodeHexTx(tx);
- 
-@@ -333,7 +452,8 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
- 
-     UniValue result(UniValue::VOBJ);
-     result.push_back(Pair("hex", strHex));
--    TxToJSON(tx, hashBlock, result);
-+    TxToJSONExpanded(tx, hashBlock, result, nHeight, nConfirmations, nBlockTime);
-+
-     return result;
- }
- 
-diff --git a/src/script/script.cpp b/src/script/script.cpp
-index d5234ca..ede8ffa 100644
---- a/src/script/script.cpp
-+++ b/src/script/script.cpp
-@@ -201,6 +201,20 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
-     return subscript.GetSigOpCount(true);
- }
- 
-+bool CScript::IsPayToPublicKeyHash() const
-+{
-+    // Extra-fast test for pay-to-pubkey-hash CScripts:
-+    return ((this->size() == 35 && // compressed
-+	     (*this)[0]  == 0x21 &&
-+	     (*this)[34] == OP_CHECKSIG) ||
-+	    (this->size() == 25 &&
-+	     (*this)[0] == OP_DUP &&
-+	     (*this)[1] == OP_HASH160 &&
-+	     (*this)[2] == 0x14 &&
-+	     (*this)[23] == OP_EQUALVERIFY &&
-+	     (*this)[24] == OP_CHECKSIG));
-+}
-+
- bool CScript::IsPayToScriptHash() const
- {
-     // Extra-fast test for pay-to-script-hash CScripts:
-diff --git a/src/script/script.h b/src/script/script.h
-index 541ece1..1eab27a 100644
---- a/src/script/script.h
-+++ b/src/script/script.h
-@@ -565,6 +565,8 @@ public:
-      */
-     unsigned int GetSigOpCount(const CScript& scriptSig) const;
- 
-+    bool IsPayToPublicKeyHash() const;
-+
-     bool IsPayToScriptHash() const;
- 
-     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
-diff --git a/src/serialize.h b/src/serialize.h
-index a22a064..48578d5 100644
---- a/src/serialize.h
-+++ b/src/serialize.h
-@@ -26,6 +26,7 @@
- #include <boost/optional.hpp>
- 
- #include "prevector.h"
-+#include "script/script.h"
- 
- static const unsigned int MAX_SIZE = 0x02000000;
- 
-@@ -110,6 +111,11 @@ template<typename Stream> inline void ser_writedata32(Stream &s, uint32_t obj)
-     obj = htole32(obj);
-     s.write((char*)&obj, 4);
- }
-+template<typename Stream> inline void ser_writedata32be(Stream &s, uint32_t obj)
-+{
-+    obj = htobe32(obj);
-+    s.write((char*)&obj, 4);
-+}
- template<typename Stream> inline void ser_writedata64(Stream &s, uint64_t obj)
- {
-     obj = htole64(obj);
-@@ -133,6 +139,12 @@ template<typename Stream> inline uint32_t ser_readdata32(Stream &s)
-     s.read((char*)&obj, 4);
-     return le32toh(obj);
- }
-+template<typename Stream> inline uint32_t ser_readdata32be(Stream &s)
-+{
-+    uint32_t obj;
-+    s.read((char*)&obj, 4);
-+    return be32toh(obj);
-+}
- template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
- {
-     uint64_t obj;
-@@ -513,6 +525,12 @@ template<typename Stream, unsigned int N, typename T, typename V> void Unseriali
- template<typename Stream, unsigned int N, typename T> inline void Unserialize(Stream& is, prevector<N, T>& v);
- 
- /**
-+ * CScript
-+ */
-+template<typename Stream> void Serialize(Stream& os, const CScript& v);
-+template<typename Stream> void Unserialize(Stream& is, CScript& v);
-+
-+/**
-  * vector
-  * vectors of unsigned char are a special case and are intended to be serialized as a single opaque blob.
-  */
-@@ -748,7 +766,21 @@ inline void Unserialize(Stream& is, std::vector<T, A>& v)
-     Unserialize_impl(is, v, T());
- }
- 
-+/**
-+ * CScript
-+ */
-+template<typename Stream>
-+void Serialize(Stream& os, const CScript& v)
-+{
-+    //    Serialize(os, (const prevector<28, unsigned char>&)v);
-+    Serialize(os, (const CScriptBase&)v);
-+}
- 
-+template<typename Stream>
-+void Unserialize(Stream& is, CScript& v)
-+{
-+    Unserialize(is, (CScriptBase&)v);
-+}
- 
- /**
-  * optional
-diff --git a/src/spentindex.h b/src/spentindex.h
-new file mode 100644
-index 0000000..7b9da42
---- /dev/null
-+++ b/src/spentindex.h
-@@ -0,0 +1,98 @@
-+// Copyright (c) 2009-2010 Satoshi Nakamoto
-+// Copyright (c) 2009-2015 The Bitcoin Core developers
-+// Distributed under the MIT software license, see the accompanying
-+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#ifndef BITCOIN_SPENTINDEX_H
-+#define BITCOIN_SPENTINDEX_H
-+
-+#include "uint256.h"
-+#include "amount.h"
-+
-+struct CSpentIndexKey {
-+    uint256 txid;
-+    unsigned int outputIndex;
-+
-+    ADD_SERIALIZE_METHODS;
-+
-+    template <typename Stream, typename Operation>
-+    inline void SerializationOp(Stream& s, Operation ser_action) {
-+        READWRITE(txid);
-+        READWRITE(outputIndex);
-+    }
-+
-+    CSpentIndexKey(uint256 t, unsigned int i) {
-+        txid = t;
-+        outputIndex = i;
-+    }
-+
-+    CSpentIndexKey() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        txid.SetNull();
-+        outputIndex = 0;
-+    }
-+
-+};
-+
-+struct CSpentIndexValue {
-+    uint256 txid;
-+    unsigned int inputIndex;
-+    int blockHeight;
-+    CAmount satoshis;
-+    int addressType;
-+    uint160 addressHash;
-+
-+    ADD_SERIALIZE_METHODS;
-+
-+    template <typename Stream, typename Operation>
-+    inline void SerializationOp(Stream& s, Operation ser_action) {
-+        READWRITE(txid);
-+        READWRITE(inputIndex);
-+        READWRITE(blockHeight);
-+        READWRITE(satoshis);
-+        READWRITE(addressType);
-+        READWRITE(addressHash);
-+    }
-+
-+    CSpentIndexValue(uint256 t, unsigned int i, int h, CAmount s, int type, uint160 a) {
-+        txid = t;
-+        inputIndex = i;
-+        blockHeight = h;
-+        satoshis = s;
-+        addressType = type;
-+        addressHash = a;
-+    }
-+
-+    CSpentIndexValue() {
-+        SetNull();
-+    }
-+
-+    void SetNull() {
-+        txid.SetNull();
-+        inputIndex = 0;
-+        blockHeight = 0;
-+        satoshis = 0;
-+        addressType = 0;
-+        addressHash.SetNull();
-+    }
-+
-+    bool IsNull() const {
-+        return txid.IsNull();
-+    }
-+};
-+
-+struct CSpentIndexKeyCompare
-+{
-+    bool operator()(const CSpentIndexKey& a, const CSpentIndexKey& b) const {
-+        if (a.txid == b.txid) {
-+            return a.outputIndex < b.outputIndex;
-+        } else {
-+            return a.txid < b.txid;
-+        }
-+    }
-+};
-+
-+#endif // BITCOIN_SPENTINDEX_H
-diff --git a/src/test/data/wallet.dat b/src/test/data/wallet.dat
-new file mode 100644
-index 0000000..e69de29
-diff --git a/src/test/script_P2PKH_tests.cpp b/src/test/script_P2PKH_tests.cpp
-new file mode 100644
-index 0000000..3a7dc16
---- /dev/null
-+++ b/src/test/script_P2PKH_tests.cpp
-@@ -0,0 +1,59 @@
-+// Copyright (c) 2012-2015 The Bitcoin Core developers
-+// Distributed under the MIT software license, see the accompanying
-+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#include "script/script.h"
-+#include "test/test_bitcoin.h"
-+
-+#include <boost/test/unit_test.hpp>
-+
-+using namespace std;
-+
-+BOOST_FIXTURE_TEST_SUITE(script_P2PKH_tests, BasicTestingSetup)
-+
-+BOOST_AUTO_TEST_CASE(IsPayToPublicKeyHash)
-+{
-+    // Test CScript::IsPayToPublicKeyHash()
-+    uint160 dummy;
-+    CScript p2pkh;
-+    p2pkh << OP_DUP << OP_HASH160 << ToByteVector(dummy) << OP_EQUALVERIFY << OP_CHECKSIG;
-+    BOOST_CHECK(p2pkh.IsPayToPublicKeyHash());
-+
-+    static const unsigned char direct[] = {
-+        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG
-+    };
-+    BOOST_CHECK(CScript(direct, direct+sizeof(direct)).IsPayToPublicKeyHash());
-+
-+    static const unsigned char notp2pkh1[] = {
-+        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG, OP_CHECKSIG
-+    };
-+    BOOST_CHECK(!CScript(notp2pkh1, notp2pkh1+sizeof(notp2pkh1)).IsPayToPublicKeyHash());
-+
-+    static const unsigned char p2sh[] = {
-+        OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL
-+    };
-+    BOOST_CHECK(!CScript(p2sh, p2sh+sizeof(p2sh)).IsPayToPublicKeyHash());
-+
-+    static const unsigned char extra[] = {
-+        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG, OP_CHECKSIG
-+    };
-+    BOOST_CHECK(!CScript(extra, extra+sizeof(extra)).IsPayToPublicKeyHash());
-+
-+    static const unsigned char missing[] = {
-+        OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG, OP_RETURN
-+    };
-+    BOOST_CHECK(!CScript(missing, missing+sizeof(missing)).IsPayToPublicKeyHash());
-+
-+    static const unsigned char missing2[] = {
-+        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-+    };
-+    BOOST_CHECK(!CScript(missing2, missing2+sizeof(missing)).IsPayToPublicKeyHash());
-+
-+    static const unsigned char tooshort[] = {
-+        OP_DUP, OP_HASH160, 2, 0,0, OP_EQUALVERIFY, OP_CHECKSIG
-+    };
-+    BOOST_CHECK(!CScript(tooshort, tooshort+sizeof(direct)).IsPayToPublicKeyHash());
-+
-+}
-+
-+BOOST_AUTO_TEST_SUITE_END()
-diff --git a/src/test/test_bitcoin.h b/src/test/test_bitcoin.h
-index ff1ad48..6f1a58a 100644
---- a/src/test/test_bitcoin.h
-+++ b/src/test/test_bitcoin.h
-@@ -1,6 +1,7 @@
- #ifndef BITCOIN_TEST_TEST_BITCOIN_H
- #define BITCOIN_TEST_TEST_BITCOIN_H
- 
-+#include "chainparamsbase.h"
- #include "consensus/upgrades.h"
- #include "pubkey.h"
- #include "txdb.h"
-diff --git a/src/test/wallet-utility.py b/src/test/wallet-utility.py
-new file mode 100644
-index 0000000..b853a22
---- /dev/null
-+++ b/src/test/wallet-utility.py
-@@ -0,0 +1,61 @@
-+#!/usr/bin/python
-+# Copyright 2014 BitPay, Inc.
-+# Distributed under the MIT software license, see the accompanying
-+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+import subprocess
-+import os
-+import json
-+import sys
-+import buildenv
-+import shutil
-+
-+def assert_equal(thing1, thing2):
-+    if thing1 != thing2:
-+        raise AssertionError("%s != %s"%(str(thing1),str(thing2)))
-+
-+if __name__ == '__main__':
-+    datadir = os.environ["srcdir"] + "/test/data"
-+    execprog = './wallet-utility' + buildenv.exeext
-+    execargs = '-datadir=' + datadir
-+    execrun = execprog + ' ' + execargs
-+
-+    proc = subprocess.Popen(execrun, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True)
-+    try:
-+        outs = proc.communicate()
-+    except OSError:
-+        print("OSError, Failed to execute " + execprog)
-+        sys.exit(1)
-+
-+    output = json.loads(outs[0])
-+
-+    assert_equal(output[0], "13EngsxkRi7SJPPqCyJsKf34U8FoX9E9Av")
-+    assert_equal(output[1], "1FKCLGTpPeYBUqfNxktck8k5nqxB8sjim8")
-+    assert_equal(output[2], "13cdtE9tnNeXCZJ8KQ5WELgEmLSBLnr48F")
-+
-+    execargs = '-datadir=' + datadir + ' -dumppass'
-+    execrun = execprog + ' ' + execargs
-+
-+    proc = subprocess.Popen(execrun, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True)
-+    try:
-+        outs = proc.communicate()
-+    except OSError:
-+        print("OSError, Failed to execute " + execprog)
-+        sys.exit(1)
-+
-+    output = json.loads(outs[0])
-+
-+    assert_equal(output[0]['addr'], "13EngsxkRi7SJPPqCyJsKf34U8FoX9E9Av")
-+    assert_equal(output[0]['pkey'], "5Jz5BWE2WQxp1hGqDZeisQFV1mRFR2AVBAgiXCbNcZyXNjD9aUd")
-+    assert_equal(output[1]['addr'], "1FKCLGTpPeYBUqfNxktck8k5nqxB8sjim8")
-+    assert_equal(output[1]['pkey'], "5HsX2b3v2GjngYQ5ZM4mLp2b2apw6aMNVaPELV1YmpiYR1S4jzc")
-+    assert_equal(output[2]['addr'], "13cdtE9tnNeXCZJ8KQ5WELgEmLSBLnr48F")
-+    assert_equal(output[2]['pkey'], "5KCWAs1wX2ESiL4PfDR8XYVSSETHFd2jaRGxt1QdanBFTit4XcH")
-+
-+    if os.path.exists(datadir + '/database'):
-+        if os.path.isdir(datadir + '/database'):
-+            shutil.rmtree(datadir + '/database')
-+
-+    if os.path.exists(datadir + '/db.log'):
-+        os.remove(datadir + '/db.log')
-+    sys.exit(0)
+     }
+     if (ntxFound != setTxids.size())
+         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "(Not all) transactions not found in specified block");
 diff --git a/src/txdb.cpp b/src/txdb.cpp
-index b26b1a9..1b23b31 100644
+index eecb73d..bfe69e6 100644
 --- a/src/txdb.cpp
 +++ b/src/txdb.cpp
-@@ -26,6 +26,11 @@ static const char DB_SAPLING_NULLIFIER = 'S';
- static const char DB_COINS = 'c';
- static const char DB_BLOCK_FILES = 'f';
- static const char DB_TXINDEX = 't';
-+static const char DB_ADDRESSINDEX = 'd';
-+static const char DB_ADDRESSUNSPENTINDEX = 'u';
-+static const char DB_TIMESTAMPINDEX = 'T';
-+static const char DB_BLOCKHASHINDEX = 'h';
-+static const char DB_SPENTINDEX = 'p';
- static const char DB_BLOCK_INDEX = 'b';
- 
- static const char DB_BEST_BLOCK = 'B';
-@@ -36,11 +41,10 @@ static const char DB_REINDEX_FLAG = 'R';
- static const char DB_LAST_BLOCK = 'l';
- 
- 
--CCoinsViewDB::CCoinsViewDB(std::string dbName, size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / dbName, nCacheSize, fMemory, fWipe) {
-+CCoinsViewDB::CCoinsViewDB(std::string dbName, size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / dbName, nCacheSize, fMemory, fWipe, false, 64) {
- }
- 
--CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe) 
--{
-+CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, false, 64) {
- }
- 
- 
-@@ -193,7 +197,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins,
-     return db.WriteBatch(batch);
- }
- 
--CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "blocks" / "index", nCacheSize, fMemory, fWipe) {
-+CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe, bool compression, int maxOpenFiles) : CDBWrapper(GetDataDir() / "blocks" / "index", nCacheSize, fMemory, fWipe, compression, maxOpenFiles) {
- }
- 
- bool CBlockTreeDB::ReadBlockFileInfo(int nFile, CBlockFileInfo &info) {
-@@ -293,6 +297,157 @@ bool CBlockTreeDB::WriteTxIndex(const std::vector<std::pair<uint256, CDiskTxPos>
-     return WriteBatch(batch);
- }
- 
-+bool CBlockTreeDB::ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value) {
-+    return Read(make_pair(DB_SPENTINDEX, key), value);
-+}
-+
-+bool CBlockTreeDB::UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect) {
-+    CDBBatch batch(*this);
-+    for (std::vector<std::pair<CSpentIndexKey,CSpentIndexValue> >::const_iterator it=vect.begin(); it!=vect.end(); it++) {
-+        if (it->second.IsNull()) {
-+            batch.Erase(make_pair(DB_SPENTINDEX, it->first));
-+        } else {
-+            batch.Write(make_pair(DB_SPENTINDEX, it->first), it->second);
-+        }
-+    }
-+    return WriteBatch(batch);
-+}
-+
-+bool CBlockTreeDB::UpdateAddressUnspentIndex(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect) {
-+    CDBBatch batch(*this);
-+    for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it=vect.begin(); it!=vect.end(); it++) {
-+        if (it->second.IsNull()) {
-+            batch.Erase(make_pair(DB_ADDRESSUNSPENTINDEX, it->first));
-+        } else {
-+            batch.Write(make_pair(DB_ADDRESSUNSPENTINDEX, it->first), it->second);
-+        }
-+    }
-+    return WriteBatch(batch);
-+}
-+
-+bool CBlockTreeDB::ReadAddressUnspentIndex(uint160 addressHash, int type,
-+                                           std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs) {
-+
-+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
-+
-+    pcursor->Seek(make_pair(DB_ADDRESSUNSPENTINDEX, CAddressIndexIteratorKey(type, addressHash)));
-+
-+    while (pcursor->Valid()) {
-+        boost::this_thread::interruption_point();
-+        std::pair<char,CAddressUnspentKey> key;
-+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX && key.second.hashBytes == addressHash) {
-+            CAddressUnspentValue nValue;
-+            if (pcursor->GetValue(nValue)) {
-+                unspentOutputs.push_back(make_pair(key.second, nValue));
-+                pcursor->Next();
-+            } else {
-+                return error("failed to get address unspent value");
-+            }
-+        } else {
-+            break;
-+        }
-+    }
-+
-+    return true;
-+}
-+
-+bool CBlockTreeDB::WriteAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount > >&vect) {
-+    CDBBatch batch(*this);
-+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=vect.begin(); it!=vect.end(); it++)
-+        batch.Write(make_pair(DB_ADDRESSINDEX, it->first), it->second);
-+    return WriteBatch(batch);
-+}
-+
-+bool CBlockTreeDB::EraseAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount > >&vect) {
-+    CDBBatch batch(*this);
-+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=vect.begin(); it!=vect.end(); it++)
-+        batch.Erase(make_pair(DB_ADDRESSINDEX, it->first));
-+    return WriteBatch(batch);
-+}
-+
-+bool CBlockTreeDB::ReadAddressIndex(uint160 addressHash, int type,
-+                                    std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
-+                                    int start, int end) {
-+
-+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
-+
-+    if (start > 0 && end > 0) {
-+        pcursor->Seek(make_pair(DB_ADDRESSINDEX, CAddressIndexIteratorHeightKey(type, addressHash, start)));
-+    } else {
-+        pcursor->Seek(make_pair(DB_ADDRESSINDEX, CAddressIndexIteratorKey(type, addressHash)));
-+    }
-+
-+    while (pcursor->Valid()) {
-+        boost::this_thread::interruption_point();
-+        std::pair<char,CAddressIndexKey> key;
-+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.hashBytes == addressHash) {
-+            if (end > 0 && key.second.blockHeight > end) {
-+                break;
-+            }
-+            CAmount nValue;
-+            if (pcursor->GetValue(nValue)) {
-+                addressIndex.push_back(make_pair(key.second, nValue));
-+                pcursor->Next();
-+            } else {
-+                return error("failed to get address index value");
-+            }
-+        } else {
-+            break;
-+        }
-+    }
-+
-+    return true;
-+}
-+
-+bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey &timestampIndex) {
-+    CDBBatch batch(*this);
-+    batch.Write(make_pair(DB_TIMESTAMPINDEX, timestampIndex), 0);
-+    return WriteBatch(batch);
-+}
-+
-+bool CBlockTreeDB::ReadTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes) {
-+
-+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
-+
-+    pcursor->Seek(make_pair(DB_TIMESTAMPINDEX, CTimestampIndexIteratorKey(low)));
-+
-+    while (pcursor->Valid()) {
-+        boost::this_thread::interruption_point();
-+        std::pair<char, CTimestampIndexKey> key;
-+        if (pcursor->GetKey(key) && key.first == DB_TIMESTAMPINDEX && key.second.timestamp < high) {
-+            if (fActiveOnly) {
-+                if (blockOnchainActive(key.second.blockHash)) {
-+                    hashes.push_back(std::make_pair(key.second.blockHash, key.second.timestamp));
-+                }
-+            } else {
-+                hashes.push_back(std::make_pair(key.second.blockHash, key.second.timestamp));
-+            }
-+
-+            pcursor->Next();
-+        } else {
-+            break;
-+        }
-+    }
-+
-+    return true;
-+}
-+
-+bool CBlockTreeDB::WriteTimestampBlockIndex(const CTimestampBlockIndexKey &blockhashIndex, const CTimestampBlockIndexValue &logicalts) {
-+    CDBBatch batch(*this);
-+    batch.Write(make_pair(DB_BLOCKHASHINDEX, blockhashIndex), logicalts);
-+    return WriteBatch(batch);
-+}
-+
-+bool CBlockTreeDB::ReadTimestampBlockIndex(const uint256 &hash, unsigned int &ltimestamp) {
-+
-+    CTimestampBlockIndexValue(lts);
-+    if (!Read(std::make_pair(DB_BLOCKHASHINDEX, hash), lts))
-+	return false;
-+
-+    ltimestamp = lts.ltimestamp;
-+    return true;
-+}
-+
- bool CBlockTreeDB::WriteFlag(const std::string &name, bool fValue) {
-     return Write(std::make_pair(DB_FLAG, name), fValue ? '1' : '0');
- }
-@@ -305,6 +460,16 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
-     return true;
- }
- 
-+bool CBlockTreeDB::blockOnchainActive(const uint256 &hash) {
-+    CBlockIndex* pblockindex = mapBlockIndex[hash];
-+
-+    if (!chainActive.Contains(pblockindex)) {
-+	return false;
-+    }
-+
-+    return true;
-+}
-+
- bool CBlockTreeDB::LoadBlockIndexGuts()
- {
-     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+@@ -326,7 +326,7 @@ bool CBlockTreeDB::ReadAddressUnspentIndex(uint160 addressHash, int type, std::v
+         if (!(pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX && key.second.hashBytes == addressHash))
+             break;
+         CAddressUnspentValue nValue;
+-        if (pcursor->GetValue(nValue))
++        if (!pcursor->GetValue(nValue))
+             return error("failed to get address unspent value");
+         unspentOutputs.push_back(make_pair(key.second, nValue));
+         pcursor->Next();
 diff --git a/src/txdb.h b/src/txdb.h
-index a415ad2..5b2c8af 100644
+index c00b2d6..1c66ca6 100644
 --- a/src/txdb.h
 +++ b/src/txdb.h
-@@ -17,6 +17,17 @@
- class CBlockFileInfo;
- class CBlockIndex;
- struct CDiskTxPos;
-+struct CAddressUnspentKey;
-+struct CAddressUnspentValue;
-+struct CAddressIndexKey;
-+struct CAddressIndexIteratorKey;
-+struct CAddressIndexIteratorHeightKey;
-+struct CTimestampIndexKey;
-+struct CTimestampIndexIteratorKey;
-+struct CTimestampBlockIndexKey;
-+struct CTimestampBlockIndexValue;
+@@ -34,6 +34,9 @@ struct CTimestampBlockIndexValue;
+ typedef std::pair<CAddressUnspentKey, CAddressUnspentValue> CAddressUnspentDbEntry;
+ typedef std::pair<CAddressIndexKey, CAmount> CAddressIndexDbEntry;
+ typedef std::pair<CSpentIndexKey, CSpentIndexValue> CSpentIndexDbEntry;
++
 +struct CSpentIndexKey;
 +struct CSpentIndexValue;
+ // END insightexplorer
+ 
  class uint256;
- 
- //! -dbcache default (MiB)
-@@ -57,7 +68,7 @@ public:
- class CBlockTreeDB : public CDBWrapper
- {
- public:
--    CBlockTreeDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
-+    CBlockTreeDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false, bool compression = true, int maxOpenFiles = 1000);
- private:
-     CBlockTreeDB(const CBlockTreeDB&);
-     void operator=(const CBlockTreeDB&);
-@@ -70,9 +81,24 @@ public:
-     bool ReadReindexing(bool &fReindex);
-     bool ReadTxIndex(const uint256 &txid, CDiskTxPos &pos);
-     bool WriteTxIndex(const std::vector<std::pair<uint256, CDiskTxPos> > &list);
-+    bool ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
-+    bool UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect);
-+    bool UpdateAddressUnspentIndex(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect);
-+    bool ReadAddressUnspentIndex(uint160 addressHash, int type,
-+                                 std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &vect);
-+    bool WriteAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount> > &vect);
-+    bool EraseAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount> > &vect);
-+    bool ReadAddressIndex(uint160 addressHash, int type,
-+                          std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
-+                          int start = 0, int end = 0);
-+    bool WriteTimestampIndex(const CTimestampIndexKey &timestampIndex);
-+    bool ReadTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &vect);
-+    bool WriteTimestampBlockIndex(const CTimestampBlockIndexKey &blockhashIndex, const CTimestampBlockIndexValue &logicalts);
-+    bool ReadTimestampBlockIndex(const uint256 &hash, unsigned int &logicalTS);
-     bool WriteFlag(const std::string &name, bool fValue);
-     bool ReadFlag(const std::string &name, bool &fValue);
-     bool LoadBlockIndexGuts();
-+    bool blockOnchainActive(const uint256 &hash);
- };
- 
- #endif // BITCOIN_TXDB_H
 diff --git a/src/txmempool.cpp b/src/txmempool.cpp
-index cf04ad5..9287b8f 100644
+index cf04ad5..ac22ed9 100644
 --- a/src/txmempool.cpp
 +++ b/src/txmempool.cpp
-@@ -121,6 +121,144 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
+@@ -121,6 +121,125 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
      return true;
  }
  
@@ -3564,43 +1226,26 @@ index cf04ad5..9287b8f 100644
 +    LOCK(cs);
 +
 +    const CTransaction& tx = entry.GetTx();
++    uint256 txhash = tx.GetHash();
 +    std::vector<CSpentIndexKey> inserted;
 +
-+    uint256 txhash = tx.GetHash();
 +    for (unsigned int j = 0; j < tx.vin.size(); j++) {
 +        const CTxIn input = tx.vin[j];
 +        const CTxOut &prevout = view.GetOutputFor(input);
-+        uint160 addressHash;
-+        int addressType;
-+
-+        if (prevout.scriptPubKey.IsPayToScriptHash()) {
-+            addressHash = uint160(vector<unsigned char> (prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
-+            addressType = 2;
-+        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-+            addressHash = uint160(vector<unsigned char> (prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
-+            addressType = 1;
-+        } else {
-+            addressHash.SetNull();
-+            addressType = 0;
-+        }
-+
 +        CSpentIndexKey key = CSpentIndexKey(input.prevout.hash, input.prevout.n);
-+        CSpentIndexValue value = CSpentIndexValue(txhash, j, -1, prevout.nValue, addressType, addressHash);
-+
++        CSpentIndexValue value = CSpentIndexValue(txhash, j, -1, prevout.nValue,
++                                                  prevout.scriptPubKey.Type(),
++                                                  prevout.scriptPubKey.AddressHash());
 +        mapSpent.insert(make_pair(key, value));
 +        inserted.push_back(key);
-+
 +    }
-+
 +    mapSpentInserted.insert(make_pair(txhash, inserted));
 +}
 +
-+bool CTxMemPool::getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value)
++bool CTxMemPool::getSpentIndex(const CSpentIndexKey &key, CSpentIndexValue &value)
 +{
 +    LOCK(cs);
-+    mapSpentIndex::iterator it;
-+
-+    it = mapSpent.find(key);
++    mapSpentIndex::iterator it = mapSpent.find(key);
 +    if (it != mapSpent.end()) {
 +        value = it->second;
 +        return true;
@@ -3608,7 +1253,7 @@ index cf04ad5..9287b8f 100644
 +    return false;
 +}
 +
-+bool CTxMemPool::removeSpentIndex(const uint256 txhash)
++void CTxMemPool::removeSpentIndex(const uint256 txhash)
 +{
 +    LOCK(cs);
 +    mapSpentIndexInserted::iterator it = mapSpentInserted.find(txhash);
@@ -3620,13 +1265,11 @@ index cf04ad5..9287b8f 100644
 +        }
 +        mapSpentInserted.erase(it);
 +    }
-+
-+    return true;
 +}
  
  void CTxMemPool::remove(const CTransaction &origTx, std::list<CTransaction>& removed, bool fRecursive)
  {
-@@ -172,6 +310,8 @@ void CTxMemPool::remove(const CTransaction &origTx, std::list<CTransaction>& rem
+@@ -172,6 +291,8 @@ void CTxMemPool::remove(const CTransaction &origTx, std::list<CTransaction>& rem
              mapTx.erase(hash);
              nTransactionsUpdated++;
              minerPolicyEstimator->removeTx(hash);
@@ -3635,19 +1278,28 @@ index cf04ad5..9287b8f 100644
          }
      }
  }
+@@ -191,7 +312,7 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
+                 if (it2 != mapTx.end())
+                     continue;
+                 const CCoins *coins = pcoins->AccessCoins(txin.prevout.hash);
+-		if (nCheckFrequency != 0) assert(coins);
++                if (nCheckFrequency != 0) assert(coins);
+                 if (!coins || (coins->IsCoinBase() && ((signed long)nMemPoolHeight) - coins->nHeight < COINBASE_MATURITY)) {
+                     transactionsToRemove.push_back(tx);
+                     break;
 diff --git a/src/txmempool.h b/src/txmempool.h
-index ec8a851..e3465b0 100644
+index ec8a851..d01e05e 100644
 --- a/src/txmempool.h
 +++ b/src/txmempool.h
-@@ -8,6 +8,8 @@
- 
- #include <list>
- 
-+#include "addressindex.h"
-+#include "spentindex.h"
- #include "amount.h"
+@@ -12,6 +12,8 @@
  #include "coins.h"
  #include "primitives/transaction.h"
+ #include "sync.h"
++#include "addressindex.h"
++#include "spentindex.h"
+ 
+ #undef foreach
+ #include "boost/multi_index_container.hpp"
 @@ -152,6 +154,21 @@ public:
  
      mutable CCriticalSection cs;
@@ -3670,366 +1322,19 @@ index ec8a851..e3465b0 100644
      std::map<COutPoint, CInPoint> mapNextTx;
      std::map<uint256, std::pair<double, CAmount> > mapDeltas;
  
-@@ -168,6 +185,16 @@ public:
+@@ -168,6 +185,15 @@ public:
      void setSanityCheck(double dFrequency = 1.0) { nCheckFrequency = static_cast<uint32_t>(dFrequency * 4294967295.0); }
  
      bool addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate = true);
-+
 +    void addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view);
 +    bool getAddressIndex(std::vector<std::pair<uint160, int> > &addresses,
 +                         std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> > &results);
 +    bool removeAddressIndex(const uint256 txhash);
 +
 +    void addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view);
-+    bool getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
-+    bool removeSpentIndex(const uint256 txhash);
++    bool getSpentIndex(const CSpentIndexKey &key, CSpentIndexValue &value);
++    void removeSpentIndex(const uint256 txhash);
 +
      void remove(const CTransaction &tx, std::list<CTransaction>& removed, bool fRecursive = false);
      void removeWithAnchor(const uint256 &invalidRoot, ShieldedType type);
      void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags);
-diff --git a/src/wallet-utility.cpp b/src/wallet-utility.cpp
-new file mode 100644
-index 0000000..b54d7f6
---- /dev/null
-+++ b/src/wallet-utility.cpp
-@@ -0,0 +1,340 @@
-+#include <iostream>
-+#include <string>
-+
-+// Include local headers
-+#include "wallet/walletdb.h"
-+#include "util.h"
-+#include "base58.h"
-+#include "key_io.h"
-+#include "wallet/crypter.h"
-+#include <boost/foreach.hpp>
-+
-+
-+void show_help()
-+{
-+    std::cout <<
-+        "This program outputs Bitcoin addresses and private keys from a wallet.dat file" << std::endl
-+        << std::endl
-+        << "Usage and options: "
-+        << std::endl
-+        << " -datadir=<directory> to tell the program where your wallet is"
-+        << std::endl
-+        << " -wallet=<name> (Optional) if your wallet is not named wallet.dat"
-+        << std::endl
-+        << " -regtest or -testnet (Optional) dumps addresses from regtest/testnet"
-+        << std::endl
-+        << " -dumppass (Optional)if you want to extract private keys associated with addresses"
-+        << std::endl
-+        << "    -pass=<walletpassphrase> if you have encrypted private keys stored in your wallet"
-+        << std::endl;
-+}
-+
-+
-+class WalletUtilityDB : public CDB
-+{
-+    private:
-+        typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
-+        MasterKeyMap mapMasterKeys;
-+        unsigned int nMasterKeyMaxID;
-+        SecureString mPass;
-+        std::vector<CKeyingMaterial> vMKeys;
-+
-+    public:
-+        WalletUtilityDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnClose = true) : CDB(strFilename, pszMode, fFlushOnClose)
-+    {
-+        nMasterKeyMaxID = 0;
-+        mPass.reserve(100);
-+    }
-+
-+        std::string getAddress(CDataStream ssKey);
-+        std::string getKey(CDataStream ssKey, CDataStream ssValue);
-+        std::string getCryptedKey(CDataStream ssKey, CDataStream ssValue, std::string masterPass);
-+        bool updateMasterKeys(CDataStream ssKey, CDataStream ssValue);
-+        bool parseKeys(bool dumppriv, std::string masterPass);
-+
-+        bool DecryptSecret(const std::vector<unsigned char>& vchCiphertext, const uint256& nIV, CKeyingMaterial& vchPlaintext);
-+        bool Unlock();
-+        bool DecryptKey(const std::vector<unsigned char>& vchCryptedSecret, const CPubKey& vchPubKey, CKey& key);
-+};
-+
-+
-+/*
-+ * Address from a public key in base58
-+ */
-+std::string WalletUtilityDB::getAddress(CDataStream ssKey)
-+{
-+    CPubKey vchPubKey;
-+    ssKey >> vchPubKey;
-+    CTxDestination id = vchPubKey.GetID();
-+    std::string strAddr = EncodeDestination(id);
-+
-+    return strAddr;
-+}
-+
-+
-+/*
-+ * Non encrypted private key in WIF
-+ */
-+std::string WalletUtilityDB::getKey(CDataStream ssKey, CDataStream ssValue)
-+{
-+    std::string strKey;
-+    CPubKey vchPubKey;
-+    ssKey >> vchPubKey;
-+    CPrivKey pkey;
-+    CKey key;
-+
-+    ssValue >> pkey;
-+    if (key.Load(pkey, vchPubKey, true))
-+        strKey = EncodeSecret(key);
-+
-+    return strKey;
-+}
-+
-+
-+bool WalletUtilityDB::DecryptSecret(const std::vector<unsigned char>& vchCiphertext, const uint256& nIV, CKeyingMaterial& vchPlaintext)
-+{
-+    CCrypter cKeyCrypter;
-+    std::vector<unsigned char> chIV(WALLET_CRYPTO_KEY_SIZE);
-+    memcpy(&chIV[0], &nIV, WALLET_CRYPTO_KEY_SIZE);
-+
-+    BOOST_FOREACH(const CKeyingMaterial vMKey, vMKeys)
-+    {
-+        if(!cKeyCrypter.SetKey(vMKey, chIV))
-+            continue;
-+        if (cKeyCrypter.Decrypt(vchCiphertext, *((CKeyingMaterial*)&vchPlaintext)))
-+            return true;
-+    }
-+    return false;
-+}
-+
-+
-+bool WalletUtilityDB::Unlock()
-+{
-+    CCrypter crypter;
-+    CKeyingMaterial vMasterKey;
-+
-+    BOOST_FOREACH(const MasterKeyMap::value_type& pMasterKey, mapMasterKeys)
-+    {
-+        if(!crypter.SetKeyFromPassphrase(mPass, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
-+            return false;
-+        if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
-+            continue; // try another master key
-+        vMKeys.push_back(vMasterKey);
-+    }
-+    return true;
-+}
-+
-+
-+bool WalletUtilityDB::DecryptKey(const std::vector<unsigned char>& vchCryptedSecret, const CPubKey& vchPubKey, CKey& key)
-+{
-+    CKeyingMaterial vchSecret;
-+    if(!DecryptSecret(vchCryptedSecret, vchPubKey.GetHash(), vchSecret))
-+        return false;
-+
-+    if (vchSecret.size() != 32)
-+        return false;
-+
-+    key.Set(vchSecret.begin(), vchSecret.end(), vchPubKey.IsCompressed());
-+    return true;
-+}
-+
-+
-+/*
-+ * Encrypted private key in WIF format
-+ */
-+std::string WalletUtilityDB::getCryptedKey(CDataStream ssKey, CDataStream ssValue, std::string masterPass)
-+{
-+    mPass = masterPass.c_str();
-+    CPubKey vchPubKey;
-+    ssKey >> vchPubKey;
-+    CKey key;
-+
-+    std::vector<unsigned char> vKey;
-+    ssValue >> vKey;
-+
-+    if (!Unlock())
-+        return "";
-+
-+    if(!DecryptKey(vKey, vchPubKey, key))
-+        return "";
-+
-+    std::string strKey = EncodeSecret(key);
-+    return strKey;
-+}
-+
-+
-+/*
-+ * Master key derivation
-+ */
-+bool WalletUtilityDB::updateMasterKeys(CDataStream ssKey, CDataStream ssValue)
-+{
-+    unsigned int nID;
-+    ssKey >> nID;
-+    CMasterKey kMasterKey;
-+    ssValue >> kMasterKey;
-+    if (mapMasterKeys.count(nID) != 0)
-+    {
-+        std::cout << "Error reading wallet database: duplicate CMasterKey id " << nID << std::endl;
-+        return false;
-+    }
-+    mapMasterKeys[nID] = kMasterKey;
-+
-+    if (nMasterKeyMaxID < nID)
-+        nMasterKeyMaxID = nID;
-+
-+    return true;
-+}
-+
-+
-+/*
-+ * Look at all the records and parse keys for addresses and private keys
-+ */
-+bool WalletUtilityDB::parseKeys(bool dumppriv, std::string masterPass)
-+{
-+    DBErrors result = DB_LOAD_OK;
-+    std::string strType;
-+    bool first = true;
-+
-+    try {
-+        Dbc* pcursor = GetCursor();
-+        if (!pcursor)
-+        {
-+            LogPrintf("Error getting wallet database cursor\n");
-+            result = DB_CORRUPT;
-+        }
-+
-+        if (dumppriv)
-+        {
-+            while (result == DB_LOAD_OK && true)
-+            {
-+                CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-+                CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-+                int result = ReadAtCursor(pcursor, ssKey, ssValue);
-+
-+                if (result == DB_NOTFOUND) {
-+                    break;
-+                }
-+                else if (result != 0)
-+                {
-+                    LogPrintf("Error reading next record from wallet database\n");
-+                    result = DB_CORRUPT;
-+                    break;
-+                }
-+
-+                ssKey >> strType;
-+                if (strType == "mkey")
-+                {
-+                    updateMasterKeys(ssKey, ssValue);
-+                }
-+            }
-+            pcursor->close();
-+            pcursor = GetCursor();
-+        }
-+
-+        while (result == DB_LOAD_OK && true)
-+        {
-+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-+            int ret = ReadAtCursor(pcursor, ssKey, ssValue);
-+
-+            if (ret == DB_NOTFOUND)
-+            {
-+                std::cout << " ]" << std::endl;
-+                first = true;
-+                break;
-+            }
-+            else if (ret != DB_LOAD_OK)
-+            {
-+                LogPrintf("Error reading next record from wallet database\n");
-+                result = DB_CORRUPT;
-+                break;
-+            }
-+
-+            ssKey >> strType;
-+
-+            if (strType == "key" || strType == "ckey")
-+            {
-+                std::string strAddr = getAddress(ssKey);
-+                std::string strKey = "";
-+
-+
-+                if (dumppriv && strType == "key")
-+                    strKey = getKey(ssKey, ssValue);
-+                if (dumppriv && strType == "ckey")
-+                {
-+                    if (masterPass == "")
-+                    {
-+                        std::cout << "Encrypted wallet, please provide a password. See help below" << std::endl;
-+                        show_help();
-+                        result = DB_LOAD_FAIL;
-+                        break;
-+                    }
-+                    strKey = getCryptedKey(ssKey, ssValue, masterPass);
-+                }
-+
-+                if (strAddr != "")
-+                {
-+                    if (first)
-+                        std::cout << "[ ";
-+                    else
-+                        std::cout << ", ";
-+                }
-+
-+                if (dumppriv)
-+                {
-+                    std::cout << "{\"addr\" : \"" + strAddr + "\", "
-+                        << "\"pkey\" : \"" + strKey + "\"}"
-+                        << std::flush;
-+                }
-+                else
-+                {
-+                    std::cout << "\"" + strAddr + "\"";
-+                }
-+
-+                first = false;
-+            }
-+        }
-+
-+        pcursor->close();
-+    } catch (DbException &e) {
-+        std::cout << "DBException caught " << e.get_errno() << std::endl;
-+    } catch (std::exception &e) {
-+        std::cout << "Exception caught " << std::endl;
-+    }
-+
-+    if (result == DB_LOAD_OK)
-+        return true;
-+    else
-+        return false;
-+}
-+
-+
-+int main(int argc, char* argv[])
-+{
-+    ParseParameters(argc, argv);
-+    std::string walletFile = GetArg("-wallet", "wallet.dat");
-+    std::string masterPass = GetArg("-pass", "");
-+    bool fDumpPass = GetBoolArg("-dumppass", false);
-+    bool help = GetBoolArg("-h", false);
-+    bool result = false;
-+
-+    if (help)
-+    {
-+        show_help();
-+        return 0;
-+    }
-+
-+    try {
-+        SelectParamsFromCommandLine();
-+        result = WalletUtilityDB(walletFile, "r").parseKeys(fDumpPass, masterPass);
-+    }
-+    catch (const std::exception& e) {
-+        std::cout << "Error opening wallet file " << walletFile << std::endl;
-+        std::cout << e.what() << std::endl;
-+    }
-+
-+    if (result)
-+        return 0;
-+    else
-+        return -1;
-+}
