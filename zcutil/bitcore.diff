@@ -78,7 +78,7 @@ index e83c9fc..b89eff4 100644
 +
  #endif // BITCOIN_ADDRESSINDEX_H
 diff --git a/src/main.cpp b/src/main.cpp
-index 289b82c..2db370f 100644
+index 289b82c..456d1eb 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
 @@ -21,7 +21,6 @@
@@ -106,7 +106,7 @@ index 289b82c..2db370f 100644
      }
  
      SyncWithWallets(tx, NULL);
-@@ -1606,6 +1615,49 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1606,6 +1615,51 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
      return true;
  }
  
@@ -125,6 +125,8 @@ index 289b82c..2db370f 100644
 +{
 +    if (!fSpentIndex)
 +        return false;
++    if (mempool.getSpentIndex(key, value))
++        return true;
 +    return pblocktree->ReadSpentIndex(key, value);
 +}
 +
@@ -156,15 +158,19 @@ index 289b82c..2db370f 100644
  /** Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock */
  bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
  {
-@@ -4412,6 +4464,7 @@ bool static LoadBlockIndexDB()
-     LogPrintf("%s: insight explorer %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+@@ -4409,9 +4463,10 @@ bool static LoadBlockIndexDB()
+     // insightexplorer
+     // Check whether block explorer features are enabled
+     pblocktree->ReadFlag("insightexplorer", fInsightExplorer);
+-    LogPrintf("%s: insight explorer %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
++    LogPrintf("%s: insight explorer %s\n", __func__, fInsightExplorer ? "enabled" : "disabled");
      fAddressIndex = fInsightExplorer;
      fSpentIndex = fInsightExplorer;
 +    fTimestampIndex = fInsightExplorer;
  
      // Fill in-memory data
      BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
-@@ -5091,7 +5144,7 @@ std::string GetWarnings(const std::string& strFor)
+@@ -5091,7 +5146,7 @@ std::string GetWarnings(const std::string& strFor)
  
      if (!CLIENT_VERSION_IS_RELEASE) {
          strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
@@ -173,7 +179,7 @@ index 289b82c..2db370f 100644
      }
  
      if (GetBoolArg("-testsafemode", false))
-@@ -5136,7 +5189,7 @@ std::string GetWarnings(const std::string& strFor)
+@@ -5136,7 +5191,7 @@ std::string GetWarnings(const std::string& strFor)
      }
  
      if (strFor == "gui")
