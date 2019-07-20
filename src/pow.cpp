@@ -87,6 +87,35 @@ unsigned int CalculateNextWorkRequired(arith_uint256 bnAvg,
     return bnNew.GetCompact();
 }
 
+#if 0
+bool CheckEquihashSolution(const CBlockHeader *pblock, const Consensus::Params& params)
+{
+    unsigned int n = params.nEquihashN;
+    unsigned int k = params.nEquihashK;
+
+    // Hash state
+    crypto_generichash_blake2b_state state;
+    EhInitialiseState(n, k, state);
+
+    // I = the block header minus nonce and solution.
+    CEquihashInput I{*pblock};
+    // I||V
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << I;
+    ss << pblock->nNonce;
+
+    // H(I||V||...
+    crypto_generichash_blake2b_update(&state, (unsigned char*)&ss[0], ss.size());
+
+    bool isValid;
+    EhIsValidSolution(n, k, state, pblock->nSolution, isValid);
+    if (!isValid)
+        return error("CheckEquihashSolution(): invalid solution");
+
+    return true;
+}
+#endif
+
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
 {
     bool fNegative;

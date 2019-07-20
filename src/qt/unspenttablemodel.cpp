@@ -140,7 +140,7 @@ public:
             }
 
             if (zaddrs.size() > 0) {
-                std::vector<CSproutNotePlaintextEntry> sproutEntries;
+                std::vector<SproutNoteEntry> sproutEntries;
                 std::vector<SaplingNoteEntry> saplingEntries;
                 wallet->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth, true, true, false);
                 for (auto & entry : sproutEntries) {
@@ -148,7 +148,7 @@ public:
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
                                                   QString::fromStdString(EncodePaymentAddress(entry.address)),
                                                   QString::fromStdString(entry.jsop.hash.ToString()),
-                                                  CAmount(entry.plaintext.value())
+                                                  CAmount(entry.note.value())
                                              )
                     );
                 }

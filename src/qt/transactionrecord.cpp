@@ -106,7 +106,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 {
     QList<TransactionRecord> parts;
 
-    if(wtx.vjoinsplit.size() > 0)
+    if(wtx.vJoinSplit.size() > 0)
     {
         parts = TransactionRecord::decomposeZTransaction(wallet, wtx);
     }
@@ -155,7 +155,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
 
             }
             CAmount nValue = 0;
-            for (auto js : wtx.vjoinsplit) {
+            for (auto js : wtx.vJoinSplit) {
                 nValue += js.vpub_new;
             }
             
@@ -199,7 +199,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
             // Sent T->Z
             address = "Z Address not listed by wallet!";
 
-            for (auto js : wtx.vjoinsplit) {
+            for (auto js : wtx.vJoinSplit) {
                 nDebit += js.vpub_old;
             }
 

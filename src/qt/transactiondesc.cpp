@@ -52,7 +52,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 {
     QString strHTML;
 
-    if(wtx.vjoinsplit.size() > 0)
+    if(wtx.vJoinSplit.size() > 0)
     {
         strHTML = TransactionDesc::zToHTML(wallet, wtx, rec, unit);
     }

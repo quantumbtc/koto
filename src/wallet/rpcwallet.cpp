@@ -2567,7 +2567,7 @@ UniValue z_listunspent(const UniValue& params, bool fHelp)
     UniValue results(UniValue::VARR);
 
     if (zaddrs.size() > 0) {
-        std::vector<CSproutNotePlaintextEntry> sproutEntries;
+        std::vector<SproutNoteEntry> sproutEntries;
         std::vector<SaplingNoteEntry> saplingEntries;
         pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth, true, !fIncludeWatchonly, false);
         std::set<std::pair<PaymentAddress, uint256>> nullifierSet = pwalletMain->GetNullifiersForAddresses(zaddrs);
@@ -2581,8 +2581,8 @@ UniValue z_listunspent(const UniValue& params, bool fHelp)
             bool hasSproutSpendingKey = pwalletMain->HaveSproutSpendingKey(boost::get<libzcash::SproutPaymentAddress>(entry.address));
             obj.push_back(Pair("spendable", hasSproutSpendingKey));
             obj.push_back(Pair("address", EncodePaymentAddress(entry.address)));
-            obj.push_back(Pair("amount", ValueFromAmount(CAmount(entry.plaintext.value()))));
-            std::string data(entry.plaintext.memo().begin(), entry.plaintext.memo().end());
+            obj.push_back(Pair("amount", ValueFromAmount(CAmount(entry.note.value()))));
+            std::string data(entry.memo.begin(), entry.memo.end());
             obj.push_back(Pair("memo", HexStr(data)));
             if (hasSproutSpendingKey) {
                 obj.push_back(Pair("change", pwalletMain->IsNoteSproutChange(nullifierSet, entry.address, entry.jsop)));
@@ -3063,7 +3063,7 @@ UniValue zc_raw_joinsplit(const UniValue& params, bool fHelp)
         assert(jsdesc.Verify(*pzcashParams, verifier, joinSplitPubKey));
     }
 
-    mtx.vjoinsplit.push_back(jsdesc);
+    mtx.vJoinSplit.push_back(jsdesc);
 
     // Empty output script.
     CScript scriptCode;
@@ -3295,12 +3295,12 @@ CAmount getBalanceTaddr(std::string transparentAddress, int minDepth=1, bool ign
 
 CAmount getBalanceZaddr(std::string address, int minDepth = 1, bool ignoreUnspendable=true) {
     CAmount balance = 0;
-    std::vector<CSproutNotePlaintextEntry> sproutEntries;
+    std::vector<SproutNoteEntry> sproutEntries;
     std::vector<SaplingNoteEntry> saplingEntries;
     LOCK2(cs_main, pwalletMain->cs_wallet);
     pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, address, minDepth, true, ignoreUnspendable);
     for (auto & entry : sproutEntries) {
-        balance += CAmount(entry.plaintext.value());
+        balance += CAmount(entry.note.value());
     }
     for (auto & entry : saplingEntries) {
         balance += CAmount(entry.note.value());
@@ -3360,7 +3360,7 @@ UniValue z_listreceivedbyaddress(const UniValue& params, bool fHelp)
     }
 
     UniValue result(UniValue::VARR);
-    std::vector<CSproutNotePlaintextEntry> sproutEntries;
+    std::vector<SproutNoteEntry> sproutEntries;
     std::vector<SaplingNoteEntry> saplingEntries;
     pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, fromaddress, nMinDepth, false, false);
 
@@ -3371,11 +3371,11 @@ UniValue z_listreceivedbyaddress(const UniValue& params, bool fHelp)
     }
 
     if (boost::get<libzcash::SproutPaymentAddress>(&zaddr) != nullptr) {
-        for (CSproutNotePlaintextEntry & entry : sproutEntries) {
+        for (SproutNoteEntry & entry : sproutEntries) {
             UniValue obj(UniValue::VOBJ);
             obj.push_back(Pair("txid", entry.jsop.hash.ToString()));
-            obj.push_back(Pair("amount", ValueFromAmount(CAmount(entry.plaintext.value()))));
-            std::string data(entry.plaintext.memo().begin(), entry.plaintext.memo().end());
+            obj.push_back(Pair("amount", ValueFromAmount(CAmount(entry.note.value()))));
+            std::string data(entry.memo.begin(), entry.memo.end());
             obj.push_back(Pair("memo", HexStr(data)));
             obj.push_back(Pair("jsindex", entry.jsop.js));
             obj.push_back(Pair("jsoutindex", entry.jsop.n));
@@ -3479,8 +3479,8 @@ UniValue z_gettotalbalance(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"transparent\": xxxxx,     (numeric) the total balance of transparent funds\n"
-            "  \"private\": xxxxx,         (numeric) the total balance of private funds (in both Sprout and Sapling addresses)\n"
-            "  \"total\": xxxxx,           (numeric) the total balance of both transparent and private funds\n"
+            "  \"private\": xxxxx,         (numeric) the total balance of shielded funds (in both Sprout and Sapling addresses)\n"
+            "  \"total\": xxxxx,           (numeric) the total balance of both transparent and shielded funds\n"
             "}\n"
             "\nExamples:\n"
             "\nThe total amount in the wallet\n"
@@ -3832,7 +3832,7 @@ UniValue z_sendmany(const UniValue& params, bool fHelp)
             if (mtx.fOverwintered && (mtx.nVersion >= SAPLING_TX_VERSION)) {
                 jsdesc.proof = GrothProof();
             }
-            mtx.vjoinsplit.push_back(jsdesc);
+            mtx.vJoinSplit.push_back(jsdesc);
         }
     }
     CTransaction tx(mtx);
@@ -3900,7 +3900,7 @@ UniValue z_sendmany(const UniValue& params, bool fHelp)
     CMutableTransaction contextualTx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), nextBlockHeight);
     bool isShielded = !fromTaddr || zaddrRecipients.size() > 0;
     if (contextualTx.nVersion == 1 && isShielded) {
-        contextualTx.nVersion = 2; // Tx format should support vjoinsplits 
+        contextualTx.nVersion = 2; // Tx format should support vJoinSplits 
     }
 
     // Create operation and add to global queue
@@ -3941,9 +3941,8 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
         throw runtime_error(
             "z_getmigrationstatus\n"
             "Returns information about the status of the Sprout to Sapling migration.\n"
-            "In the result a transactions is defined as finalized if and only if it has\n"
-            "at least ten confirmations.\n"
-            "Note: It is possible that manually created transactions involving this wallet\n"
+            "Note: A transaction is defined as finalized if it has at least ten confirmations.\n"
+            "Also, it is possible that manually created transactions involving this wallet\n"
             "will be included in the result.\n"
             "\nResult:\n"
             "{\n"
@@ -3969,7 +3968,7 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
     // account failed transactions, that were not mined within their expiration
     // height.
     {
-        std::vector<CSproutNotePlaintextEntry> sproutEntries;
+        std::vector<SproutNoteEntry> sproutEntries;
         std::vector<SaplingNoteEntry> saplingEntries;
         std::set<PaymentAddress> noFilter;
         // Here we are looking for any and all Sprout notes for which we have the spending key, including those
@@ -3977,7 +3976,7 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
         pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, noFilter, 0, INT_MAX, true, true, false);
         CAmount unmigratedAmount = 0;
         for (const auto& sproutEntry : sproutEntries) {
-            unmigratedAmount += sproutEntry.plaintext.value();
+            unmigratedAmount += sproutEntry.note.value();
         }
         migrationStatus.push_back(Pair("unmigrated_amount", FormatMoney(unmigratedAmount)));
     }
@@ -3995,9 +3994,9 @@ UniValue z_getmigrationstatus(const UniValue& params, bool fHelp) {
         // * one or more Sprout JoinSplits with nonzero vpub_new field; and
         // * no Sapling Spends, and;
         // * one or more Sapling Outputs.
-        if (tx.vjoinsplit.size() > 0 && tx.vShieldedSpend.empty() && tx.vShieldedOutput.size() > 0) {
+        if (tx.vJoinSplit.size() > 0 && tx.vShieldedSpend.empty() && tx.vShieldedOutput.size() > 0) {
             bool nonZeroVPubNew = false;
-            for (const auto& js : tx.vjoinsplit) {
+            for (const auto& js : tx.vJoinSplit) {
                 if (js.vpub_new > 0) {
                     nonZeroVPubNew = true;
                     break;
@@ -4240,7 +4239,7 @@ UniValue z_shieldcoinbase(const UniValue& params, bool fHelp)
     CMutableTransaction contextualTx = CreateNewContextualCMutableTransaction(
         Params().GetConsensus(), nextBlockHeight);
     if (contextualTx.nVersion == 1) {
-        contextualTx.nVersion = 2; // Tx format should support vjoinsplits 
+        contextualTx.nVersion = 2; // Tx format should support vJoinSplit 
     }
 
     // Create operation and add to global queue
@@ -4302,7 +4301,9 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
             "                             - \"ANY_TADDR\":   Merge UTXOs from any taddrs belonging to the wallet.\n"
             "                             - \"ANY_SPROUT\":  Merge notes from any Sprout zaddrs belonging to the wallet.\n"
             "                             - \"ANY_SAPLING\": Merge notes from any Sapling zaddrs belonging to the wallet.\n"
-            "                         If a special string is given, any given addresses of that type will be counted as duplicates and cause an error.\n"
+            "                         While it is possible to use a variety of different combinations of addresses and the above values,\n"
+            "                         it is not possible to send funds from both sprout and sapling addresses simultaneously. If a special\n"
+            "                         string is given, any given addresses of that type will be counted as duplicates and cause an error.\n"
             "    [\n"
             "      \"address\"          (string) Can be a taddr or a zaddr\n"
             "      ,...\n"
@@ -4529,7 +4530,7 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
 
     if (useAnySprout || useAnySapling || zaddrs.size() > 0) {
         // Get available notes
-        std::vector<CSproutNotePlaintextEntry> sproutEntries;
+        std::vector<SproutNoteEntry> sproutEntries;
         std::vector<SaplingNoteEntry> saplingEntries;
         pwalletMain->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs);
 
@@ -4537,8 +4538,15 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
         if (!saplingActive && saplingEntries.size() > 0) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, Sapling has not activated");
         }
+        // Do not include Sprout/Sapling notes if using "ANY_SAPLING"/"ANY_SPROUT" respectively
+        if (useAnySprout) {
+            saplingEntries.clear();
+        }
+        if (useAnySapling) {
+            sproutEntries.clear();
+        }
         // Sending from both Sprout and Sapling is currently unsupported using z_mergetoaddress
-        if (sproutEntries.size() > 0 && saplingEntries.size() > 0) {
+        if ((sproutEntries.size() > 0 && saplingEntries.size() > 0) || (useAnySprout && useAnySapling)) {
             throw JSONRPCError(
                 RPC_INVALID_PARAMETER,
                 "Cannot send from both Sprout and Sapling addresses using z_mergetoaddress");
@@ -4551,9 +4559,9 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
         }
 
         // Find unspent notes and update estimated size
-        for (const CSproutNotePlaintextEntry& entry : sproutEntries) {
+        for (const SproutNoteEntry& entry : sproutEntries) {
             noteCounter++;
-            CAmount nValue = entry.plaintext.value();
+            CAmount nValue = entry.note.value();
 
             if (!maxedOutNotesFlag) {
                 // If we haven't added any notes yet and the merge is to a
@@ -4568,7 +4576,7 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
                     auto zaddr = entry.address;
                     SproutSpendingKey zkey;
                     pwalletMain->GetSproutSpendingKey(zaddr, zkey);
-                    sproutNoteInputs.emplace_back(entry.jsop, entry.plaintext.note(zaddr), nValue, zkey);
+                    sproutNoteInputs.emplace_back(entry.jsop, entry.note, nValue, zkey);
                     mergedNoteValue += nValue;
                 }
             }
@@ -4644,7 +4652,7 @@ UniValue z_mergetoaddress(const UniValue& params, bool fHelp)
         nextBlockHeight);
     bool isSproutShielded = sproutNoteInputs.size() > 0 || isToSproutZaddr;
     if (contextualTx.nVersion == 1 && isSproutShielded) {
-        contextualTx.nVersion = 2; // Tx format should support vjoinsplit
+        contextualTx.nVersion = 2; // Tx format should support vJoinSplit
     }
 
     // Builder (used if Sapling addresses are involved)

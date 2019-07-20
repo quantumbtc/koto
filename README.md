@@ -1,15 +1,15 @@
-Koto 2.0.5
+Koto 2.0.6
 <img align="right" width="120" height="120" src="doc/imgs/logo.png">
 ===========
 
 What is Koto?
 --------------
 
-[Koto](https://ko-to.org/) is fork of Zcash.
-Based on Bitcoin's code, it intends to offer a far higher standard of privacy
+[Koto](https://ko-to.org/) is fork of [Zcash](https://z.cash/) which is an implementation of the "Zerocash" protocol.
+Based on Bitcoin's code, Zcash intends to offer a far higher standard of privacy
 through a sophisticated zero-knowledge proving scheme that preserves
-confidentiality of transaction metadata. Technical details are available
-in Zcash [Protocol Specification](https://github.com/zcash/zips/raw/master/protocol/protocol.pdf).
+confidentiality of transaction metadata. More technical details are available
+in our [Protocol Specification](https://github.com/zcash/zips/raw/master/protocol/protocol.pdf).
 
 This software is the Koto client. It downloads and stores the entire history
 of Koto transactions; depending on the speed of your computer and network
@@ -33,7 +33,7 @@ See important security warnings on the
 
 This release is considered deprecated 16 weeks after the release day. There
 is an automatic deprecation shutdown feature which will halt the node some
-time after this 16 week time period. The automatic feature is based on block
+time after this 16-week period. The automatic feature is based on block
 height.
 
 ## Getting Started
@@ -52,7 +52,7 @@ Participation in the Koto project is subject to a
 
 ### Building
 
-Build Koto along with most dependencies from source by running:
+Build Koto along with most dependencies from source by running the following command:
 
 ```
 ./zcutil/build.sh -j$(nproc)
