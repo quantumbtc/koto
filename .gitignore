@@ -103,3 +103,5 @@ koto-qt
 Koto-Qt.app
 Koto-Qt.app
 background.tiff*
+
+contrib/devtools/split-debug.sh
