@@ -5,7 +5,7 @@ BASE_CACHE ?= $(BASEDIR)/built
 SDK_PATH ?= $(BASEDIR)/SDKs
 NO_QT ?=
 NO_WALLET ?=
-FALLBACK_DOWNLOAD_PATH ?= http://dl.ko-to.org:8080/depends-sources/
+FALLBACK_DOWNLOAD_PATH ?= https://dl.ko-to.org/depends-sources/
 
 BUILD ?= $(shell ./config.guess)
 HOST ?= $(BUILD)

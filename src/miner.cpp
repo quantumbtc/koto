@@ -1,7 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://www.opensource.org/licenses/mit-license.php .
 
 #include "miner.h"
 #ifdef ENABLE_MINING
@@ -144,7 +144,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         CBlockIndex* pindexPrev = chainActive.Tip();
         const int nHeight = pindexPrev->nHeight + 1;
         uint32_t consensusBranchId = CurrentEpochBranchId(nHeight, chainparams.GetConsensus());
-        if (NetworkUpgradeActive(nHeight, chainparams.GetConsensus(), Consensus::UPGRADE_SAPLING)) {
+        if (Params().GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_SAPLING)) {
             pblock->nVersion = CBlockHeader::SAPLING_VERSION;
 	}
         pblock->nTime = GetAdjustedTime();
@@ -407,7 +407,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
 
         int nActivationHeight = chainparams.GetConsensus().vUpgrades[Consensus::UPGRADE_OVERWINTER].nActivationHeight;
         if (nActivationHeight != Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT &&
-	    (nHeight >= nActivationHeight) && (nHeight <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight())) {
+	    (nHeight >= nActivationHeight) && (nHeight <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight(nHeight))) {
             // Founders reward is 3% of the block subsidy
             auto vFoundersReward = txNew.vout[0].nValue * chainparams.GetConsensus().nFoundersRewardPercentage / 100;
             // Founders reward is 10% of the transaction fee

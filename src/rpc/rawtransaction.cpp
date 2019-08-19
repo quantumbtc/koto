@@ -1,7 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://www.opensource.org/licenses/mit-license.php .
 
 #include "consensus/upgrades.h"
 #include "consensus/validation.h"
@@ -181,10 +181,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
                 in.push_back(Pair("valueSat", spentInfo.satoshis));
 
-                boost::optional<CTxDestination> dest =
+                CTxDestination dest =
                     DestFromAddressHash(spentInfo.addressType, spentInfo.addressHash);
-                if (dest) {
-                    in.push_back(Pair("address", EncodeDestination(*dest)));
+                if (IsValidDestination(dest)) {
+                    in.push_back(Pair("address", EncodeDestination(dest)));
                 }
             }
         }
@@ -197,6 +197,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        out.push_back(Pair("valueZat", txout.nValue));
         out.push_back(Pair("valueSat", txout.nValue));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
@@ -438,7 +439,7 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
     BOOST_FOREACH(const CTransaction&tx, block.vtx) {
         if (setTxids.count(tx.GetHash())) {
             ntxFound++;
-	    setHashes.insert(tx.GetScriptSigHash());
+            setHashes.insert(tx.GetScriptSigHash());
 	}
     }
     if (ntxFound != setTxids.size())
@@ -510,7 +511,9 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
             "      ,...\n"
             "    }\n"
             "3. locktime              (numeric, optional, default=0) Raw locktime. Non-0 value also locktime-activates inputs\n"
-            "4. expiryheight          (numeric, optional, default=nextblockheight+" + strprintf("%d", DEFAULT_TX_EXPIRY_DELTA) + ") Expiry height of transaction (if Overwinter is active)\n"
+            "4. expiryheight          (numeric, optional, default="
+                + strprintf("nextblockheight+%d (pre-Blossom) or nextblockheight+%d (post-Blossom)", DEFAULT_PRE_BLOSSOM_TX_EXPIRY_DELTA, DEFAULT_POST_BLOSSOM_TX_EXPIRY_DELTA) + ") "
+                "Expiry height of transaction (if Overwinter is active)\n"
             "\nResult:\n"
             "\"transaction\"            (string) hex string of the transaction\n"
 
@@ -539,7 +542,7 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
     }
     
     if (params.size() > 3 && !params[3].isNull()) {
-        if (NetworkUpgradeActive(nextBlockHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER)) {
+        if (Params().GetConsensus().NetworkUpgradeActive(nextBlockHeight, Consensus::UPGRADE_OVERWINTER)) {
             int64_t nExpiryHeight = params[3].get_int64();
             if (nExpiryHeight < 0 || nExpiryHeight >= TX_EXPIRY_HEIGHT_THRESHOLD) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid parameter, expiryheight must be nonnegative and less than %d.", TX_EXPIRY_HEIGHT_THRESHOLD));
@@ -1054,7 +1057,7 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     // DoS mitigation: reject transactions expiring soon
     if (tx.nExpiryHeight > 0) {
         int nextBlockHeight = chainActive.Height() + 1;
-        if (NetworkUpgradeActive(nextBlockHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER)) {
+        if (Params().GetConsensus().NetworkUpgradeActive(nextBlockHeight, Consensus::UPGRADE_OVERWINTER)) {
             if (nextBlockHeight + TX_EXPIRING_SOON_THRESHOLD > tx.nExpiryHeight) {
                 throw JSONRPCError(RPC_TRANSACTION_REJECTED,
                     strprintf("tx-expiring-soon: expiryheight is %d but should be at least %d to avoid transaction expiring soon",
