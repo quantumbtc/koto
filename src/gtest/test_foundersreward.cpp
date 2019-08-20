@@ -127,13 +127,12 @@ TEST(founders_reward_test, general) {
 #endif
 }
 
-#if 0
 TEST(founders_reward_test, regtest_get_last_block_blossom) {
     int blossomActivationHeight = Consensus::PRE_BLOSSOM_REGTEST_HALVING_INTERVAL / 2; // = 75
     auto params = RegtestActivateBlossom(false, blossomActivationHeight);
     int lastFRHeight = params.GetLastFoundersRewardBlockHeight(blossomActivationHeight);
-    EXPECT_EQ(0, params.Halving(lastFRHeight));
-    EXPECT_EQ(1, params.Halving(lastFRHeight + 1));
+    EXPECT_EQ(1, params.Halving(lastFRHeight));
+    EXPECT_EQ(2, params.Halving(lastFRHeight + 1));
     RegtestDeactivateBlossom();
 }
 
@@ -141,10 +140,9 @@ TEST(founders_reward_test, mainnet_get_last_block) {
     SelectParams(CBaseChainParams::MAIN);
     auto params = Params().GetConsensus();
     int lastFRHeight = GetLastFoundersRewardHeight(params);
-    EXPECT_EQ(0, params.Halving(lastFRHeight));
-    EXPECT_EQ(1, params.Halving(lastFRHeight + 1));
+    EXPECT_EQ(1, params.Halving(lastFRHeight));
+    EXPECT_EQ(2, params.Halving(lastFRHeight + 1));
 }
-#endif
 
 #define NUM_MAINNET_FOUNDER_ADDRESSES 1
 
@@ -171,7 +169,7 @@ TEST(founders_reward_test, regtest) {
 
 
 
-// Test that 3% founders reward is 2,211,600 KOTO
+// Test that 3% founders reward is 3,788,400 KOTO
 TEST(founders_reward_test, slow_start_subsidy) {
     SelectParams(CBaseChainParams::MAIN);
     CChainParams params = Params();
@@ -184,8 +182,7 @@ TEST(founders_reward_test, slow_start_subsidy) {
         CAmount nSubsidy = GetBlockSubsidy(nHeight, params.GetConsensus()) * params.GetConsensus().nFoundersRewardPercentage / 100;
         totalSubsidy += nSubsidy;
     }
-    
-    ASSERT_TRUE(totalSubsidy == 221160000000000);
+    ASSERT_TRUE(totalSubsidy == 378840000000000);
 }
 
 
