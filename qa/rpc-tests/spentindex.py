@@ -74,8 +74,8 @@ class SpentIndexTest(BitcoinTestFramework):
 
         # Check new fields added to getrawtransaction
         tx1 = self.nodes[2].getrawtransaction(txid1, 1)
-        assert_equal(tx1['vin'][0]['value'], 10) # coinbase
-        assert_equal(tx1['vin'][0]['valueSat'], 10*COIN)
+        assert_equal(tx1['vin'][0]['value'], 100) # coinbase
+        assert_equal(tx1['vin'][0]['valueSat'], 100*COIN)
         # we want the non-change (payment) output
         vout = filter(lambda o: o['value'] == 2, tx1['vout'])
         n = vout[0]['n']
@@ -117,7 +117,7 @@ class SpentIndexTest(BitcoinTestFramework):
         blockdeltas = self.nodes[2].getblockdeltas(block_hash1[0])
         assert_equal(blockdeltas['confirmations'], 3)
         assert_equal(blockdeltas['height'], 106)
-        assert_equal(blockdeltas['version'], 4)
+        assert_equal(blockdeltas['version'], 5)
         assert_equal(blockdeltas['hash'], block_hash1[0])
         assert_equal(blockdeltas['nextblockhash'], block_hash2[0])
         deltas = blockdeltas['deltas']
@@ -126,10 +126,10 @@ class SpentIndexTest(BitcoinTestFramework):
         coinbase_tx = deltas[0]
         assert_equal(coinbase_tx['index'], 0)
         assert_equal(len(coinbase_tx['inputs']), 0)
-        assert_equal(len(coinbase_tx['outputs']), 2)
+        assert_equal(len(coinbase_tx['outputs']), 1)
         assert_equal(coinbase_tx['outputs'][0]['index'], 0)
-        assert_equal(coinbase_tx['outputs'][1]['index'], 1)
-        assert_equal(coinbase_tx['outputs'][1]['satoshis'], 2.5*COIN)
+        #assert_equal(coinbase_tx['outputs'][1]['index'], 1)
+        #assert_equal(coinbase_tx['outputs'][1]['satoshis'], 2.5*COIN)
 
         to_a_tx = deltas[1]
         assert_equal(to_a_tx['index'], 1)
@@ -138,7 +138,7 @@ class SpentIndexTest(BitcoinTestFramework):
         assert_equal(len(to_a_tx['inputs']), 1)
         assert_equal(to_a_tx['inputs'][0]['index'], 0)
         assert_equal(to_a_tx['inputs'][0]['prevout'], 0)
-        assert_equal(to_a_tx['inputs'][0]['satoshis'], -10*COIN)
+        assert_equal(to_a_tx['inputs'][0]['satoshis'], -100*COIN)
 
         assert_equal(len(to_a_tx['outputs']), 2)
         # find the nonchange output, which is the payment to addr1
@@ -149,7 +149,7 @@ class SpentIndexTest(BitcoinTestFramework):
         blockdeltas = self.nodes[2].getblockdeltas(block_hash2[0])
         assert_equal(blockdeltas['confirmations'], 2)
         assert_equal(blockdeltas['height'], 107)
-        assert_equal(blockdeltas['version'], 4)
+        assert_equal(blockdeltas['version'], 5)
         assert_equal(blockdeltas['hash'], block_hash2[0])
         assert_equal(blockdeltas['previousblockhash'], block_hash1[0])
         assert_equal(blockdeltas['nextblockhash'], block_hash_next[0])
@@ -158,10 +158,10 @@ class SpentIndexTest(BitcoinTestFramework):
         coinbase_tx = deltas[0]
         assert_equal(coinbase_tx['index'], 0)
         assert_equal(len(coinbase_tx['inputs']), 0)
-        assert_equal(len(coinbase_tx['outputs']), 2)
+        assert_equal(len(coinbase_tx['outputs']), 1)
         assert_equal(coinbase_tx['outputs'][0]['index'], 0)
-        assert_equal(coinbase_tx['outputs'][1]['index'], 1)
-        assert_equal(coinbase_tx['outputs'][1]['satoshis'], 2.5*COIN)
+        #assert_equal(coinbase_tx['outputs'][1]['index'], 1)
+        #assert_equal(coinbase_tx['outputs'][1]['satoshis'], 2.5*COIN)
 
         to_b_tx = deltas[1]
         assert_equal(to_b_tx['index'], 1)

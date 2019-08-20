@@ -6,6 +6,8 @@
 
 #include "upgrades.h"
 
+#include <limits.h>
+
 namespace Consensus {
     bool Params::NetworkUpgradeActive(int nHeight, Consensus::UpgradeIndex idx) const {
         return NetworkUpgradeState(nHeight, *this, idx) == UPGRADE_ACTIVE;
@@ -33,6 +35,8 @@ namespace Consensus {
     }
 
      int Params::GetLastFoundersRewardBlockHeight(int nHeight) const {
+        return INT_MAX;
+#if 0
         // zip208
         // FoundersRewardLastBlockHeight := max({ height ⦂ N | Halving(height) < 1 })
         // Halving(h) is defined as floor(f(h)) where f is a strictly increasing rational
@@ -56,6 +60,7 @@ namespace Consensus {
         } else {
             return nPreBlossomSubsidyHalvingInterval + SubsidySlowStartShift() - 1;
         }
+#endif
     }
 
     int64_t Params::PoWTargetSpacing(int nHeight) const {

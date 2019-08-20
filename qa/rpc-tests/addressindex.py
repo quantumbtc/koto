@@ -95,7 +95,7 @@ class AddressIndexTest(BitcoinTestFramework):
 
         self.nodes[0].generate(105)
         self.sync_all()
-        assert_equal(self.nodes[0].getbalance(), 5 * 10)
+        assert_equal(self.nodes[0].getbalance(), 3920000 + 4 * 100)
         assert_equal(self.nodes[1].getblockcount(), 105)
         assert_equal(self.nodes[1].getbalance(), 0)
 
@@ -109,31 +109,31 @@ class AddressIndexTest(BitcoinTestFramework):
         # which has type pay-to-public-key-hash, and the second output
         # is the founders' reward, which has type pay-to-script-hash.
         addr_p2pkh = tx['vout'][0]['scriptPubKey']['addresses'][0]
-        addr_p2sh = tx['vout'][1]['scriptPubKey']['addresses'][0]
+        #addr_p2sh = tx['vout'][1]['scriptPubKey']['addresses'][0]
 
         # Check that balances from mining are correct (105 blocks mined); in
         # regtest, all mining rewards from a single call to generate() are sent
         # to the same pair of addresses.
-        check_balance(1, addr_p2pkh, 105 * 10 * COIN)
-        check_balance(1, addr_p2sh, 105 * 2.5 * COIN)
+        check_balance(1, addr_p2pkh, (3920000 + 104 * 100) * COIN)
+        #check_balance(1, addr_p2sh, 105 * 2.5 * COIN)
 
         # Multiple address arguments, results are the sum
-        check_balance(1, [addr_p2sh, addr_p2pkh], 105 * 12.5 * COIN)
+        #check_balance(1, [addr_p2sh, addr_p2pkh], 105 * 12.5 * COIN)
 
         assert_equal(len(self.nodes[1].getaddresstxids(addr_p2pkh)), 105)
-        assert_equal(len(self.nodes[1].getaddresstxids(addr_p2sh)), 105)
+        #assert_equal(len(self.nodes[1].getaddresstxids(addr_p2sh)), 105)
 
         # only the oldest 5 transactions are in the unspent list,
         # dup addresses are ignored
         height_txids = getaddresstxids(1, [addr_p2pkh, addr_p2pkh], 1, 5)
         assert_equal(sorted(height_txids), sorted(unspent_txids))
 
-        height_txids = getaddresstxids(1, [addr_p2sh], 1, 5)
-        assert_equal(sorted(height_txids), sorted(unspent_txids))
+        #height_txids = getaddresstxids(1, [addr_p2sh], 1, 5)
+        #assert_equal(sorted(height_txids), sorted(unspent_txids))
 
         # each txid should appear only once
-        height_txids = getaddresstxids(1, [addr_p2pkh, addr_p2sh], 1, 5)
-        assert_equal(sorted(height_txids), sorted(unspent_txids))
+        #height_txids = getaddresstxids(1, [addr_p2pkh, addr_p2sh], 1, 5)
+        #assert_equal(sorted(height_txids), sorted(unspent_txids))
 
         # do some transfers, make sure balances are good
         txids_a1 = []
@@ -146,7 +146,7 @@ class AddressIndexTest(BitcoinTestFramework):
             txids_a1.append(txid)
             self.nodes[0].generate(1)
             self.sync_all()
-            expected += i + 1
+            expected += (i + 1)
             expected_deltas.append({
                 'height': 106 + i,
                 'satoshis': (i + 1) * COIN,
@@ -275,9 +275,9 @@ class AddressIndexTest(BitcoinTestFramework):
         # Further check specifying multiple addresses
         txids_all = list(txids_a1)
         txids_all += self.nodes[1].getaddresstxids(addr_p2pkh)
-        txids_all += self.nodes[1].getaddresstxids(addr_p2sh)
+        #txids_all += self.nodes[1].getaddresstxids(addr_p2sh)
         multitxids = self.nodes[1].getaddresstxids({
-            'addresses': [addr1, addr_p2sh, addr_p2pkh]
+            'addresses': [addr1, addr_p2pkh]
         })
         # No dups in return list from getaddresstxids
         assert_equal(len(multitxids), len(set(multitxids)))
@@ -334,8 +334,9 @@ class AddressIndexTest(BitcoinTestFramework):
 
         # Check that outputs with the same address in the same tx return one txid
         # (can't use createrawtransaction() as it combines duplicate addresses)
-        addr = "t2LMJ6Arw9UWBMWvfUr2QLHM4Xd9w53FftS"
-        addressHash = "97643ce74b188f4fb6bbbb285e067a969041caf2".decode('hex')
+        addr = "k2X7VGjHDARGeGBTcANUV2uFmBRwaz8aGdG"
+#        addressHash = "97643ce74b188f4fb6bbbb285e067a969041caf2".decode('hex')
+        addressHash = "e9380a12679193d13cb4ed6189eb48451e1cab52".decode('hex')
         scriptPubKey = CScript([OP_HASH160, addressHash, OP_EQUAL])
         # Add an unrecognized script type to vout[], a legal script that pays,
         # but won't modify the addressindex (since the address can't be extracted).
@@ -345,9 +346,9 @@ class AddressIndexTest(BitcoinTestFramework):
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(unspent[0]['txid'], 16), unspent[0]['vout']))]
         tx.vout = [
-            CTxOut(1 * COIN, scriptPubKey),
-            CTxOut(2 * COIN, scriptPubKey),
-            CTxOut(7 * COIN, scriptUnknown),
+            CTxOut(10 * COIN, scriptPubKey),
+            CTxOut(20 * COIN, scriptPubKey),
+            CTxOut(70 * COIN, scriptUnknown),
         ]
         tx = self.nodes[0].signrawtransaction(hexlify(tx.serialize()).decode('utf-8'))
         txid = self.nodes[0].sendrawtransaction(tx['hex'], True)
@@ -355,7 +356,7 @@ class AddressIndexTest(BitcoinTestFramework):
         self.sync_all()
 
         assert_equal(self.nodes[1].getaddresstxids(addr), [txid])
-        check_balance(2, addr, 3 * COIN)
+        check_balance(2, addr, 30 * COIN)
 
 
 if __name__ == '__main__':
