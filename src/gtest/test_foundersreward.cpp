@@ -127,6 +127,7 @@ TEST(founders_reward_test, general) {
 #endif
 }
 
+#if 0
 TEST(founders_reward_test, regtest_get_last_block_blossom) {
     int blossomActivationHeight = Consensus::PRE_BLOSSOM_REGTEST_HALVING_INTERVAL / 2; // = 75
     auto params = RegtestActivateBlossom(false, blossomActivationHeight);
@@ -143,6 +144,7 @@ TEST(founders_reward_test, mainnet_get_last_block) {
     EXPECT_EQ(0, params.Halving(lastFRHeight));
     EXPECT_EQ(1, params.Halving(lastFRHeight + 1));
 }
+#endif
 
 #define NUM_MAINNET_FOUNDER_ADDRESSES 1
 
