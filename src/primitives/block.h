@@ -12,6 +12,7 @@
 #include "yespower.h"
 #include "utilstrencodings.h"
 #include "streams.h"
+#include "sync.h"
 #include "version.h"
 
 
@@ -22,7 +23,7 @@
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
  */
-class CBlockHeader
+class CBlockHeaderUncached
 {
 public:
     // header
@@ -36,7 +37,7 @@ public:
     uint32_t nNonce;
     uint256 hashFinalSaplingRoot;
 
-    CBlockHeader()
+    CBlockHeaderUncached()
     {
         SetNull();
     }
@@ -51,14 +52,14 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        if (this->nVersion >= CBlockHeader::SAPLING_VERSION) {
+        if (this->nVersion >= CBlockHeaderUncached::SAPLING_VERSION) {
             READWRITE(hashFinalSaplingRoot);
         }
     }
 
     void SetNull()
     {
-        nVersion = CBlockHeader::CURRENT_VERSION;
+        nVersion = CBlockHeaderUncached::CURRENT_VERSION;
         hashPrevBlock.SetNull();
         hashMerkleRoot.SetNull();
         hashFinalSaplingRoot.SetNull();
@@ -96,6 +97,37 @@ public:
         }
         return thash;
     }
+};
+
+
+class CBlockHeader : public CBlockHeaderUncached
+{
+public:
+    CBlockHeader()
+    {
+        cache_init = false;
+    }
+
+    CBlockHeader(const CBlockHeader& header)
+    {
+        *this = header;
+    }
+
+    CBlockHeader& operator=(const CBlockHeader& header)
+    {
+        *(CBlockHeaderUncached*)this = (CBlockHeaderUncached)header;
+        cache_init = header.cache_init;
+        cache_block_hash = header.cache_block_hash;
+        cache_PoW_hash = header.cache_PoW_hash;
+        return *this;
+    }
+
+    uint256 GetPoWHash_cached() const;
+
+private:
+    mutable CCriticalSection cache_lock;
+    mutable bool cache_init;
+    mutable uint256 cache_block_hash, cache_PoW_hash;
 };
 
 

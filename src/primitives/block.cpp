@@ -10,9 +10,28 @@
 #include "utilstrencodings.h"
 #include "crypto/common.h"
 
-uint256 CBlockHeader::GetHash() const
+uint256 CBlockHeaderUncached::GetHash() const
 {
     return SerializeHash(*this);
+}
+
+uint256 CBlockHeader::GetPoWHash_cached() const
+{
+    uint256 block_hash = GetHash();
+    LOCK(cache_lock);
+    if (cache_init) {
+        if (block_hash != cache_block_hash) {
+            fprintf(stderr, "Error: CBlockHeader: block hash changed unexpectedly\n");
+            exit(1);
+        }
+        //printf("HIT block_hash = %s PoW_hash = %s\n", cache_block_hash.ToString().c_str(), cache_PoW_hash.ToString().c_str());
+    } else {
+        cache_PoW_hash = GetPoWHash();
+        cache_block_hash = block_hash;
+        cache_init = true;
+        //printf("MISS block_hash = %s PoW_hash = %s\n", cache_block_hash.ToString().c_str(), cache_PoW_hash.ToString().c_str());
+    }
+    return cache_PoW_hash;
 }
 
 uint256 CBlock::BuildMerkleTree(bool* fMutated) const
