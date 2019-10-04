@@ -13,6 +13,8 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, connect_nodes, \
     sync_blocks, gather_inputs
 
+from decimal import Decimal
+
 
 class TxnMallTest(BitcoinTestFramework):
 
@@ -25,8 +27,8 @@ class TxnMallTest(BitcoinTestFramework):
         return super(TxnMallTest, self).setup_network(True)
 
     def run_test(self):
-        mining_reward = 100
-        starting_balance = 3920000 + mining_reward * 24
+        mining_reward = Decimal(100*0.97)
+        starting_balance = Decimal(3920000*0.97) + mining_reward * 24
         starting_balance2 = mining_reward * 25
 
         for i in range(4):
@@ -66,7 +68,7 @@ class TxnMallTest(BitcoinTestFramework):
 
         # Node0's balance should be starting balance, plus mining_reward for another
         # matured block, minus (starting_balance - (mining_reward - 2)), minus 5, and minus transaction fees:
-        expected = starting_balance
+        expected = Decimal(starting_balance)
         if self.options.mine_block: expected += mining_reward
         expected += tx1["amount"] + tx1["fee"]
         expected += tx2["amount"] + tx2["fee"]

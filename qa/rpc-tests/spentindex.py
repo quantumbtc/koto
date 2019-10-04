@@ -1,24 +1,27 @@
 #!/usr/bin/env python
 # Copyright (c) 2019 The Zcash developers
 # Distributed under the MIT software license, see the accompanying
-# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
+# file COPYING or https://www.opensource.org/licenses/mit-license.php .
 #
-# Test spentindex generation and fetching
-#
+# Test spentindex generation and fetching for insightexplorer
 
 import sys; assert sys.version_info < (3,), ur"This script does not run under Python 3. Please use Python 2.7.x."
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.authproxy import JSONRPCException
 
-from test_framework.util import assert_equal
-from test_framework.util import initialize_chain_clean
-from test_framework.util import start_nodes, stop_nodes, connect_nodes
-from test_framework.util import wait_bitcoinds
-from test_framework.util import fail
+from test_framework.util import (
+    assert_equal,
+    initialize_chain_clean,
+    start_nodes,
+    stop_nodes,
+    connect_nodes,
+    wait_bitcoinds,
+    fail,
+)
 
 from test_framework.mininode import COIN
+
 
 class SpentIndexTest(BitcoinTestFramework):
 
@@ -29,7 +32,8 @@ class SpentIndexTest(BitcoinTestFramework):
     def setup_network(self):
         # -insightexplorer causes spentindex to be enabled (fSpentIndex = true)
 
-        self.nodes = start_nodes(3, self.options.tmpdir,
+        self.nodes = start_nodes(
+            3, self.options.tmpdir,
             [['-debug', '-txindex', '-experimentalfeatures', '-insightexplorer']]*3)
         connect_nodes(self.nodes[0], 1)
         connect_nodes(self.nodes[0], 2)
@@ -74,8 +78,8 @@ class SpentIndexTest(BitcoinTestFramework):
 
         # Check new fields added to getrawtransaction
         tx1 = self.nodes[2].getrawtransaction(txid1, 1)
-        assert_equal(tx1['vin'][0]['value'], 100) # coinbase
-        assert_equal(tx1['vin'][0]['valueSat'], 100*COIN)
+        assert_equal(tx1['vin'][0]['value'], 97) # coinbase
+        assert_equal(tx1['vin'][0]['valueSat'], 97*COIN)
         # we want the non-change (payment) output
         vout = filter(lambda o: o['value'] == 2, tx1['vout'])
         n = vout[0]['n']
@@ -126,10 +130,10 @@ class SpentIndexTest(BitcoinTestFramework):
         coinbase_tx = deltas[0]
         assert_equal(coinbase_tx['index'], 0)
         assert_equal(len(coinbase_tx['inputs']), 0)
-        assert_equal(len(coinbase_tx['outputs']), 1)
+        assert_equal(len(coinbase_tx['outputs']), 2)
         assert_equal(coinbase_tx['outputs'][0]['index'], 0)
-        #assert_equal(coinbase_tx['outputs'][1]['index'], 1)
-        #assert_equal(coinbase_tx['outputs'][1]['satoshis'], 2.5*COIN)
+        assert_equal(coinbase_tx['outputs'][1]['index'], 1)
+        assert_equal(coinbase_tx['outputs'][1]['satoshis'], 300000024)
 
         to_a_tx = deltas[1]
         assert_equal(to_a_tx['index'], 1)
@@ -138,7 +142,7 @@ class SpentIndexTest(BitcoinTestFramework):
         assert_equal(len(to_a_tx['inputs']), 1)
         assert_equal(to_a_tx['inputs'][0]['index'], 0)
         assert_equal(to_a_tx['inputs'][0]['prevout'], 0)
-        assert_equal(to_a_tx['inputs'][0]['satoshis'], -100*COIN)
+        assert_equal(to_a_tx['inputs'][0]['satoshis'], -97*COIN)
 
         assert_equal(len(to_a_tx['outputs']), 2)
         # find the nonchange output, which is the payment to addr1
@@ -158,10 +162,10 @@ class SpentIndexTest(BitcoinTestFramework):
         coinbase_tx = deltas[0]
         assert_equal(coinbase_tx['index'], 0)
         assert_equal(len(coinbase_tx['inputs']), 0)
-        assert_equal(len(coinbase_tx['outputs']), 1)
+        assert_equal(len(coinbase_tx['outputs']), 2)
         assert_equal(coinbase_tx['outputs'][0]['index'], 0)
-        #assert_equal(coinbase_tx['outputs'][1]['index'], 1)
-        #assert_equal(coinbase_tx['outputs'][1]['satoshis'], 2.5*COIN)
+        assert_equal(coinbase_tx['outputs'][1]['index'], 1)
+        assert_equal(coinbase_tx['outputs'][1]['satoshis'], 300000024)
 
         to_b_tx = deltas[1]
         assert_equal(to_b_tx['index'], 1)
@@ -177,6 +181,7 @@ class SpentIndexTest(BitcoinTestFramework):
         out = filter(lambda o: o['satoshis'] == 1*COIN, to_b_tx['outputs'])
         assert_equal(len(out), 1)
         assert_equal(out[0]['address'], addr2)
+
 
 if __name__ == '__main__':
     SpentIndexTest().main()

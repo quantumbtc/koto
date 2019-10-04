@@ -54,19 +54,19 @@ class ShorterBlockTimes(BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
         # Check that we received a pre-Blossom mining reward
-        assert_equal(10, Decimal(self.nodes[1].getwalletinfo()['immature_balance']))
+        assert_equal(97, Decimal(self.nodes[1].getwalletinfo()['immature_balance']))
 
         # After blossom activation the block reward will be halved
         print "Mining first Blossom block"
         self.nodes[1].generate(1)
         self.sync_all()
         # Check that we received an additional Blossom mining reward
-        assert_equal(15, self.nodes[1].getwalletinfo()['immature_balance'])
+        assert_equal(194, self.nodes[1].getwalletinfo()['immature_balance'])
 
         # Send and mine a transaction after activation
         myopid = self.nodes[0].z_sendmany(node0_taddr, recipients, 1, Decimal('0'))
         txid = wait_and_assert_operationid_status(self.nodes[0], myopid)
-        assert_equal(147, self.nodes[0].getrawtransaction(txid, 1)['expiryheight'])  # height + 1 + 40
+        assert_equal(127, self.nodes[0].getrawtransaction(txid, 1)['expiryheight'])  # height + 1 + 40
         self.nodes[1].generate(1)
         self.sync_all()
         assert_equal(20, Decimal(self.nodes[0].z_gettotalbalance()['private']))

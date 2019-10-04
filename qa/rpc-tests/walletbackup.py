@@ -73,9 +73,11 @@ class WalletBackupTest(BitcoinTestFramework):
         self.sync_all()
 
     def one_send(self, from_node, to_address):
-        if (randint(1,2) == 1):
-            amount = Decimal(randint(1,10)) / Decimal(10)
-            self.nodes[from_node].sendtoaddress(to_address, amount)
+        amount = Decimal(5) / Decimal(10)
+        self.nodes[from_node].sendtoaddress(to_address, amount)
+#        if (randint(1,2) == 1):
+#            amount = Decimal(randint(1,10)) / Decimal(10)
+#            self.nodes[from_node].sendtoaddress(to_address, amount)
 
     def do_one_round(self):
         a0 = self.nodes[0].getnewaddress()
@@ -125,9 +127,9 @@ class WalletBackupTest(BitcoinTestFramework):
         self.nodes[3].generate(100)
         sync_blocks(self.nodes)
 
-        assert_equal(self.nodes[0].getbalance(), 3920000)
-        assert_equal(self.nodes[1].getbalance(), 100)
-        assert_equal(self.nodes[2].getbalance(), 100)
+        assert_equal(self.nodes[0].getbalance(), 3920000*0.97)
+        assert_equal(self.nodes[1].getbalance(), 100*0.97)
+        assert_equal(self.nodes[2].getbalance(), 100*0.97)
         assert_equal(self.nodes[3].getbalance(), 0)
 
         logging.info("Creating transactions")
@@ -168,7 +170,7 @@ class WalletBackupTest(BitcoinTestFramework):
 
         # At this point, there are 214 blocks (103 for setup, then 10 rounds, then 101.)
         # 114 are mature, so the sum of all wallets should be 3920000 + 113 * 100 = 3931300.
-        assert_equal(total, 3920000 + 11300)
+        assert_equal(total, 3813360.99998107)
 
         ##
         # Test restoring spender wallets from backups

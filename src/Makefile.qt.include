@@ -503,10 +503,6 @@ qt_koto_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(CURL_LIBS)
 qt_koto_qt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -static
 
-if HAVE_OPENMP
-qt_koto_qt_LDFLAGS += -fopenmp
-endif
-
 qt_koto_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX
 
 #locale/foo.ts -> locale/foo.qm

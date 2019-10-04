@@ -81,8 +81,8 @@ class GetrawtransactionTest(BitcoinTestFramework):
 
         # Check new fields added to getrawtransaction
         tx_a = self.nodes[2].getrawtransaction(txid_a, 1)
-        assert_equal(tx_a['vin'][0]['value'], 100) # coinbase
-        assert_equal(tx_a['vin'][0]['valueSat'], 100*COIN)
+        assert_equal(tx_a['vin'][0]['value'], 97) # coinbase
+        assert_equal(tx_a['vin'][0]['valueSat'], 97*COIN)
         # we want the non-change (payment) output
         vout = filter(lambda o: o['value'] == 2, tx_a['vout'])
         assert_equal(vout[0]['spentTxId'], txid_b)

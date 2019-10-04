@@ -27,9 +27,9 @@ class BitcoinTestFramework(object):
         for i, node in enumerate(self.nodes):
             assert_equal(node.getblockcount(), 200)
             if i == 0:
-                assert_equal(node.getbalance(), 3920000 + 24*100)
+                assert_equal(node.getbalance(), (3920000 + 24*100) * 0.97)
             else:
-                assert_equal(node.getbalance(), 25*100)
+                assert_equal(node.getbalance(), 25*100 * 0.97)
 
     def add_options(self, parser):
         pass

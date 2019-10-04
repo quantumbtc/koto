@@ -54,15 +54,15 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         # and make sure the mempool code behaves correctly.
         b = [ self.nodes[0].getblockhash(n) for n in range(101, 105) ]
         coinbase_txids = [ self.nodes[0].getblock(h)['tx'][0] for h in b ]
-        spend_101_raw = self.create_tx(coinbase_txids[1], node1_address, 100)
-        spend_102_raw = self.create_tx(coinbase_txids[2], node0_address, 100)
-        spend_103_raw = self.create_tx(coinbase_txids[3], node0_address, 100)
+        spend_101_raw = self.create_tx(coinbase_txids[1], node1_address, 97)
+        spend_102_raw = self.create_tx(coinbase_txids[2], node0_address, 97)
+        spend_103_raw = self.create_tx(coinbase_txids[3], node0_address, 97)
 
         # Create a block-height-locked transaction which will be invalid after reorg
-        timelock_tx = self.nodes[0].createrawtransaction([{"txid": coinbase_txids[0], "vout": 0}], {node0_address: 100})
-        # Set the time lock
+        timelock_tx = self.nodes[0].createrawtransaction([{"txid": coinbase_txids[0], "vout": 0}], {node0_address: 97})
+        # Set the time lock, ensuring we don't clobber the rest of the Sapling v4 tx format
         timelock_tx = timelock_tx.replace("ffffffff", "11111111", 1)
-        timelock_tx = timelock_tx[:-8] + hex(self.nodes[0].getblockcount() + 2)[2:] + "000000"
+        timelock_tx = timelock_tx[:-38] + hex(self.nodes[0].getblockcount() + 2)[2:] + "000000" + timelock_tx[-30:]
         timelock_tx = self.nodes[0].signrawtransaction(timelock_tx)["hex"]
         assert_raises(JSONRPCException, self.nodes[0].sendrawtransaction, timelock_tx)
 
@@ -73,8 +73,8 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].sendrawtransaction, timelock_tx)
 
         # Create 102_1 and 103_1:
-        spend_102_1_raw = self.create_tx(spend_102_id, node1_address, 100)
-        spend_103_1_raw = self.create_tx(spend_103_id, node1_address, 100)
+        spend_102_1_raw = self.create_tx(spend_102_id, node1_address, 97)
+        spend_103_1_raw = self.create_tx(spend_103_id, node1_address, 97)
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)

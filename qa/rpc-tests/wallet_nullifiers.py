@@ -26,7 +26,7 @@ class WalletNullifiersTest (BitcoinTestFramework):
         # Tests using the default cached chain have one address per coinbase output
         mytaddr = get_coinbase_address(self.nodes[0])
         recipients = []
-        recipients.append({"address":myzaddr0, "amount":Decimal('100.0')-Decimal('0.0001')}) # utxo amount less fee
+        recipients.append({"address":myzaddr0, "amount":Decimal('97.0')-Decimal('0.0001')}) # utxo amount less fee
         
         wait_and_assert_operationid_status(self.nodes[0], self.nodes[0].z_sendmany(mytaddr, recipients), timeout=120)
 
@@ -117,7 +117,7 @@ class WalletNullifiersTest (BitcoinTestFramework):
 
         # Test viewing keys
 
-        node3mined = Decimal('2500.0')
+        node3mined = Decimal('2425.0')
         assert_equal({k: Decimal(v) for k, v in self.nodes[3].z_gettotalbalance().items()}, {
             'transparent': node3mined,
             'private': zsendmany2notevalue,

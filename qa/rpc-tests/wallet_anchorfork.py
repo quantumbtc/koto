@@ -31,15 +31,15 @@ class WalletAnchorForkTest (BitcoinTestFramework):
         self.nodes[0].generate(4)
 
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 3920000+300)
+        assert_equal(walletinfo['immature_balance'], (3920000+300)*0.97)
         assert_equal(walletinfo['balance'], 0)
 
         self.sync_all()
         self.nodes[1].generate(102)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance(), 3920000+300)
-        assert_equal(self.nodes[1].getbalance(), 200)
+        assert_equal(self.nodes[0].getbalance(), (3920000+300)*0.97)
+        assert_equal(self.nodes[1].getbalance(), 200*0.97)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # At this point in time, commitment tree is the empty root
@@ -48,7 +48,7 @@ class WalletAnchorForkTest (BitcoinTestFramework):
         mytaddr0 = get_coinbase_address(self.nodes[0])
         myzaddr0 = self.nodes[0].z_getnewaddress('sprout')
         recipients = []
-        recipients.append({"address":myzaddr0, "amount": Decimal('100.0') - Decimal('0.0001')})
+        recipients.append({"address":myzaddr0, "amount": Decimal('97.0') - Decimal('0.0001')})
         myopid = self.nodes[0].z_sendmany(mytaddr0, recipients)
         wait_and_assert_operationid_status(self.nodes[0], myopid)
 
@@ -72,7 +72,7 @@ class WalletAnchorForkTest (BitcoinTestFramework):
 
         # Partition A, node 0 creates a joinsplit transaction
         recipients = []
-        recipients.append({"address":myzaddr0, "amount": Decimal('100.0') - Decimal('0.0001')})
+        recipients.append({"address":myzaddr0, "amount": Decimal('97.0') - Decimal('0.0001')})
         myopid = self.nodes[0].z_sendmany(mytaddr0, recipients)
         txid = wait_and_assert_operationid_status(self.nodes[0], myopid)
         rawhex = self.nodes[0].getrawtransaction(txid)

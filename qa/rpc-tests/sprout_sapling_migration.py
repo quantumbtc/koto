@@ -52,10 +52,7 @@ def check_migration_status(node, destination_address, migration_state):
 
 class SproutSaplingMigration(BitcoinTestFramework):
     def setup_nodes(self):
-        # Activate overwinter/sapling on all nodes
         extra_args = [[
-            '-nuparams=5ba81b19:100',  # Overwinter
-            '-nuparams=76b809bb:100',  # Sapling
         ]] * 4
         # Add migration parameters to nodes[0]
         extra_args[0] = extra_args[0] + [
@@ -63,8 +60,8 @@ class SproutSaplingMigration(BitcoinTestFramework):
             '-migrationdestaddress=' + SAPLING_ADDR,
             '-debug=zrpcunsafe'
         ]
-        assert_equal(5, len(extra_args[0]))
-        assert_equal(2, len(extra_args[1]))
+        assert_equal(3, len(extra_args[0]))
+        assert_equal(0, len(extra_args[1]))
         return start_nodes(4, self.options.tmpdir, extra_args)
 
     def setup_chain(self):
@@ -73,7 +70,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
 
     def run_migration_test(self, node, sproutAddr, saplingAddr, target_height):
         if target_height == 500:
-            balance = '3920000'
+            balance = '3802400'
         else:
             balance = '97'
         # Make sure we are in a good state to run the test
@@ -134,7 +131,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
         status = node.z_getmigrationstatus()
         print("status: {}".format(status))
         if target_height == 500:
-            assert_equal(Decimal('3919999.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
+            assert_equal(Decimal('3802399.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
         else:
             assert_equal(Decimal('96.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
 
@@ -155,7 +152,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
         print("sprout balance: {}, sapling balance: {}".format(sprout_balance, sapling_balance))
         assert_true(sprout_balance < Decimal(balance), "Should have less Sprout funds")
         assert_true(sapling_balance > Decimal('0'), "Should have more Sapling funds")
-        assert_true(sprout_balance + sapling_balance, Decimal('3919999.9999'))
+        assert_true(sprout_balance + sapling_balance, Decimal('3802399.9999'))
 
         check_migration_status(node, saplingAddr, DURING_MIGRATION)
         # At 10 % 500 the transactions will be considered 'finalized'
@@ -170,7 +167,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
     def send_to_sprout_zaddr(self, tAddr, sproutAddr, first):
         # Send some ZEC to a Sprout address
         if first:
-            opid = self.nodes[0].z_sendmany(tAddr, [{"address": sproutAddr, "amount": Decimal('3920000')}], 1, 0)
+            opid = self.nodes[0].z_sendmany(tAddr, [{"address": sproutAddr, "amount": Decimal('3802400')}], 1, 0)
         else:
             opid = self.nodes[0].z_sendmany(tAddr, [{"address": sproutAddr, "amount": Decimal('97')}], 1, 0)
         wait_and_assert_operationid_status(self.nodes[0], opid)

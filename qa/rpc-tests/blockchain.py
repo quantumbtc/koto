@@ -45,8 +45,8 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res[u'total_amount'], decimal.Decimal('3939850.0000000')) # 3920000 + 149*100 + 99*50
         assert_equal(res[u'transactions'], 200)
         assert_equal(res[u'height'], 200)
-        assert_equal(res[u'txouts'], 200)
-        assert_equal(res[u'bytes_serialized'], 11476),
+        assert_equal(res[u'txouts'], 400)
+        assert_equal(res[u'bytes_serialized'], 16078),
         assert_equal(len(res[u'bestblock']), 64)
         assert_equal(len(res[u'hash_serialized']), 64)
 

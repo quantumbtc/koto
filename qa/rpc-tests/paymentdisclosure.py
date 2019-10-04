@@ -38,16 +38,16 @@ class PaymentDisclosureTest (BitcoinTestFramework):
 
         self.nodes[0].generate(4)
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 3920000+300)
+        assert_equal(walletinfo['immature_balance'], (3920000+300)*0.97)
         assert_equal(walletinfo['balance'], 0)
         self.sync_all()
         self.nodes[2].generate(3)
         self.sync_all()
         self.nodes[1].generate(101)
         self.sync_all()
-        assert_equal(self.nodes[0].getbalance(), 3920000+300)
-        assert_equal(self.nodes[1].getbalance(), 100)
-        assert_equal(self.nodes[2].getbalance(), 300)
+        assert_equal(self.nodes[0].getbalance(), (3920000+300)*0.97)
+        assert_equal(self.nodes[1].getbalance(), 100*0.97)
+        assert_equal(self.nodes[2].getbalance(), 300*0.97)
 
         mytaddr = get_coinbase_address(self.nodes[0])
         myzaddr = self.nodes[0].z_getnewaddress('sprout')
@@ -68,8 +68,8 @@ class PaymentDisclosureTest (BitcoinTestFramework):
             errorString = e.error['message']
             assert("No information available about transaction" in errorString)
 
-        # Shield coinbase utxos from node 0 of value 3920300, standard fee of 0.00010000
-        recipients = [{"address":myzaddr, "amount":Decimal('3920300.0')-Decimal('0.0001')}]
+        # Shield coinbase utxos from node 0 of value 3802691, standard fee of 0.00010000
+        recipients = [{"address":myzaddr, "amount":Decimal('3802691.0')-Decimal('0.0001')}]
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
         txid = wait_and_assert_operationid_status(self.nodes[0], myopid)
 
@@ -164,7 +164,7 @@ class PaymentDisclosureTest (BitcoinTestFramework):
         pd = self.nodes[0].z_getpaymentdisclosure(txid, 0, 1)
         result = self.nodes[0].z_validatepaymentdisclosure(pd)
         output_value_sum += Decimal(result["value"])
-        assert_equal(output_value_sum, Decimal('3920299.99990000'))
+        assert_equal(output_value_sum, Decimal('3802690.99990000'))
 
         # Create a z->z transaction, sending shielded funds from node 0 to node 1
         node1zaddr = self.nodes[1].z_getnewaddress('sprout')
