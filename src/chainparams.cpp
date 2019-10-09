@@ -254,7 +254,7 @@ public:
             uint256S("8bcf13409aff9a8b484d92b8e0ff26d559c4145ab52afc4283dee6f915ea0869");
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000072c3a6f1");
+        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000000002374cdc32");
 
         pchMessageStart[0] = 0x54;
         pchMessageStart[1] = 0x6f;
