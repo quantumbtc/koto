@@ -178,8 +178,8 @@ void AsyncRPCOperation_saplingmigration::setMigrationResult(int numTxCreated, co
 CAmount AsyncRPCOperation_saplingmigration::chooseAmount(const CAmount& availableFunds) {
     CAmount amount = 0;
     do {
-        // 1. Choose an integer exponent uniformly in the range 8 to 11 inclusive.
-        int exponent = GetRand(4) + 8;
+        // 1. Choose an integer exponent uniformly in the range 6 to 11 inclusive.
+        int exponent = GetRand(6) + 6;
         // 2. Choose an integer mantissa uniformly in the range 1 to 99 inclusive.
         uint64_t mantissa = GetRand(99) + 1;
         // 3. Calculate amount := (mantissa * 10^exponent) zatoshi.
