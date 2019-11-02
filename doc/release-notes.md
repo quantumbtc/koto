@@ -4,6 +4,19 @@ release-notes at release time)
 Notable changes
 ===============
 
+Blossom network upgrade
+-----------------------
+
+The mainnet activation of the Blossom network upgrade is supported by this
+release, with an activation height of 653600, which should occur in early
+December — roughly one day following the targeted EOS halt of our 2.0.7-3
+release. Please upgrade to this release, or any subsequent release, in order to
+follow the Blossom network upgrade.
+
+The Blossom network upgrade implements
+[ZIP208](https://github.com/zcash/zips/blob/master/zip-0208.rst) which shortens
+block times from 150s to 75s.
+
 DoS Mitigation: Mempool Size Limit and Random Drop
 --------------------------------------------------
 
@@ -23,6 +36,16 @@ minutes, but this can be configured with the parameter
 `mempoolevictionmemoryminutes`.
 
 For full details see ZIP 401.
+
+Asynchronous Operations Incorrectly Reporting Success
+-----------------------------------------------------
+We fixed an issue where asynchronous operations were sometimes reporting sucess
+when they had actually failed. One way this could occur was when trying to use
+`z_sendmany` to create a transaction spending coinbase funds in a way where
+change would be generated (not a valid use of `z_sendmany`). In this case the
+operation would erroneously report success, and the only way to see that the 
+transaction had actually failed was to look in the `debug.log` file. Such
+operations will now correctly report that they have failed.
 
 Fake chain detection during initial block download
 --------------------------------------------------

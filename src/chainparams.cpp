@@ -113,8 +113,7 @@ public:
         consensus.vUpgrades[Consensus::UPGRADE_SAPLING].hashActivationBlock =
             uint256S("069d7f5b21621d4e9d1072d7e3d417c5603b14be37fcaab5b57e812495635265");
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nProtocolVersion = 170009;
-        consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight =
-            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
+        consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight = 1060000;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000001150e91c681b9");
