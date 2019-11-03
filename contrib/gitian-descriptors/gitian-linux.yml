@@ -1,5 +1,5 @@
 ---
-name: "koto-2.1.0-rc1"
+name: "koto-2.1.0"
 enable_cache: true
 suites:
 - "bionic"
