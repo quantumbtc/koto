@@ -26,14 +26,20 @@ $(package)_cxxflags_freebsd=-fPIC
 endef
 
 define $(package)_preprocess_cmds
-  sed -i.old "s|#if !defined(BOOST_UUID_RANDOM_PROVIDER_GETRANDOM_IMPL_GETRANDOM)|#if 0|" boost/uuid/detail/random_provider_getrandom.ipp && \
-  echo "using $(boost_toolset_$(host_os)) : : $($(package)_cxx) : <cxxflags>\"$($(package)_cxxflags) $($(package)_cppflags)\" <linkflags>\"$($(package)_ldflags)\" <archiver>\"$(boost_archiver_$(host_os))\" <striper>\"$(host_STRIP)\"  <ranlib>\"$(host_RANLIB)\" <rc>\"$(host_WINDRES)\" : ;" > user-config.jam
+  sed -i.old "s|#if !defined(BOOST_UUID_RANDOM_PROVIDER_GETRANDOM_IMPL_GETRANDOM)|#if 0|" boost/uuid/detail/random_provider_getrandom.ipp
 endef
 
+ifeq ($(host_os),darwin)
+define $(package)_config_cmds
+  ./bootstrap.sh --without-icu --with-libraries=$($(package)_config_libraries) && \
+  sed -i -e "s|using gcc ;|using $(boost_toolset_$(host_os)) : : $($(package)_cxx) : <cxxflags>\"$($(package)_cxxflags) $($(package)_cppflags)\" <linkflags>\"$($(package)_ldflags)\" <archiver>\"$(boost_archiver_$(host_os))\" <striper>\"$(host_STRIP)\"  <ranlib>\"$(host_RANLIB)\" <rc>\"$(host_WINDRES)\" : ;|" project-config.jam
+endef
+else
 define $(package)_config_cmds
   ./bootstrap.sh --without-icu --with-toolset=$($(package)_toolset_$(host_os)) --with-libraries=$($(package)_config_libraries) && \
   sed -i -e "s|using gcc ;|using $(boost_toolset_$(host_os)) : : $($(package)_cxx) : <cxxflags>\"$($(package)_cxxflags) $($(package)_cppflags)\" <linkflags>\"$($(package)_ldflags)\" <archiver>\"$(boost_archiver_$(host_os))\" <striper>\"$(host_STRIP)\"  <ranlib>\"$(host_RANLIB)\" <rc>\"$(host_WINDRES)\" : ;|" project-config.jam
 endef
+endif
 
 define $(package)_build_cmds
   ./b2 -d2 -j2 -d1 --prefix=$($(package)_staging_prefix_dir) $($(package)_config_opts) stage
