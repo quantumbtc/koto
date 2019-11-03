@@ -13,7 +13,7 @@ Vcs-Browser: https://github.com/KotoDevelopers/koto
 Package: koto
 Architecture: amd64
 Depends: ${shlibs:Depends}
-Description: Zcash libraries and tools
+Description: Koto libraries and tools
  Based on Bitcoin's code, it intends to offer a far higher standard
  of privacy and anonymity through a sophisticiated zero-knowledge
  proving scheme which preserves confidentiality of transaction metadata.
