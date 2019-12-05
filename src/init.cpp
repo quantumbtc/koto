@@ -355,7 +355,6 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-dbcache=<n>", strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file") + " " + _("on startup"));
     strUsage += HelpMessageOpt("-maxorphantx=<n>", strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DEFAULT_MAX_ORPHAN_TRANSACTIONS));
-    strUsage += HelpMessageOpt("-mempooltxinputlimit=<n>", _("[DEPRECATED FROM OVERWINTER] Set the maximum number of transparent inputs in a transaction that the mempool will accept (default: 0 = no limit applied)"));
     strUsage += HelpMessageOpt("-par=<n>", strprintf(_("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
         -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS));
 #ifndef WIN32
@@ -834,13 +833,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #endif
 
     if (!SetupNetworking())
-        return InitError("Error: Initializing networking failed");
+        return InitError("Initializing networking failed");
 
 #ifndef WIN32
     if (GetBoolArg("-sysperms", false)) {
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false))
-            return InitError("Error: -sysperms is not allowed in combination with enabled wallet functionality");
+            return InitError("-sysperms is not allowed in combination with enabled wallet functionality");
 #endif
     } else {
         umask(077);
@@ -887,8 +886,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Setting the size of shielded pools to zero requires -experimentalfeatures."));
         } else if (mapArgs.count("-paymentdisclosure")) {
             return InitError(_("Payment disclosure requires -experimentalfeatures."));
-        } else if (mapArgs.count("-zmergetoaddress")) {
-            return InitError(_("RPC method z_mergetoaddress requires -experimentalfeatures."));
         } else if (mapArgs.count("-insightexplorer")) {
             return InitError(_("Insight explorer requires -experimentalfeatures."));
         }
@@ -967,16 +964,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxConnections = nFD - MIN_CORE_FILEDESCRIPTORS;
 
     // if using block pruning, then disable txindex
-    // also disable the wallet (for now, until SPV support is implemented in wallet)
     if (GetArg("-prune", 0)) {
         if (GetBoolArg("-txindex", false))
             return InitError(_("Prune mode is incompatible with -txindex."));
 #ifdef ENABLE_WALLET
-        if (!GetBoolArg("-disablewallet", false)) {
-            if (SoftSetBoolArg("-disablewallet", true))
-                LogPrintf("%s : parameter interaction: -prune -> setting -disablewallet=1\n", __func__);
-            else
-                return InitError(_("Can't run with a wallet in prune mode."));
+        if (GetBoolArg("-rescan", false)) {
+            return InitError(_("Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again."));
         }
 #endif
     }
@@ -1000,16 +993,16 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Check for -debugnet
     if (GetBoolArg("-debugnet", false))
-        InitWarning(_("Warning: Unsupported argument -debugnet ignored, use -debug=net."));
+        InitWarning(_("Unsupported argument -debugnet ignored, use -debug=net."));
     // Check for -socks - as this is a privacy risk to continue, exit here
     if (mapArgs.count("-socks"))
-        return InitError(_("Error: Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported."));
+        return InitError(_("Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported."));
     // Check for -tor - as this is a privacy risk to continue, exit here
     if (GetBoolArg("-tor", false))
-        return InitError(_("Error: Unsupported argument -tor found, use -onion."));
+        return InitError(_("Unsupported argument -tor found, use -onion."));
 
     if (GetBoolArg("-benchmark", false))
-        InitWarning(_("Warning: Unsupported argument -benchmark ignored, use -debug=bench."));
+        InitWarning(_("Unsupported argument -benchmark ignored, use -debug=bench."));
 
     // Checkmempool and checkblockindex default to true in regtest mode
     int ratio = std::min<int>(std::max<int>(GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
@@ -1090,7 +1083,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (!ParseMoney(mapArgs["-paytxfee"], nFeePerK))
             return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), mapArgs["-paytxfee"]));
         if (nFeePerK > nHighTransactionFeeWarning)
-            InitWarning(_("Warning: -paytxfee is set very high! This is the transaction fee you will pay if you send a transaction."));
+            InitWarning(_("-paytxfee is set very high! This is the transaction fee you will pay if you send a transaction."));
         payTxFee = CFeeRate(nFeePerK, 1000);
         if (payTxFee < ::minRelayTxFee)
         {
@@ -1104,7 +1097,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (!ParseMoney(mapArgs["-maxtxfee"], nMaxFee))
             return InitError(strprintf(_("Invalid amount for -maxtxfee=<amount>: '%s'"), mapArgs["-maptxfee"]));
         if (nMaxFee > nHighTransactionMaxFeeWarning)
-            InitWarning(_("Warning: -maxtxfee is set very high! Fees this large could be paid on a single transaction."));
+            InitWarning(_("-maxtxfee is set very high! Fees this large could be paid on a single transaction."));
         maxTxFee = nMaxFee;
         if (CFeeRate(maxTxFee, 1000) < ::minRelayTxFee)
         {
@@ -1158,16 +1151,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 #endif
-
-    // Default value of 0 for mempooltxinputlimit means no limit is applied
-    if (mapArgs.count("-mempooltxinputlimit")) {
-        int64_t limit = GetArg("-mempooltxinputlimit", 0);
-        if (limit < 0) {
-            return InitError(_("Mempool limit on transparent inputs to a transaction cannot be negative"));
-        } else if (limit > 0) {
-            LogPrintf("Mempool configured to reject transactions with greater than %lld transparent inputs\n", limit);
-        }
-    }
 
     if (!mapMultiArgs["-nuparams"].empty()) {
         // Allow overriding network upgrade parameters for testing
@@ -1679,7 +1662,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 strErrors << _("Error loading wallet.dat: Wallet corrupted") << "\n";
             else if (nLoadWalletRet == DB_NONCRITICAL_ERROR)
             {
-                string msg(_("Warning: error reading wallet.dat! All keys read correctly, but transaction data"
+                string msg(_("error reading wallet.dat! All keys read correctly, but transaction data"
                              " or address book entries might be missing or incorrect."));
                 InitWarning(msg);
             }
@@ -1759,6 +1742,19 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
         if (chainActive.Tip() && chainActive.Tip() != pindexRescan)
         {
+            // We can't rescan beyond non-pruned blocks, so stop and throw an error.
+            // This might happen if a user uses a old wallet within a pruned node,
+            // or if they ran -disablewallet for a longer time, then decided to re-enable.
+            if (fPruneMode)
+            {
+                CBlockIndex *block = chainActive.Tip();
+                while (block && block->pprev && (block->pprev->nStatus & BLOCK_HAVE_DATA) && block->pprev->nTx > 0 && pindexRescan != block)
+                    block = block->pprev;
+
+                if (pindexRescan != block)
+                    return InitError(_("Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)"));
+            }
+
             uiInterface.InitMessage(_("Rescanning..."));
             LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight, pindexRescan->nHeight);
             nStart = GetTimeMillis();

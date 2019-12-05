@@ -16,7 +16,9 @@ public:
     bool fAllowOtherInputs;
     //! Minimum absolute fee (not per kilobyte)
     CAmount nMinimumTotalFee;
-    
+    //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
+    bool fAllowWatchOnly;
+
     CCoinControl()
     {
         SetNull();
@@ -26,6 +28,7 @@ public:
     {
         destChange = CNoDestination();
         fAllowOtherInputs = false;
+        fAllowWatchOnly = false;
         setSelected.clear();
         nMinimumTotalFee = 0;
     }

@@ -105,3 +105,8 @@ Koto-Qt.app
 background.tiff*
 
 contrib/devtools/split-debug.sh
+contrib/debian/files
+contrib/debian/substvars
+
+src/fuzzing/*/output
+src/fuzz.cpp

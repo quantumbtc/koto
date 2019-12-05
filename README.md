@@ -1,4 +1,4 @@
-Koto 2.1.0
+Koto 2.1.0-1
 <img align="right" width="120" height="120" src="doc/imgs/logo.png">
 ===========
 

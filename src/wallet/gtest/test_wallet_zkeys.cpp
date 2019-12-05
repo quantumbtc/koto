@@ -90,7 +90,7 @@ TEST(wallet_zkeys_tests, StoreAndLoadSaplingZkeys) {
     auto ivk2 = sk2.expsk.full_viewing_key().in_viewing_key();
     int64_t now = GetTime();
     CKeyMetadata meta(now);
-    ASSERT_TRUE(wallet.LoadSaplingZKeyMetadata(ivk2, meta));
+    wallet.LoadSaplingZKeyMetadata(ivk2, meta);
 
     // check metadata is the same
     ASSERT_EQ(wallet.mapSaplingZKeyMetadata[ivk2].nCreateTime, now);
@@ -154,7 +154,7 @@ TEST(wallet_zkeys_tests, store_and_load_zkeys) {
     addr = sk.address();
     int64_t now = GetTime();
     CKeyMetadata meta(now);
-    ASSERT_TRUE(wallet.LoadZKeyMetadata(addr, meta));
+    wallet.LoadZKeyMetadata(addr, meta);
 
     // check metadata is the same
     CKeyMetadata m= wallet.mapSproutZKeyMetadata[addr];
@@ -479,7 +479,6 @@ TEST(wallet_zkeys_tests, WriteCryptedSaplingZkeyDirectToDb) {
     // spending key is crypted, so we can't extract valid payment address
     libzcash::SaplingExtendedSpendingKey keyOut;
     EXPECT_FALSE(wallet2.GetSaplingExtendedSpendingKey(address, keyOut));
-    ASSERT_FALSE(address == keyOut.DefaultAddress());
 
     // address -> ivk mapping is not crypted
     libzcash::SaplingIncomingViewingKey ivkOut;

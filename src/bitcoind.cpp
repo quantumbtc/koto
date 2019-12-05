@@ -168,7 +168,10 @@ bool AppInit(int argc, char* argv[])
 
     return fRet;
 }
-
+#ifdef ZCASH_FUZZ
+#warning BUILDING A FUZZER, NOT THE REAL MAIN
+#include "fuzz.cpp"
+#else
 int main(int argc, char* argv[])
 {
     SetupEnvironment();
@@ -178,3 +181,4 @@ int main(int argc, char* argv[])
 
     return (AppInit(argc, argv) ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+#endif
