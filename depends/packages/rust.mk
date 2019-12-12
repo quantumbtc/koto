@@ -10,6 +10,7 @@ $(package)_sha256_hash_freebsd=eeeb1e9d0d7823c55f00f434789696e7249f465ba5966a5ab
 
 # Mapping from GCC canonical hosts to Rust targets
 # If a mapping is not present, we assume they are identical
+$(package)_rust_target_x86_64-apple-darwin11=x86_64-apple-darwin
 $(package)_rust_target_x86_64-w64-mingw32=x86_64-pc-windows-gnu
 ifeq ($(host_os),darwin)
 $(package)_rust_target_$(canonical_host)=x86_64-apple-darwin

@@ -82,7 +82,7 @@ public:
         strNetworkID = "main";
         strCurrencyUnits = "KOTO";
         bip44CoinType = 510; // As registered in https://github.com/satoshilabs/slips/blob/master/slip-0044.md
-        consensus.fCoinbaseMustBeProtected = true;
+        consensus.fCoinbaseMustBeShielded = true;
         consensus.nSubsidySlowStartInterval = 43200;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_HALVING_INTERVAL;
         consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_HALVING_INTERVAL;
@@ -115,6 +115,9 @@ public:
             uint256S("069d7f5b21621d4e9d1072d7e3d417c5603b14be37fcaab5b57e812495635265");
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nProtocolVersion = 170009;
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight = 1060000;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170011;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight =
+            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000001150e91c681b9");
@@ -217,7 +220,7 @@ public:
         strNetworkID = "test";
         strCurrencyUnits = "TOKO";
         bip44CoinType = 1;
-        consensus.fCoinbaseMustBeProtected = true;
+        consensus.fCoinbaseMustBeShielded = true;
         consensus.nSubsidySlowStartInterval = 43200;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_HALVING_INTERVAL;
         consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_HALVING_INTERVAL;
@@ -252,6 +255,9 @@ public:
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight = 710000;
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].hashActivationBlock =
             uint256S("8bcf13409aff9a8b484d92b8e0ff26d559c4145ab52afc4283dee6f915ea0869");
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170010;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight =
+            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000000002374cdc32");
@@ -341,7 +347,7 @@ public:
         strNetworkID = "regtest";
         strCurrencyUnits = "REG";
         bip44CoinType = 1;
-        consensus.fCoinbaseMustBeProtected = false;
+        consensus.fCoinbaseMustBeShielded = false;
         consensus.nSubsidySlowStartInterval = 0;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_REGTEST_HALVING_INTERVAL;
         consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_REGTEST_HALVING_INTERVAL;
@@ -372,6 +378,9 @@ public:
             Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nProtocolVersion = 170008;
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight =
+            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170010;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight =
             Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
 
         // The best chain should have at least this much work.
@@ -472,8 +481,8 @@ void SelectParams(const std::string& network)
     pCurrentParams = &Params(network);
 
     // Some python qa rpc tests need to enforce the coinbase consensus rule
-    if (network == CBaseChainParams::REGTEST && mapArgs.count("-regtestprotectcoinbase")) {
-        regTestParams.SetRegTestCoinbaseMustBeProtected();
+    if (network == CBaseChainParams::REGTEST && mapArgs.count("-regtestshieldcoinbase")) {
+        regTestParams.SetRegTestCoinbaseMustBeShielded();
     }
 
     // When a developer is debugging turnstile violations in regtest mode, enable ZIP209
