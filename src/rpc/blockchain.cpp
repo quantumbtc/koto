@@ -1068,6 +1068,11 @@ UniValue getblockchaininfo(const UniValue& params, bool fHelp)
 
         obj.push_back(Pair("pruneheight",        block->nHeight));
     }
+
+    if (Params().NetworkIDString() == "regtest") {
+        obj.push_back(Pair("fullyNotified", ChainIsFullyNotified()));
+    }
+
     return obj;
 }
 
