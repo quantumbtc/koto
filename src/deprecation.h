@@ -8,7 +8,7 @@
 // Deprecation policy:
 // * Shut down 16 weeks' worth of blocks after the estimated release block height.
 // * A warning is shown during the 2 weeks' worth of blocks prior to shut down.
-static const int APPROX_RELEASE_HEIGHT = 989300;
+static const int APPROX_RELEASE_HEIGHT = 1077000;
 static const int WEEKS_UNTIL_DEPRECATION = 16;
 // static const int DEPRECATION_HEIGHT = APPROX_RELEASE_HEIGHT + (WEEKS_UNTIL_DEPRECATION * 7 * 24 * 60);
 
@@ -19,7 +19,7 @@ static const int WEEKS_UNTIL_DEPRECATION = 16;
 // does not account for the change in block target spacing; after Blossom has
 // activated, this should be removed and the previous line fixed to use
 // APPROX_RELEASE_HEIGHT + (WEEKS_UNTIL_DEPRECATION * 7 * 24 * 60)
-static const int DEPRECATION_HEIGHT = 1100000;
+static const int DEPRECATION_HEIGHT = 1200000;
 
 // Number of blocks before deprecation to warn users
 static const int DEPRECATION_WARN_LIMIT = 14 * 24 * 60; // 2 weeks
