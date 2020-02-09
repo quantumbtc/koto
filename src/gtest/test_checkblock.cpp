@@ -67,11 +67,11 @@ TEST(CheckBlock, BlockSproutRejectsBadVersion) {
 
 class ContextualCheckBlockTest : public ::testing::Test {
 protected:
-    virtual void SetUp() {
+    void SetUp() override {
         SelectParams(CBaseChainParams::MAIN);
     }
 
-    virtual void TearDown() {
+    void TearDown() override {
         // Revert to test default. No-op on mainnet params.
         RegtestDeactivateSapling();
     }
@@ -244,7 +244,7 @@ TEST_F(ContextualCheckBlockTest, BlockSproutRulesRejectOtherTx) {
 
     {
         SCOPED_TRACE("BlockSproutRulesRejectOverwinterTx");
-        ExpectInvalidBlockFromTx(CTransaction(mtx), 0, "tx-overwinter-not-active");
+        ExpectInvalidBlockFromTx(CTransaction(mtx), 100, "tx-overwinter-not-active");
     }
 
     // Make it a Sapling transaction
@@ -254,7 +254,7 @@ TEST_F(ContextualCheckBlockTest, BlockSproutRulesRejectOtherTx) {
 
     {
         SCOPED_TRACE("BlockSproutRulesRejectSaplingTx");
-        ExpectInvalidBlockFromTx(CTransaction(mtx), 0, "tx-overwinter-not-active");
+        ExpectInvalidBlockFromTx(CTransaction(mtx), 100, "tx-overwinter-not-active");
     }
 };
 
@@ -282,7 +282,7 @@ TEST_F(ContextualCheckBlockTest, BlockOverwinterRulesRejectOtherTx) {
 
     {
         SCOPED_TRACE("BlockOverwinterRulesRejectSaplingTx");
-        ExpectInvalidBlockFromTx(CTransaction(mtx), 0, "bad-overwinter-tx-version-group-id");
+        ExpectInvalidBlockFromTx(CTransaction(mtx), 100, "bad-overwinter-tx-version-group-id");
     }
 }
 
@@ -310,6 +310,6 @@ TEST_F(ContextualCheckBlockTest, BlockSaplingRulesRejectOtherTx) {
 
     {
         SCOPED_TRACE("BlockSaplingRulesRejectOverwinterTx");
-        ExpectInvalidBlockFromTx(CTransaction(mtx), 0, "bad-sapling-tx-version-group-id");
+        ExpectInvalidBlockFromTx(CTransaction(mtx), 100, "bad-sapling-tx-version-group-id");
     }
 }
