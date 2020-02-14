@@ -16,7 +16,7 @@
 #include "utiltest.h"
 
 // To run tests:
-// ./zcash-gtest --gtest_filter="founders_reward_test.*"
+// ./zcash-gtest --gtest_filter="FoundersRewardTest.*"
 
 //
 // Enable this test to generate and print 48 testnet 2-of-3 multisig addresses.
@@ -24,7 +24,7 @@
 // The temporary wallet file can be renamed as wallet.dat and used for testing with zcashd.
 //
 #if 0
-TEST(founders_reward_test, create_testnet_2of3multisig) {
+TEST(FoundersRewardTest, create_testnet_2of3multisig) {
     SelectParams(CBaseChainParams::TESTNET);
     boost::filesystem::path pathTemp = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path();
     boost::filesystem::create_directories(pathTemp);
@@ -100,7 +100,7 @@ void checkNumberOfUniqueAddresses(int nUnique) {
 }
 
 
-TEST(founders_reward_test, general) {
+TEST(FoundersRewardTest, General) {
     SelectParams(CBaseChainParams::TESTNET);
 
     CChainParams params = Params();
@@ -146,7 +146,7 @@ TEST(founders_reward_test, mainnet_get_last_block) {
 
 #define NUM_MAINNET_FOUNDER_ADDRESSES 1
 
-TEST(founders_reward_test, mainnet) {
+TEST(FoundersRewardTest, Mainnet) {
     SelectParams(CBaseChainParams::MAIN);
     checkNumberOfUniqueAddresses(NUM_MAINNET_FOUNDER_ADDRESSES);
 }
@@ -154,7 +154,7 @@ TEST(founders_reward_test, mainnet) {
 
 #define NUM_TESTNET_FOUNDER_ADDRESSES 1
 
-TEST(founders_reward_test, testnet) {
+TEST(FoundersRewardTest, Testnet) {
     SelectParams(CBaseChainParams::TESTNET);
     checkNumberOfUniqueAddresses(NUM_TESTNET_FOUNDER_ADDRESSES);
 }
@@ -162,7 +162,7 @@ TEST(founders_reward_test, testnet) {
 
 #define NUM_REGTEST_FOUNDER_ADDRESSES 1
 
-TEST(founders_reward_test, regtest) {
+TEST(FoundersRewardTest, Regtest) {
     SelectParams(CBaseChainParams::REGTEST);
     checkNumberOfUniqueAddresses(NUM_REGTEST_FOUNDER_ADDRESSES);
 }
@@ -170,7 +170,7 @@ TEST(founders_reward_test, regtest) {
 
 
 // Test that 3% founders reward is 3,788,400 KOTO
-TEST(founders_reward_test, slow_start_subsidy) {
+TEST(FoundersRewardTest, SlowStartSubsidy) {
     SelectParams(CBaseChainParams::MAIN);
     CChainParams params = Params();
 
@@ -211,13 +211,13 @@ void verifyNumberOfRewards() {
 }
 
 // Verify the number of rewards going to each mainnet address
-TEST(founders_reward_test, per_address_reward_mainnet) {
+TEST(FoundersRewardTest, PerAddressRewardMainnet) {
     SelectParams(CBaseChainParams::MAIN);
     verifyNumberOfRewards();
 }
 
 // Verify the number of rewards going to each testnet address
-TEST(founders_reward_test, per_address_reward_testnet) {
+TEST(FoundersRewardTest, PerAddressRewardTestnet) {
     SelectParams(CBaseChainParams::TESTNET);
     verifyNumberOfRewards();
 }

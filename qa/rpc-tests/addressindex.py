@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2019 The Zcash developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://www.opensource.org/licenses/mit-license.php .
@@ -13,7 +13,6 @@
 #   getaddressutxos
 #   getaddressmempool
 
-import sys; assert sys.version_info < (3,), ur"This script does not run under Python 3. Please use Python 2.7.x."
 
 from test_framework.test_framework import BitcoinTestFramework
 
@@ -40,7 +39,7 @@ from test_framework.mininode import (
     CTxIn, CTxOut, COutPoint,
 )
 
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 
 
 class AddressIndexTest(BitcoinTestFramework):
@@ -252,7 +251,7 @@ class AddressIndexTest(BitcoinTestFramework):
 
         # Ensure the change from that transaction appears
         tx = self.nodes[0].getrawtransaction(txid, 1)
-        change_vout = filter(lambda v: v['valueZat'] != 3 * COIN, tx['vout'])
+        change_vout = list(filter(lambda v: v['valueZat'] != 3 * COIN, tx['vout']))
         change = change_vout[0]['scriptPubKey']['addresses'][0]
         bal = self.nodes[2].getaddressbalance(change)
         assert(bal['received'] > 0)
@@ -323,7 +322,7 @@ class AddressIndexTest(BitcoinTestFramework):
         # so for comparison, remove the 4 (and -4 for output) from the
         # deltas list
         deltas = self.nodes[1].getaddressdeltas({'addresses': [addr1]})
-        deltas = filter(lambda d: abs(d['satoshis']) != 4 * COIN, deltas)
+        deltas = list(filter(lambda d: abs(d['satoshis']) != 4 * COIN, deltas))
         assert_equal(len(utxos), len(deltas))
         for i in range(len(utxos)):
             assert_equal(utxos[i]['address'],   addr1)
@@ -334,20 +333,19 @@ class AddressIndexTest(BitcoinTestFramework):
         # Check that outputs with the same address in the same tx return one txid
         # (can't use createrawtransaction() as it combines duplicate addresses)
         addr = "k2X7VGjHDARGeGBTcANUV2uFmBRwaz8aGdG"
-#        addressHash = "97643ce74b188f4fb6bbbb285e067a969041caf2".decode('hex')
-        addressHash = "e9380a12679193d13cb4ed6189eb48451e1cab52".decode('hex')
+        addressHash = unhexlify("e9380a12679193d13cb4ed6189eb48451e1cab52")
         scriptPubKey = CScript([OP_HASH160, addressHash, OP_EQUAL])
         # Add an unrecognized script type to vout[], a legal script that pays,
         # but won't modify the addressindex (since the address can't be extracted).
         # (This extra output has no effect on the rest of the test.)
         scriptUnknown = CScript([OP_HASH160, OP_DUP, OP_DROP, addressHash, OP_EQUAL])
-        unspent = filter(lambda u: u['amount'] >= 4, self.nodes[0].listunspent())
+        unspent = list(filter(lambda u: u['amount'] >= 4, self.nodes[0].listunspent()))
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(unspent[0]['txid'], 16), unspent[0]['vout']))]
         tx.vout = [
-            CTxOut(10 * 0.97 * COIN, scriptPubKey),
-            CTxOut(20 * 0.97 * COIN, scriptPubKey),
-            CTxOut(70 * 0.97 * COIN, scriptUnknown),
+            CTxOut(int(10 * 0.97 * COIN), scriptPubKey),
+            CTxOut(int(20 * 0.97 * COIN), scriptPubKey),
+            CTxOut(int(70 * 0.97 * COIN), scriptUnknown),
         ]
         tx = self.nodes[0].signrawtransaction(hexlify(tx.serialize()).decode('utf-8'))
         txid = self.nodes[0].sendrawtransaction(tx['hex'], True)

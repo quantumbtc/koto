@@ -3,6 +3,7 @@ $(package)_version=1_70_0
 $(package)_download_path=https://dl.bintray.com/boostorg/release/1.70.0/source
 $(package)_file_name=$(package)_$($(package)_version).tar.bz2
 $(package)_sha256_hash=430ae8354789de4fd19ee52f3b1f739e1fba576f0aded0897c3c2bc00fb38778
+$(package)_patches=darwin.diff
 
 define $(package)_set_vars
 $(package)_config_opts_release=variant=release
@@ -26,7 +27,8 @@ $(package)_cxxflags_freebsd=-fPIC
 endef
 
 define $(package)_preprocess_cmds
-  sed -i.old "s|#if !defined(BOOST_UUID_RANDOM_PROVIDER_GETRANDOM_IMPL_GETRANDOM)|#if 0|" boost/uuid/detail/random_provider_getrandom.ipp
+  sed -i.old "s|#if !defined(BOOST_UUID_RANDOM_PROVIDER_GETRANDOM_IMPL_GETRANDOM)|#if 0|" boost/uuid/detail/random_provider_getrandom.ipp && \
+  patch -p1 < $($(package)_patch_dir)/darwin.diff
 endef
 
 ifeq ($(host_os),darwin)
