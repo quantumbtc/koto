@@ -165,6 +165,7 @@ public:
         bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviews";
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivks";
         bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-main";
+        bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviews";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
@@ -264,7 +265,7 @@ public:
         // a minimum difficulty block can be mined if no block is mined normally within 15 minutes):
         // <https://zips.z.cash/zip-0205#change-to-difficulty-adjustment-on-testnet>
         // However the median-time-past is 6 blocks behind, and the worst-case time for 7 blocks at a
-        // 15-minute spacing is ~105 minutes, which is exceeds the limit imposed by the soft fork of
+        // 15-minute spacing is ~105 minutes, which exceeds the limit imposed by the soft fork of
         // 90 minutes.
         //
         // After Blossom, the minimum difficulty threshold time is changed to 6 times the block target
@@ -319,6 +320,7 @@ public:
         bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewtestsapling";
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivktestsapling";
         bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-test";
+        bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviewtestsapling";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
@@ -448,6 +450,7 @@ public:
         bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewregtestsapling";
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivkregtestsapling";
         bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-regtest";
+        bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviewregtestsapling";
 
 	// Founders reward script expects a vector of multisig addresses
 	vFoundersRewardAddress = { "k2A4ArX2YAQJ6Qiut7tNNWUhq3Np7Et525K" };
@@ -530,7 +533,7 @@ CScript CChainParams::GetFoundersRewardScriptAtHeight(int nHeight) const {
 
     CTxDestination address = DecodeDestination(GetFoundersRewardAddressAtHeight(nHeight).c_str());
     assert(IsValidDestination(address));
-    assert(boost::get<CScriptID>(&address) != nullptr);
+    assert(IsScriptDestination(address));
     CScriptID scriptID = boost::get<CScriptID>(address); // address is a boost variant
     CScript script = CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
     return script;

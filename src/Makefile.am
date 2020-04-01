@@ -30,6 +30,7 @@ endif
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS) $(CURL_CFLAGS)
 
+BITCOIN_INCLUDES += -I$(srcdir)/rust/include
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += -I$(srcdir)/univalue/include
 
@@ -38,6 +39,7 @@ LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
+LIBRUSTZCASH=$(top_builddir)/target/$(RUST_TARGET)/release/librustzcash.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 LIBUNIVALUE=univalue/libunivalue.la
 LIBZCASH=libzcash.a
@@ -54,6 +56,45 @@ LIBZCASH_CONSENSUS=libzcashconsensus.la
 endif
 if ENABLE_WALLET
 LIBBITCOIN_WALLET=libbitcoin_wallet.a
+endif
+
+RUST_ENV_VARS = RUSTC="$(RUSTC)" TERM=dumb
+RUST_BUILD_OPTS = --release --target $(RUST_TARGET)
+
+if ENABLE_ONLINE_RUST
+# Ensure that .cargo/config does not exist
+CARGO_CONFIGURED = $(top_srcdir)/.cargo/.configured-for-online
+$(CARGO_CONFIGURED):
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-offline $(top_srcdir)/.cargo/config
+	$(AM_V_at)touch $@
+
+else
+# Enable dependency vendoring
+RUST_BUILD_OPTS += --locked --offline
+
+CARGO_CONFIGURED = $(top_srcdir)/.cargo/.configured-for-offline
+$(CARGO_CONFIGURED): $(top_srcdir)/.cargo/config.offline
+	$(AM_V_at)rm -f $(top_srcdir)/.cargo/.configured-for-online
+	$(AM_V_at)cp $< $(top_srcdir)/.cargo/config
+	$(AM_V_at)echo "directory = \"$(RUST_VENDORED_SOURCES)\"" >>$(top_srcdir)/.cargo/config
+	$(AM_V_at)touch $@
+endif
+
+cargo-build: $(CARGO_CONFIGURED)
+	$(RUST_ENV_VARS) $(CARGO) build --lib --tests $(RUST_BUILD_OPTS) --manifest-path $(top_srcdir)/Cargo.toml
+
+if TARGET_WINDOWS
+LIBRUSTZCASH_WIN=$(top_builddir)/target/$(RUST_TARGET)/release/rustzcash.lib
+
+$(LIBRUSTZCASH_WIN): cargo-build
+
+# This ensures that the Rust library is correctly linked in by libtool.
+# See https://github.com/rust-lang/rust/issues/69904 for the underlying cause.
+$(LIBRUSTZCASH): $(LIBRUSTZCASH_WIN)
+	$(AM_V_at)cp $< $@
+
+else
+$(LIBRUSTZCASH): cargo-build
 endif
 
 $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
@@ -94,15 +135,17 @@ LIBZCASH_H = \
   zcash/IncrementalMerkleTree.hpp \
   zcash/NoteEncryption.hpp \
   zcash/Address.hpp \
+  zcash/address/sapling.hpp \
+  zcash/address/sprout.hpp \
+  zcash/address/zip32.h \
   zcash/JoinSplit.hpp \
   zcash/Note.hpp \
   zcash/prf.h \
   zcash/Proof.hpp \
   zcash/util.h \
-  zcash/Zcash.h \
-  zcash/zip32.h
+  zcash/Zcash.h
 
-.PHONY: FORCE check-symbols check-security
+.PHONY: FORCE cargo-build check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
   addressindex.h \
@@ -142,6 +185,7 @@ BITCOIN_CORE_H = \
   core_memusage.h \
   deprecation.h \
   fetchparams.h \
+  experimental_features.h \
   hash.h \
   httprpc.h \
   httpserver.h \
@@ -228,6 +272,7 @@ BITCOIN_CORE_H = \
   wallet/walletdb.h \
   yespower-platform.c.h \
   yespower.h \
+  warnings.h \
   zmq/zmqabstractnotifier.h \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
@@ -255,6 +300,7 @@ libbitcoin_server_a_SOURCES = \
   checkpoints.cpp \
   deprecation.cpp \
   fetchparams.cpp \
+  experimental_features.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
@@ -395,6 +441,7 @@ libbitcoin_common_a_SOURCES = \
   sha256.c \
   transaction_builder.cpp \
   utiltest.cpp \
+  warnings.cpp \
   $(BITCOIN_CORE_H) \
   $(LIBZCASH_H)
 
@@ -457,6 +504,7 @@ kotod_LDADD = \
   $(LIBBITCOIN_PROTON) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBZCASH) \
+  $(LIBRUSTZCASH) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
@@ -493,6 +541,7 @@ koto_cli_LDADD = \
   $(CRYPTO_LIBS) \
   $(EVENT_LIBS) \
   $(LIBZCASH) \
+  $(LIBRUSTZCASH) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBZCASH_LIBS)
 #
@@ -514,6 +563,7 @@ koto_tx_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBSECP256K1) \
   $(LIBZCASH) \
+  $(LIBRUSTZCASH) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBZCASH_LIBS)
 
@@ -525,12 +575,14 @@ libzcash_a_SOURCES = \
   zcash/IncrementalMerkleTree.cpp \
   zcash/NoteEncryption.cpp \
   zcash/Address.cpp \
+  zcash/address/sapling.cpp \
+  zcash/address/sprout.cpp \
+  zcash/address/zip32.cpp \
   zcash/JoinSplit.cpp \
   zcash/Proof.cpp \
   zcash/Note.cpp \
   zcash/prf.cpp \
-  zcash/util.cpp \
-  zcash/zip32.cpp
+  zcash/util.cpp
 
 libzcash_a_CPPFLAGS = $(AM_CPPFLAGS) $(PIC_FLAGS) $(BITCOIN_INCLUDES)
 libzcash_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -574,11 +626,13 @@ DISTCLEANFILES = obj/build.h
 EXTRA_DIST = leveldb
 
 clean-local:
+	rm -f .cargo/config .cargo/.configured-for-online .cargo/.configured-for-offline
 	-$(MAKE) -C leveldb clean
 	-$(MAKE) -C secp256k1 clean
 	-$(MAKE) -C univalue clean
 	rm -f leveldb/*/*.gcno leveldb/helpers/memenv/*.gcno
 	rm -f fuzz.cpp
+	rm -rf fuzzing/*/output
 	-rm -f config.h
 
 .rc.o:

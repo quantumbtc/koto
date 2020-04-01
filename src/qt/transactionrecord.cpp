@@ -68,11 +68,11 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
     std::set<libzcash::SaplingPaymentAddress> addressesSapling;
     wallet->GetSaplingPaymentAddresses(addressesSapling);
     libzcash::SaplingIncomingViewingKey ivk;
-    libzcash::SaplingFullViewingKey fvk;
+    libzcash::SaplingExtendedFullViewingKey extfvk;
     for (auto addr : addressesSapling ) {
         if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
-            wallet->GetSaplingFullViewingKey(ivk, fvk) &&
-            wallet->HaveSaplingSpendingKey(fvk)) {
+            wallet->GetSaplingFullViewingKey(ivk, extfvk) &&
+            wallet->HaveSaplingSpendingKey(extfvk)) {
             std::string address = EncodePaymentAddress(addr);
             UniValue ret;
             if (ztxMap.count(address)) {
@@ -421,7 +421,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
                 status.matures_in = wtx.GetBlocksToMaturity();
 
                 // Check if the block was requested by anyone
-                if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
+                if (GetTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
                     status.status = TransactionStatus::MaturesWarning;
             }
             else
@@ -440,7 +440,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
         {
             status.status = TransactionStatus::Conflicted;
         }
-        else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
+        else if (GetTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
         {
             status.status = TransactionStatus::Offline;
         }

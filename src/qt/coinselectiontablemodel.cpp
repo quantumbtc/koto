@@ -135,11 +135,11 @@ public:
 	    std::set<libzcash::SaplingPaymentAddress> saplingzaddrs = {};
 	    wallet->GetSaplingPaymentAddresses(saplingzaddrs);
 	    libzcash::SaplingIncomingViewingKey ivk;
-	    libzcash::SaplingFullViewingKey fvk;
+	    libzcash::SaplingExtendedFullViewingKey extfvk;
             for (auto addr : saplingzaddrs ) {
                 if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
-		    wallet->GetSaplingFullViewingKey(ivk, fvk) &&
-		    wallet->HaveSaplingSpendingKey(fvk)) {
+		    wallet->GetSaplingFullViewingKey(ivk, extfvk) &&
+		    wallet->HaveSaplingSpendingKey(extfvk)) {
                     zaddrs.insert(addr);
                 }
             }

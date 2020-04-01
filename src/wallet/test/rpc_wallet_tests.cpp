@@ -72,15 +72,15 @@ BOOST_AUTO_TEST_CASE(rpc_addmultisig)
     CTxDestination address;
     BOOST_CHECK_NO_THROW(v = addmultisig(createArgs(1, address1Hex), false));
     address = DecodeDestination(v.get_str());
-    BOOST_CHECK(IsValidDestination(address) && boost::get<CScriptID>(&address) != nullptr);
+    BOOST_CHECK(IsValidDestination(address) && IsScriptDestination(address));
 
     BOOST_CHECK_NO_THROW(v = addmultisig(createArgs(1, address1Hex, address2Hex), false));
     address = DecodeDestination(v.get_str());
-    BOOST_CHECK(IsValidDestination(address) && boost::get<CScriptID>(&address) != nullptr);
+    BOOST_CHECK(IsValidDestination(address) && IsScriptDestination(address));
 
     BOOST_CHECK_NO_THROW(v = addmultisig(createArgs(2, address1Hex, address2Hex), false));
     address = DecodeDestination(v.get_str());
-    BOOST_CHECK(IsValidDestination(address) && boost::get<CScriptID>(&address) != nullptr);
+    BOOST_CHECK(IsValidDestination(address) && IsScriptDestination(address));
 
     BOOST_CHECK_THROW(addmultisig(createArgs(0), false), runtime_error);
     BOOST_CHECK_THROW(addmultisig(createArgs(1), false), runtime_error);
@@ -310,7 +310,8 @@ BOOST_AUTO_TEST_CASE(rpc_wallet)
      * getblock
      */
     BOOST_CHECK_THROW(CallRPC("getblock too many args"), runtime_error);
-    BOOST_CHECK_THROW(CallRPC("getblock -1"), runtime_error);
+    BOOST_CHECK_NO_THROW(CallRPC("getblock -1")); // negative heights relative are allowed
+    BOOST_CHECK_THROW(CallRPC("getblock -2147483647"), runtime_error); // allowed, but chain tip - height < 0
     BOOST_CHECK_THROW(CallRPC("getblock 2147483647"), runtime_error); // allowed, but > height of active chain tip
     BOOST_CHECK_THROW(CallRPC("getblock 2147483648"), runtime_error); // not allowed, > int32 used for nHeight
     BOOST_CHECK_THROW(CallRPC("getblock 100badchars"), runtime_error);
@@ -1389,7 +1390,7 @@ BOOST_AUTO_TEST_CASE(rpc_z_sendmany_taddr_to_sapling)
         tx.vShieldedOutput[0].outCiphertext,
         uint256(),
         tx.vShieldedOutput[0].cv,
-        tx.vShieldedOutput[0].cm,
+        tx.vShieldedOutput[0].cmu,
         tx.vShieldedOutput[0].ephemeralKey));
 
     // We should be able to decrypt the outCiphertext with the ovk
@@ -1400,7 +1401,7 @@ BOOST_AUTO_TEST_CASE(rpc_z_sendmany_taddr_to_sapling)
         tx.vShieldedOutput[0].outCiphertext,
         ovkForShieldingFromTaddr(seed),
         tx.vShieldedOutput[0].cv,
-        tx.vShieldedOutput[0].cm,
+        tx.vShieldedOutput[0].cmu,
         tx.vShieldedOutput[0].ephemeralKey));
 
     // Tear down
@@ -1635,7 +1636,7 @@ BOOST_AUTO_TEST_CASE(rpc_z_shieldcoinbase_parameters)
         mtx.nVersion = 2;
     }
 
-    // Test constructor of AsyncRPCOperation_sendmany
+    // Test constructor of AsyncRPCOperation_shieldcoinbase
     std::string testnetzaddr = "ztjiDe569DPNbyTE6TSdJTaSDhoXEHLGvYoUnBU1wfVNU52TEyT6berYtySkd21njAeEoh8fFJUT42kua9r8EnhBaEKqCpP";
     std::string mainnetzaddr = "zcMuhvq8sEkHALuSU2i4NbNQxshSAYrpCExec45ZjtivYPbuiFPwk6WHy4SvsbeZ4siy1WheuRGjtaJmoD1J8bFqNXhsG6U";
 
@@ -1660,7 +1661,6 @@ BOOST_AUTO_TEST_CASE(rpc_z_shieldcoinbase_parameters)
     }
 
 }
-
 
 
 BOOST_AUTO_TEST_CASE(rpc_z_shieldcoinbase_internals)

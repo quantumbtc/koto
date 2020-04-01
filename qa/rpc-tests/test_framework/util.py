@@ -137,8 +137,8 @@ def initialize_chain(test_dir):
             shutil.rmtree("cache")
 
     if not os.path.isdir(os.path.join("cache", "node0")):
-        devnull = open("/dev/null", "w+")
-        # Create cache directories, run kotods:
+        devnull = open(os.devnull, "w+")
+        # Create cache directories, run bitcoinds:
         for i in range(4):
             datadir=initialize_datadir("cache", i)
             args = [ os.getenv("BITCOIND", "kotod"), "-keypool=1", "-datadir="+datadir, "-discover=0" ]
@@ -240,7 +240,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     ])
     if extra_args is not None: args.extend(extra_args)
     bitcoind_processes[i] = subprocess.Popen(args)
-    devnull = open("/dev/null", "w+")
+    devnull = open(os.devnull, "w+")
     if os.getenv("PYTHON_DEBUG", ""):
         print("start_node: kotod started, calling koto-cli -rpcwait getblockcount")
     subprocess.check_call([ os.getenv("BITCOINCLI", "koto-cli"), "-datadir="+datadir] +
@@ -494,3 +494,16 @@ def get_coinbase_address(node, expected_utxos=None):
     addrs = [a for a in set(addrs) if addrs.count(a) == expected_utxos]
     assert(len(addrs) > 0)
     return addrs[0]
+
+def check_node_log(self, node_number, line_to_check, stop_node = True):
+    print("Checking node " + str(node_number) + " logs")
+    if stop_node:
+        self.nodes[node_number].stop()
+        bitcoind_processes[node_number].wait()
+    logpath = self.options.tmpdir + "/node" + str(node_number) + "/regtest/debug.log"
+    with open(logpath, "r") as myfile:
+        logdata = myfile.readlines()
+    for (n, logline) in enumerate(logdata):
+        if line_to_check in logline:
+            return n
+    raise AssertionError(repr(line_to_check) + " not found")

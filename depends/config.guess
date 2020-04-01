@@ -1058,7 +1058,7 @@ EOF
 	echo ${UNAME_MACHINE}-dec-linux-${LIBC}
 	exit ;;
     x86_64:Linux:*:*)
-	echo ${UNAME_MACHINE}-pc-linux-${LIBC}
+	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
 	exit ;;
     xtensa*:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}

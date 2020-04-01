@@ -55,8 +55,6 @@ struct CNodeStateStats;
 
 /** Default for accepting alerts from the P2P network. */
 static const bool DEFAULT_ALERTS = true;
-/** Minimum alert priority for enabling safe mode. */
-static const int ALERT_PRIORITY_SAFE_MODE = 4000;
 /** Maximum reorg length we will accept before we shut down and alert the user. */
 static const unsigned int MAX_REORG_LENGTH = COINBASE_MATURITY - 1;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
@@ -113,7 +111,8 @@ static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
 static const bool DEFAULT_TXINDEX = false;
 static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 
-static const bool DEFAULT_TESTSAFEMODE = false;
+/** Default for -nurejectoldversions */
+static const bool DEFAULT_NU_REJECT_OLD_VERSIONS = true;
 
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 static const bool DEFAULT_ENFORCENODEBLOOM = false;
@@ -134,18 +133,13 @@ extern uint64_t nLastBlockSize;
 extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
-extern bool fExperimentalMode;
 extern bool fImporting;
-extern bool fReindex;
+extern std::atomic_bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
 
-// START insightexplorer
-extern bool fInsightExplorer;
-
 // The following flags enable specific indices (DB tables), but are not exposed as
 // separate command-line options; instead they are enabled by experimental feature "-insightexplorer"
-// and are always equal to the overall controlling flag, fInsightExplorer.
 
 // Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses
 extern bool fAddressIndex;

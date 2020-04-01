@@ -117,14 +117,14 @@ public:
 	    std::set<libzcash::SaplingPaymentAddress> addressesSapling;
             wallet->GetSaplingPaymentAddresses(addressesSapling);
 	    libzcash::SaplingIncomingViewingKey ivk;
-	    libzcash::SaplingFullViewingKey fvk;
+	    libzcash::SaplingExtendedFullViewingKey extfvk;
             for (auto addr : addressesSapling ) {
                 AddressTableEntry::Type addressType = translateTransactionType(
                         QString::fromStdString("zreceive"), true);
                 const std::string& strName = "";
                 if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
-		    wallet->GetSaplingFullViewingKey(ivk, fvk) &&
-		    wallet->HaveSaplingSpendingKey(fvk)) {
+		    wallet->GetSaplingFullViewingKey(ivk, extfvk) &&
+		    wallet->HaveSaplingSpendingKey(extfvk)) {
                     cachedAddressTable.append(AddressTableEntry(addressType,
                                       QString::fromStdString(strName),
                                       QString::fromStdString(EncodePaymentAddress(addr))));
