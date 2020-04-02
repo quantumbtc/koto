@@ -225,6 +225,15 @@ BITCOIN_CORE_H = \
   rpc/server.h \
   rpc/register.h \
   rust/src/rustzcash.rs \
+  rust/src/tests/key_components.rs \
+  rust/src/tests/notes.rs \
+  rust/src/tests/mod.rs \
+  rust/src/tests/signatures.rs \
+  rust/src/tests/mmr.rs \
+  rust/src/tests/key_agreement.rs \
+  rust/src/tests/res \
+  rust/src/tests/res/tree1023.dat \
+  rust/src/tests/res/tree16.dat \
   scheduler.h \
   script/interpreter.h \
   script/script.h \
