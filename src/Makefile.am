@@ -149,6 +149,9 @@ LIBZCASH_H = \
 # bitcoin core #
 BITCOIN_CORE_H = \
   ../.cargo/config.offline \
+  ../Cargo.lock \
+  ../Cargo.toml \
+  ../rust-toolchain \
   addressindex.h \
   addrman.h \
   alert.h \
