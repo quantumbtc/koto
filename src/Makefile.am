@@ -148,6 +148,7 @@ LIBZCASH_H = \
 .PHONY: FORCE cargo-build check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
+  ../.cargo/config.offline \
   addressindex.h \
   addrman.h \
   alert.h \
