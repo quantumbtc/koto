@@ -196,7 +196,7 @@ BITCOIN_CORE_H = \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
-  librustzcash.h \
+  rust/include/librustzcash.h \
   main.h \
   memusage.h \
   merkleblock.h \
@@ -220,6 +220,7 @@ BITCOIN_CORE_H = \
   rpc/protocol.h \
   rpc/server.h \
   rpc/register.h \
+  rust/src/rustzcash.rs \
   scheduler.h \
   script/interpreter.h \
   script/script.h \
