@@ -444,7 +444,8 @@ std::string HelpMessage(HelpMessageMode mode)
     string debugCategories = "addrman, alert, bench, coindb, db, estimatefee, http, libevent, lock, mempool, net, partitioncheck, pow, proxy, prune, "
                              "rand, reindex, rpc, selectcoins, tor, zmq, zrpc, zrpcunsafe (implies zrpc)"; // Don't translate these
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
-        _("If <category> is not supplied or if <category> = 1, output all debugging information.") + " " + _("<category> can be:") + " " + debugCategories + ".");
+        _("If <category> is not supplied or if <category> = 1, output all debugging information.") + " " + _("<category> can be:") + " " + debugCategories + ". " + 
+        _("For multiple specific categories use -debug=<category> multiple times."));
     strUsage += HelpMessageOpt("-experimentalfeatures", _("Enable use of experimental features"));
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
     strUsage += HelpMessageOpt("-logips", strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
@@ -1456,6 +1457,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pblocktree->ReadFlag("insightexplorer", fInsightExplorerPreviouslySet);
                 if (fExperimentalInsightExplorer != fInsightExplorerPreviouslySet) {
                     strLoadError = _("You need to rebuild the database using -reindex to change -insightexplorer");
+                    break;
+                }
+
+                // Check for changed -lightwalletd state
+                bool fLightWalletdPreviouslySet = false;
+                pblocktree->ReadFlag("lightwalletd", fLightWalletdPreviouslySet);
+                if (fExperimentalLightWalletd != fLightWalletdPreviouslySet) {
+                    strLoadError = _("You need to rebuild the database using -reindex to change -lightwalletd");
                     break;
                 }
 
