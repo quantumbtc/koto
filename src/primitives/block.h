@@ -35,7 +35,7 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
-    uint256 hashFinalSaplingRoot;
+    uint256 hashLightClientRoot;
 
     CBlockHeaderUncached()
     {
@@ -53,7 +53,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         if (this->nVersion >= CBlockHeaderUncached::SAPLING_VERSION) {
-            READWRITE(hashFinalSaplingRoot);
+            READWRITE(hashLightClientRoot);
         }
     }
 
@@ -62,7 +62,7 @@ public:
         nVersion = CBlockHeaderUncached::CURRENT_VERSION;
         hashPrevBlock.SetNull();
         hashMerkleRoot.SetNull();
-        hashFinalSaplingRoot.SetNull();
+        hashLightClientRoot.SetNull();
         nTime = 0;
         nBits = 0;
         nNonce = 0;
@@ -171,7 +171,7 @@ public:
         block.nVersion       = nVersion;
         block.hashPrevBlock  = hashPrevBlock;
         block.hashMerkleRoot = hashMerkleRoot;
-        block.hashFinalSaplingRoot   = hashFinalSaplingRoot;
+        block.hashLightClientRoot = hashLightClientRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
@@ -187,6 +187,33 @@ public:
     std::vector<uint256> GetMerkleBranch(int nIndex) const;
     static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch, int nIndex);
     std::string ToString() const;
+};
+
+
+/**
+ * Custom serializer for CBlockHeader that omits the nonce and solution, for use
+ * as input to Equihash.
+ */
+class CEquihashInput : private CBlockHeader
+{
+public:
+    CEquihashInput(const CBlockHeader &header)
+    {
+        CBlockHeader::SetNull();
+        *((CBlockHeader*)this) = header;
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(this->nVersion);
+        READWRITE(hashPrevBlock);
+        READWRITE(hashMerkleRoot);
+        READWRITE(hashLightClientRoot);
+        READWRITE(nTime);
+        READWRITE(nBits);
+    }
 };
 
 
