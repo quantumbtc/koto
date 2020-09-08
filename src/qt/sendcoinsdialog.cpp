@@ -741,19 +741,20 @@ void SendCoinsDialog::coinControlChangeChecked(int state)
 // Coin Control: custom change address changed
 void SendCoinsDialog::coinControlChangeEdited(const QString& text)
 {
+    KeyIO keyIO(Params());
     if (model && model->getAddressTableModel())
     {
         // Default to no change address until verified
         CoinControlDialog::coinControl->destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
 
-        CTxDestination addr = DecodeDestination(text.toStdString());
+        CTxDestination addr = keyIO.DecodeDestination(text.toStdString());
 
         if (text.isEmpty()) // Nothing entered
         {
             ui->labelCoinControlChangeLabel->setText("");
         }
-        else if (!IsValidDestinationString(text.toStdString())) // Invalid address
+        else if (!keyIO.IsValidDestinationString(text.toStdString())) // Invalid address
         {
             ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Koto address"));
         }

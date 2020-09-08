@@ -713,6 +713,7 @@ void CoinControlDialog::updateView()
         double dPrioritySum = 0;
         int nChildren = 0;
         int nInputSum = 0;
+        KeyIO keyIO(Params());
         BOOST_FOREACH(const COutput& out, coins.second) {
             int nInputSize = 0;
             nSum += out.tx->vout[out.i].nValue;
@@ -729,7 +730,7 @@ void CoinControlDialog::updateView()
             QString sAddress = "";
             if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress))
             {
-                sAddress = QString::fromStdString(EncodeDestination(outputAddress));
+                sAddress = QString::fromStdString(keyIO.EncodeDestination(outputAddress));
 
                 // if listMode or change => show bitcoin address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))

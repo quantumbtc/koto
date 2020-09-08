@@ -11,6 +11,7 @@
 #include "amount.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
+#include "consensus/funding.h"
 #include "consensus/upgrades.h"
 #include "consensus/validation.h"
 #include "hash.h"
@@ -18,6 +19,7 @@
 #include "main.h"
 #include "metrics.h"
 #include "net.h"
+#include "zcash/Note.hpp"
 #include "policy/policy.h"
 #include "pow.h"
 #include "primitives/transaction.h"
@@ -116,6 +118,42 @@ bool IsValidMinerAddress(const MinerAddress& minerAddr) {
     return minerAddr.which() != 0;
 }
 
+class AddFundingStreamValueToTx : public boost::static_visitor<bool>
+{
+private:
+    CMutableTransaction &mtx;
+    void* ctx; 
+    const CAmount fundingStreamValue;
+    const libzcash::Zip212Enabled zip212Enabled;
+public:
+    AddFundingStreamValueToTx(
+            CMutableTransaction &mtx, 
+            void* ctx, 
+            const CAmount fundingStreamValue,
+            const libzcash::Zip212Enabled zip212Enabled): mtx(mtx), ctx(ctx), fundingStreamValue(fundingStreamValue), zip212Enabled(zip212Enabled) {}
+
+    bool operator()(const libzcash::SaplingPaymentAddress& pa) const {
+        uint256 ovk;
+        auto note = libzcash::SaplingNote(pa, fundingStreamValue, zip212Enabled);
+        auto output = OutputDescriptionInfo(ovk, note, NO_MEMO);
+
+        auto odesc = output.Build(ctx);
+        if (odesc) {
+            mtx.vShieldedOutput.push_back(odesc.get());
+            mtx.valueBalance -= fundingStreamValue;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool operator()(const CScript& scriptPubKey) const {
+        mtx.vout.push_back(CTxOut(fundingStreamValue, scriptPubKey));
+        return true;
+    }
+};
+
+
 class AddOutputsToCoinbaseTxAndSign : public boost::static_visitor<>
 {
 private:
@@ -147,29 +185,55 @@ public:
 	    mtx.vout.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(nHeight)));
         }
 
-        return value + nFees;
+	return value + nFees;
     }
 
-    void operator()(const InvalidMinerAddress &invalid) const {}
-
-    // Create shielded output
-    void operator()(const libzcash::SaplingPaymentAddress &pa) const {
-        auto value = SetFoundersRewardAndGetMinerValue();
-        mtx.valueBalance = -value;
-
-        uint256 ovk;
-        auto note = libzcash::SaplingNote(pa, value);
-        auto output = OutputDescriptionInfo(ovk, note, {{0xF6}});
-
-        auto ctx = librustzcash_sapling_proving_ctx_init();
-
-        auto odesc = output.Build(ctx);
-        if (!odesc) {
-            librustzcash_sapling_proving_ctx_free(ctx);
-            throw new std::runtime_error("Failed to create shielded output for miner");
+    const libzcash::Zip212Enabled GetZip212Flag() const {
+        if (chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_CANOPY)) {
+            return libzcash::Zip212Enabled::AfterZip212;
+        } else {
+            return libzcash::Zip212Enabled::BeforeZip212;
         }
-        mtx.vShieldedOutput.push_back(odesc.get());
+    }
 
+#if 0
+    CAmount SetFoundersRewardAndGetMinerValue(void* ctx) const {
+        auto block_subsidy = GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        auto miner_reward = block_subsidy; // founders' reward or funding stream amounts will be subtracted below
+
+        if (nHeight > 0) {
+            if (chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_CANOPY)) {
+                auto fundingStreamElements = Consensus::GetActiveFundingStreamElements(
+                    nHeight,
+                    block_subsidy,
+                    chainparams.GetConsensus());
+
+                for (Consensus::FundingStreamElement fselem : fundingStreamElements) {
+                    miner_reward -= fselem.second;
+                    bool added = boost::apply_visitor(AddFundingStreamValueToTx(mtx, ctx, fselem.second, GetZip212Flag()), fselem.first);
+                    if (!added) {
+                        librustzcash_sapling_proving_ctx_free(ctx);
+                        throw new std::runtime_error("Failed to add funding stream output.");
+                    }
+                }
+            } else if (nHeight <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight(nHeight)) {
+                // Founders reward is 20% of the block subsidy
+                auto vFoundersReward = miner_reward / 5;
+                // Take some reward away from us
+                miner_reward -= vFoundersReward;
+                // And give it to the founders
+                mtx.vout.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(nHeight)));
+            } else {
+                // Founders reward ends without replacement if Canopy is not activated by the
+                // last Founders' Reward block height + 1.
+            }
+        }
+
+        return miner_reward + nFees;
+    }
+#endif
+    
+    void ComputeBindingSig(void* ctx) const {
         // Empty output script.
         uint256 dataToBeSigned;
         CScript scriptCode;
@@ -182,24 +246,62 @@ public:
             throw ex;
         }
 
-        librustzcash_sapling_binding_sig(
+        bool success = librustzcash_sapling_binding_sig(
             ctx,
             mtx.valueBalance,
             dataToBeSigned.begin(),
             mtx.bindingSig.data());
+
+        if (!success) {
+            librustzcash_sapling_proving_ctx_free(ctx);
+            throw new std::runtime_error("An error occurred computing the binding signature.");
+        }
+    }
+
+    void operator()(const InvalidMinerAddress &invalid) const {}
+
+    // Create shielded output
+    void operator()(const libzcash::SaplingPaymentAddress &pa) const {
+        auto ctx = librustzcash_sapling_proving_ctx_init();
+
+        auto miner_reward = SetFoundersRewardAndGetMinerValue();
+        mtx.valueBalance -= miner_reward;
+
+        uint256 ovk;
+
+        auto note = libzcash::SaplingNote(pa, miner_reward, GetZip212Flag());
+        auto output = OutputDescriptionInfo(ovk, note, NO_MEMO);
+
+        auto odesc = output.Build(ctx);
+        if (!odesc) {
+            librustzcash_sapling_proving_ctx_free(ctx);
+            throw new std::runtime_error("Failed to create shielded output for miner");
+        }
+        mtx.vShieldedOutput.push_back(odesc.get());
+
+        ComputeBindingSig(ctx);
 
         librustzcash_sapling_proving_ctx_free(ctx);
     }
 
     // Create transparent output
     void operator()(const boost::shared_ptr<CReserveScript> &coinbaseScript) const {
-        // Create the miner's output.
-        mtx.vout.resize(1);
         // Add the FR output and fetch the miner's output value.
+        auto ctx = librustzcash_sapling_proving_ctx_init();
+
+        // Miner output will be vout[0]; Founders' Reward & funding stream outputs
+        // will follow.
+        mtx.vout.resize(1);
         auto value = SetFoundersRewardAndGetMinerValue();
+
         // Now fill in the miner's output.
-        mtx.vout[0].nValue = value;
-        mtx.vout[0].scriptPubKey = coinbaseScript->reserveScript;
+        mtx.vout[0] = CTxOut(value, coinbaseScript->reserveScript);
+
+        if (mtx.vShieldedOutput.size() > 0) {
+            ComputeBindingSig(ctx);
+        }
+
+        librustzcash_sapling_proving_ctx_free(ctx);
     }
 };
 
@@ -515,12 +617,14 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const MinerAddre
             }
         }
 
+        uint32_t prevConsensusBranchId = CurrentEpochBranchId(pindexPrev->nHeight, chainparams.GetConsensus());
+
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         if (IsActivationHeight(nHeight, chainparams.GetConsensus(), Consensus::UPGRADE_HEARTWOOD)) {
             pblock->hashLightClientRoot.SetNull();
         } else if (chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_HEARTWOOD)) {
-            pblock->hashLightClientRoot = view.GetHistoryRoot(consensusBranchId);
+            pblock->hashLightClientRoot = view.GetHistoryRoot(prevConsensusBranchId);
         } else {
             pblock->hashLightClientRoot = sapling_tree.root();
         }
@@ -531,7 +635,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const MinerAddre
 
         CValidationState state;
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false))
-            throw std::runtime_error("CreateNewBlock(): TestBlockValidity failed");
+            throw std::runtime_error(std::string("CreateNewBlock(): TestBlockValidity failed: ") + state.GetRejectReason());
     }
 
     return pblocktemplate.release();
@@ -556,9 +660,11 @@ class MinerAddressScript : public CReserveScript
 
 void GetMinerAddress(MinerAddress &minerAddress)
 {
+    KeyIO keyIO(Params());
+
     // Try a transparent address first
     auto mAddrArg = GetArg("-mineraddress", "");
-    CTxDestination addr = DecodeDestination(mAddrArg);
+    CTxDestination addr = keyIO.DecodeDestination(mAddrArg);
     if (IsValidDestination(addr)) {
         boost::shared_ptr<MinerAddressScript> mAddr(new MinerAddressScript());
         CKeyID keyID = boost::get<CKeyID>(addr);
@@ -567,7 +673,7 @@ void GetMinerAddress(MinerAddress &minerAddress)
         minerAddress = mAddr;
     } else {
         // Try a Sapling address
-        auto zaddr = DecodePaymentAddress(mAddrArg);
+        auto zaddr = keyIO.DecodePaymentAddress(mAddrArg);
         if (IsValidPaymentAddress(zaddr)) {
             if (boost::get<libzcash::SaplingPaymentAddress>(&zaddr) != nullptr) {
                 minerAddress = boost::get<libzcash::SaplingPaymentAddress>(zaddr);

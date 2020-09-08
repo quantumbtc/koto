@@ -102,9 +102,10 @@ QValidator::State KotoAddressCheckValidator::validate(QString &input, int &pos) 
 {
     Q_UNUSED(pos);
     bool isZaddr = false;
+    KeyIO keyIO(Params());
 
     // Validate the passed Koto z-address
-    auto address = DecodePaymentAddress(input.toStdString());
+    auto address = keyIO.DecodePaymentAddress(input.toStdString());
     if (IsValidPaymentAddress(address)) {
         isZaddr = true;
     }

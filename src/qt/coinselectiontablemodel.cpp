@@ -93,6 +93,7 @@ public:
 
             LOCK2(cs_main, wallet->cs_wallet);
             wallet->AvailableCoins(vecOutputs, false, NULL, true);
+            KeyIO keyIO(Params());
 
             BOOST_FOREACH(const COutput& out, vecOutputs) {
                 if (out.tx->IsCoinBase())
@@ -103,7 +104,7 @@ public:
 
                 CTxDestination address;
                 if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address)) {
-                    mapCoins[QString::fromStdString(EncodeDestination(address))].push_back(out);
+                    mapCoins[QString::fromStdString(keyIO.EncodeDestination(address))].push_back(out);
                 }
             }
             BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
@@ -149,9 +150,10 @@ public:
 		std::vector<SaplingNoteEntry> saplingEntries;
                 wallet->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth, true, true, false);
 		std::set<std::pair<libzcash::PaymentAddress, uint256>> nullifierSet = wallet->GetNullifiersForAddresses(zaddrs);
+                KeyIO keyIO(Params());
 
                 for (auto & entry : sproutEntries) {
-                    mapZCoins[QString::fromStdString(EncodePaymentAddress(entry.address))].push_back(entry);
+                    mapZCoins[QString::fromStdString(keyIO.EncodePaymentAddress(entry.address))].push_back(entry);
                 }
                 BOOST_FOREACH(const PAIRTYPE(QString, std::vector<SproutNoteEntry>)& coins, mapZCoins) {
                     QString sWalletAddress = coins.first;
@@ -166,7 +168,7 @@ public:
                 }
 
                 for (SaplingNoteEntry & entry : saplingEntries) {
-                    mapSaplingZCoins[QString::fromStdString(EncodePaymentAddress(entry.address))].push_back(entry);
+                    mapSaplingZCoins[QString::fromStdString(keyIO.EncodePaymentAddress(entry.address))].push_back(entry);
                 }
                 BOOST_FOREACH(const PAIRTYPE(QString, std::vector<SaplingNoteEntry>)& coins, mapSaplingZCoins) {
                     QString sWalletAddress = coins.first;

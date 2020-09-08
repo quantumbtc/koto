@@ -249,15 +249,17 @@ void WalletModel::updateWatchOnlyFlag(bool fHaveWatchonly)
 
 bool WalletModel::validateAddress(const QString &address)
 {
-    return IsValidDestinationString(address.toStdString());
+    KeyIO keyIO(Params());
+    return keyIO.IsValidDestinationString(address.toStdString());
 }
 
 bool WalletModel::validateZAddress(const QString &address)
 {
     bool isZaddr = false;
+    KeyIO keyIO(Params());
 
     // Validate the passed Koto z-address
-    if (IsValidPaymentAddressString(address.toStdString()))
+    if (keyIO.IsValidPaymentAddressString(address.toStdString()))
         isZaddr = true;
 
     if (isZaddr)
@@ -321,7 +323,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             setAddress.insert(rcp.address);
             ++nAddresses;
 
-            CScript scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
+	    KeyIO keyIO(Params());
+            CScript scriptPubKey = GetScriptForDestination(keyIO.DecodeDestination(rcp.address.toStdString()));
             CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
             vecSend.push_back(recipient);
 
@@ -496,6 +499,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
         transaction_array.append(&(ssTx[0]), ssTx.size());
     }
 
+    KeyIO keyIO(Params());
     // Add addresses / update labels that we've sent to to the address book,
     // and emit coinsSent signal for each recipient
     Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
@@ -504,7 +508,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
         if (!rcp.paymentRequest.IsInitialized())
         {
             std::string strAddress = rcp.address.toStdString();
-            CTxDestination dest = DecodeDestination(strAddress);
+            CTxDestination dest = keyIO.DecodeDestination(strAddress);
             std::string strLabel = rcp.label.toStdString();
             {
                 LOCK(wallet->cs_wallet);
@@ -630,7 +634,8 @@ static void NotifyZAddressBookChanged(WalletModel *walletmodel, CWallet *wallet,
         const libzcash::PaymentAddress &address, const std::string &label, bool isMine,
         const std::string &purpose, ChangeType status)
 {
-    QString strAddress = QString::fromStdString(EncodePaymentAddress(address));
+    KeyIO keyIO(Params());
+    QString strAddress = QString::fromStdString(keyIO.EncodePaymentAddress(address));
     QString strLabel = QString::fromStdString(label);
     QString strPurpose = QString::fromStdString(purpose);
 
@@ -647,7 +652,8 @@ static void NotifyAddressBookChanged(WalletModel *walletmodel, CWallet *wallet,
         const CTxDestination &address, const std::string &label, bool isMine,
         const std::string &purpose, ChangeType status)
 {
-    QString strAddress = QString::fromStdString(EncodeDestination(address));
+    KeyIO keyIO(Params());
+    QString strAddress = QString::fromStdString(keyIO.EncodeDestination(address));
     QString strLabel = QString::fromStdString(label);
     QString strPurpose = QString::fromStdString(purpose);
 
@@ -808,7 +814,8 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
         if (out.tx->IsCoinBase())
             continue;
 
-        mapCoins[QString::fromStdString(EncodeDestination(address))].push_back(out);
+        KeyIO keyIO(Params());
+        mapCoins[QString::fromStdString(keyIO.EncodeDestination(address))].push_back(out);
     }
 }
 
@@ -847,7 +854,8 @@ void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests
 
 bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest)
 {
-    CTxDestination dest = DecodeDestination(sAddress);
+    KeyIO keyIO(Params());
+    CTxDestination dest = keyIO.DecodeDestination(sAddress);
 
     std::stringstream ss;
     ss << nId;

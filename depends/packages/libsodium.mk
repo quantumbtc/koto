@@ -11,7 +11,7 @@ define $(package)_preprocess_cmds
   sed -i.old "s/explicit_bzero //" configure.ac && \
   patch -p1 < $($(package)_patch_dir)/1.0.15-pubkey-validation.diff && \
   patch -p1 < $($(package)_patch_dir)/1.0.15-signature-validation.diff && \
-  cd $($(package)_build_subdir); ./autogen.sh
+  cd $($(package)_build_subdir); DO_NOT_UPDATE_CONFIG_SCRIPTS=1 ./autogen.sh
 endef
 
 define $(package)_config_cmds

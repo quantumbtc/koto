@@ -1,9 +1,27 @@
 #ifndef LIBRUSTZCASH_INCLUDE_H_
 #define LIBRUSTZCASH_INCLUDE_H_
 
+#include "rust/types.h"
+
+#include <stddef.h>
 #include <stdint.h>
 
-const int ENTRY_SERIALIZED_LENGTH = 180;
+#ifndef __cplusplus
+  #include <assert.h>
+  #include <stdalign.h>
+#endif
+
+#define NODE_SERIALIZED_LENGTH 171
+#define ENTRY_SERIALIZED_LENGTH (NODE_SERIALIZED_LENGTH + 9)
+
+typedef struct HistoryNode {
+    unsigned char bytes[NODE_SERIALIZED_LENGTH];
+}  HistoryNode;
+static_assert(
+    sizeof(HistoryNode) == NODE_SERIALIZED_LENGTH,
+    "HistoryNode struct is not the same size as the underlying byte array");
+static_assert(alignof(HistoryNode) == 1, "HistoryNode struct alignment is not 1");
+
 typedef struct HistoryEntry {
     unsigned char bytes[ENTRY_SERIALIZED_LENGTH];
 }  HistoryEntry;
@@ -12,11 +30,8 @@ static_assert(
     "HistoryEntry struct is not the same size as the underlying byte array");
 static_assert(alignof(HistoryEntry) == 1, "HistoryEntry struct alignment is not 1");
 
+#ifdef __cplusplus
 extern "C" {
-#ifdef WIN32
-    typedef uint16_t codeunit;
-#else
-    typedef uint8_t codeunit;
 #endif
 
     void librustzcash_to_scalar(const unsigned char *input, unsigned char *result);
@@ -323,9 +338,9 @@ extern "C" {
         const uint32_t *ni_ptr,
         const HistoryEntry *n_ptr,
         size_t p_len,
-        const unsigned char *nn_ptr,
+        const HistoryNode *nn_ptr,
         unsigned char *rt_ret,
-        unsigned char *buf_ret
+        HistoryNode *buf_ret
     );
 
     uint32_t librustzcash_mmr_delete(
@@ -340,9 +355,27 @@ extern "C" {
 
     uint32_t librustzcash_mmr_hash_node(
         uint32_t cbranch,
-        const unsigned char *n_ptr,
+        const HistoryNode *n_ptr,
         unsigned char *h_ret
     );
+
+    /// Fills the provided buffer with random bytes. This is intended to
+    /// be a cryptographically secure RNG; it uses Rust's `OsRng`, which
+    /// is implemented in terms of the `getrandom` crate. The first call
+    /// to this function may block until sufficient randomness is available.
+    void librustzcash_getrandom(
+        unsigned char *buf,
+        size_t buf_len
+    );
+
+    int librustzcash_zebra_crypto_sign_verify_detached(
+        const unsigned char *sig,
+        const unsigned char *m,
+        unsigned long long mlen,
+        const unsigned char *pk
+    );
+#ifdef __cplusplus
 }
+#endif
 
 #endif // LIBRUSTZCASH_INCLUDE_H_

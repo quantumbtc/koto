@@ -160,7 +160,8 @@ void DebugMessageHandler(QtMsgType type, const QMessageLogContext& context, cons
 {
     Q_UNUSED(context);
     const char *category = (type == QtDebugMsg) ? "qt" : NULL;
-    LogPrint(category, "GUI: %s\n", msg.toStdString());
+//    LogPrint(category, "GUI: %s\n", msg.toStdString());
+    LogPrint("GUI: %s\n", msg.toStdString());
 }
 #endif
 

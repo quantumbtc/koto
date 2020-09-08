@@ -9,6 +9,7 @@ src/koto-tx
 src/test/test_bitcoin
 src/test/test_bitcoin_fuzzy
 src/qt/test/test_koto-qt
+zcutil/bin/
 
 *zcashTest.pk
 *zcashTest.vk
@@ -151,5 +152,6 @@ contrib/devtools/split-debug.sh
 contrib/debian/files
 contrib/debian/substvars
 
+src/fuzzing/*/input
 src/fuzzing/*/output
 src/fuzz.cpp

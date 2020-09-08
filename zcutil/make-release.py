@@ -70,7 +70,7 @@ def parse_args(args):
     p.add_argument(
         'RELEASE_HEIGHT',
         type=int,
-        help='A block height approximately occuring on release day.',
+        help='A block height approximately occurring on release day.',
     )
     return p.parse_args(args)
 
@@ -84,6 +84,7 @@ def main_logged(release, releaseprev, releasefrom, releaseheight, hotfix):
 
     verify_tags(releaseprev, releasefrom)
     verify_version(release, releaseprev, hotfix)
+    verify_dependency_updates()
     initialize_git(release, hotfix)
     patch_version_in_files(release, releaseprev)
     patch_release_height(releaseheight)
@@ -125,6 +126,11 @@ def verify_dependencies(dependencies):
                 ),
             )
 
+@phase('Checking dependency updates.')
+def verify_dependency_updates():
+    status = subprocess.call(['python', 'qa/zcash/updatecheck.py'])
+    if status != 0:
+        raise SystemExit("Dependency update check did not pass.")
 
 @phase('Checking tags.')
 def verify_tags(releaseprev, releasefrom):

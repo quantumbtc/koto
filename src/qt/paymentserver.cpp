@@ -221,11 +221,13 @@ void PaymentServer::ipcParseCommandLine(int argc, char* argv[])
             SendCoinsRecipient r;
             if (GUIUtil::parseBitcoinURI(arg, &r) && !r.address.isEmpty())
             {
-                if (IsValidDestinationString(r.address.toStdString(), Params(CBaseChainParams::MAIN)))
+                KeyIO keyIO(Params(CBaseChainParams::MAIN));
+                KeyIO keyIOTest(Params(CBaseChainParams::TESTNET));
+                if (keyIO.IsValidDestinationString(r.address.toStdString()))
                 {
                     SelectParams(CBaseChainParams::MAIN);
                 }
-                else if (IsValidDestinationString(r.address.toStdString(), Params(CBaseChainParams::TESTNET)))
+                else if (keyIOTest.IsValidDestinationString(r.address.toStdString()))
                 {
                     SelectParams(CBaseChainParams::TESTNET);
                 }
@@ -441,7 +443,8 @@ void PaymentServer::handleURIOrFile(const QString& s)
             if (GUIUtil::parseBitcoinURI(s, &recipient))
             {
                 QString address = recipient.address;
-                if (!IsValidDestinationString(address.toStdString())) {
+		KeyIO keyIO(Params());
+                if (!keyIO.IsValidDestinationString(address.toStdString())) {
                     Q_EMIT message(tr("URI handling"), tr("Invalid payment address %1").arg(recipient.address),
                         CClientUIInterface::MSG_ERROR);
                 }
@@ -553,13 +556,14 @@ bool PaymentServer::processPaymentRequest(const PaymentRequestPlus& request, Sen
 
     QList<std::pair<CScript, CAmount> > sendingTos = request.getPayTo();
     QStringList addresses;
+    KeyIO keyIO(Params());
 
     Q_FOREACH(const PAIRTYPE(CScript, CAmount)& sendingTo, sendingTos) {
         // Extract and check destination addresses
         CTxDestination dest;
         if (ExtractDestination(sendingTo.first, dest)) {
             // Append destination address
-            addresses.append(QString::fromStdString(EncodeDestination(dest)));
+            addresses.append(QString::fromStdString(keyIO.EncodeDestination(dest)));
         }
         else if (!recipient.authenticatedMerchant.isEmpty()) {
             // Unauthenticated payment requests to custom koto addresses are not supported

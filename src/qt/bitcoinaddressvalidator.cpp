@@ -101,8 +101,10 @@ BitcoinAddressCheckValidator::BitcoinAddressCheckValidator(QObject *parent) :
 QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &pos) const
 {
     Q_UNUSED(pos);
+    KeyIO keyIO(Params());
+
     // Validate the passed Koto address
-    CTxDestination addr = DecodeDestination(input.toStdString());
+    CTxDestination addr = keyIO.DecodeDestination(input.toStdString());
     if (IsValidDestination(addr))
         return QValidator::Acceptable;
 

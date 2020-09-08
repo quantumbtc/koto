@@ -95,9 +95,10 @@ QString TransactionDesc::zToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
     if(rec->type == TransactionRecord::RecvWithAddress)
         strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
 
-    if (IsValidDestinationString(rec->address))
+    KeyIO keyIO(Params());
+    if (keyIO.IsValidDestinationString(rec->address))
     {
-        CTxDestination address = DecodeDestination(rec->address);
+        CTxDestination address = keyIO.DecodeDestination(rec->address);
         if (wallet->mapAddressBook.count(address))
         {
              strHTML += "<b>" + tr("To") + ":</b> ";
@@ -113,7 +114,7 @@ QString TransactionDesc::zToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
     else
     {
         bool isZaddr = false;
-	if (IsValidPaymentAddressString(rec->address))
+	if (keyIO.IsValidPaymentAddressString(rec->address))
 	{
             isZaddr = true;
         }
@@ -204,6 +205,7 @@ QString TransactionDesc::tToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
 
     strHTML += "<b>" + tr("Date") + ":</b> " + (nTime ? GUIUtil::dateTimeStr(nTime) : "") + "<br>";
 
+    KeyIO keyIO(Params());
     //
     // From
     //
@@ -222,9 +224,9 @@ QString TransactionDesc::tToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
         if (nNet > 0)
         {
             // Credit
-            if (IsValidDestinationString(rec->address))
+            if (keyIO.IsValidDestinationString(rec->address))
             {
-                CTxDestination address = DecodeDestination(rec->address);
+                CTxDestination address = keyIO.DecodeDestination(rec->address);
                 if (wallet->mapAddressBook.count(address))
                 {
                     strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
@@ -249,7 +251,7 @@ QString TransactionDesc::tToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
         // Online transaction
         std::string strAddress = wtx.mapValue["to"];
         strHTML += "<b>" + tr("To") + ":</b> ";
-        CTxDestination dest = DecodeDestination(strAddress);
+        CTxDestination dest = keyIO.DecodeDestination(strAddress);
         if (wallet->mapAddressBook.count(dest) && !wallet->mapAddressBook[dest].name.empty())
             strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[dest].name) + " ";
         strHTML += GUIUtil::HtmlEscape(strAddress) + "<br>";
@@ -320,7 +322,7 @@ QString TransactionDesc::tToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
                         strHTML += "<b>" + tr("To") + ":</b> ";
                         if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
                             strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
-                        strHTML += GUIUtil::HtmlEscape(EncodeDestination(address));
+                        strHTML += GUIUtil::HtmlEscape(keyIO.EncodeDestination(address));
                         if(toSelf == ISMINE_SPENDABLE)
                             strHTML += " (own address)";
                         else if(toSelf & ISMINE_WATCH_ONLY)
@@ -435,7 +437,7 @@ QString TransactionDesc::tToHTML(CWallet *wallet, CWalletTx &wtx, TransactionRec
                     {
                         if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
                             strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
-                        strHTML += QString::fromStdString(EncodeDestination(address));
+                        strHTML += QString::fromStdString(keyIO.EncodeDestination(address));
                     }
                     strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, vout.nValue);
                     strHTML = strHTML + " IsMine=" + (wallet->IsMine(vout) & ISMINE_SPENDABLE ? tr("true") : tr("false")) + "</li>";

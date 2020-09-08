@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2015-2020 The Zcash Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php .
 
@@ -85,7 +86,7 @@ public:
         consensus.fCoinbaseMustBeShielded = true;
         consensus.nSubsidySlowStartInterval = 43200;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_HALVING_INTERVAL;
-        consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_HALVING_INTERVAL;
+        consensus.nPostBlossomSubsidyHalvingInterval = POST_BLOSSOM_HALVING_INTERVAL(Consensus::PRE_BLOSSOM_HALVING_INTERVAL);
         consensus.nFoundersRewardPercentage = 3;
         consensus.nFoundersRewardTxPercentage = 10;
         consensus.nMajorityEnforceBlockUpgrade = 750;
@@ -116,11 +117,59 @@ public:
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nProtocolVersion = 170009;
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight = 1060000;
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170011;
-        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight =
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight = 1480000;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nProtocolVersion = 170013;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight =
             Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
 
+        consensus.nFundingPeriodLength = consensus.nPostBlossomSubsidyHalvingInterval / 48;
+
+        // guarantees the first 2 characters, when base58 encoded, are "k1", "jz"
+        keyConstants.base58Prefixes[PUBKEY_ADDRESS]     = {0x18,0x36};
+        // guarantees the first 2 characters, when base58 encoded, are "k3"
+        keyConstants.base58Prefixes[SCRIPT_ADDRESS]     = {0x18,0x3B};
+        // the first character, when base58 encoded, is "5" or "K" or "L" (as in Bitcoin)
+        keyConstants.base58Prefixes[SECRET_KEY]         = {0x80};
+        // do not rely on these BIP32 prefixes; they are not specified and may change
+        keyConstants.base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x88,0xB2,0x1E};
+        keyConstants.base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x88,0xAD,0xE4};
+        // guarantees the first 2 characters, when base58 encoded, are "zk"
+        keyConstants.base58Prefixes[ZCPAYMENT_ADDRESS] = {0x16,0xA8};
+        // guarantees the first 4 characters, when base58 encoded, are "ZiVK"
+        keyConstants.base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAB,0xD3};
+        // guarantees the first 2 characters, when base58 encoded, are "SK"
+        keyConstants.base58Prefixes[ZCSPENDING_KEY]     = {0xAB,0x36};
+
+        keyConstants.bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "koto";
+        keyConstants.bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviews";
+        keyConstants.bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivks";
+        keyConstants.bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-main";
+        keyConstants.bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviews";
+
+#if 0
+        // TODO: This `if` can be removed once canopy activation height is set.
+        if (consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight != Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT) {
+            std::vector<std::string> addresses(48, "");
+            consensus.AddZIP207FundingStream(
+                keyConstants,
+                Consensus::FS_ZIP214_ECC,
+                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
+                addresses);
+            consensus.AddZIP207FundingStream(
+                keyConstants,
+                Consensus::FS_ZIP214_ZF,
+                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
+                addresses);
+            consensus.AddZIP207FundingStream(
+                keyConstants,
+                Consensus::FS_ZIP214_MG,
+                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
+                addresses);
+        }
+#endif
+
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000001150e91c681b9");
+        consensus.nMinimumChainWork = uint256S("0000000000000000000000000000000000000000000000000001150e91c681b9");
 
         /**
          * The message start string should be awesome! ⓩ❤
@@ -144,28 +193,6 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("ko-to.org", "dnsseed.ko-to.org"));
-
-        // guarantees the first 2 characters, when base58 encoded, are "k1", "jz"
-        base58Prefixes[PUBKEY_ADDRESS]     = {0x18,0x36};
-        // guarantees the first 2 characters, when base58 encoded, are "k3"
-        base58Prefixes[SCRIPT_ADDRESS]     = {0x18,0x3B};
-        // the first character, when base58 encoded, is "5" or "K" or "L" (as in Bitcoin)
-        base58Prefixes[SECRET_KEY]         = {0x80};
-        // do not rely on these BIP32 prefixes; they are not specified and may change
-        base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x88,0xB2,0x1E};
-        base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x88,0xAD,0xE4};
-        // guarantees the first 2 characters, when base58 encoded, are "zk"
-        base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0xA8};
-        // guarantees the first 4 characters, when base58 encoded, are "ZiVK"
-        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAB,0xD3};
-        // guarantees the first 2 characters, when base58 encoded, are "SK"
-        base58Prefixes[ZCSPENDING_KEY]     = {0xAB,0x36};
-
-        bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "koto";
-        bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviews";
-        bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivks";
-        bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-main";
-        bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviews";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
@@ -199,7 +226,7 @@ public:
         // for nodes that have not reindexed since the introduction of monitoring
         // in #2795.
         nSproutValuePoolCheckpointHeight = 722400;
-	nSproutValuePoolCheckpointBalance = 603936718320696;
+        nSproutValuePoolCheckpointBalance = 603936718320696;
         fZIP209Enabled = true;
         hashSproutValuePoolCheckpointBlock = uint256S("aefbc36781564d1a3519b39e211d85b0dd9a53efff9009c9f2a99fbd9268bc5c");
 
@@ -224,7 +251,7 @@ public:
         consensus.fCoinbaseMustBeShielded = true;
         consensus.nSubsidySlowStartInterval = 43200;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_HALVING_INTERVAL;
-        consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_HALVING_INTERVAL;
+        consensus.nPostBlossomSubsidyHalvingInterval = POST_BLOSSOM_HALVING_INTERVAL(Consensus::PRE_BLOSSOM_HALVING_INTERVAL);
         consensus.nFoundersRewardPercentage = 3;
         consensus.nFoundersRewardTxPercentage = 10;
         consensus.nMajorityEnforceBlockUpgrade = 51;
@@ -258,6 +285,64 @@ public:
             uint256S("8bcf13409aff9a8b484d92b8e0ff26d559c4145ab52afc4283dee6f915ea0869");
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170010;
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight = 1050800;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].hashActivationBlock =
+            uint256S("ea626d2eea61873a08a9546e3e8a5d248c079b8114895888c6e2f211d624d5eb");
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nProtocolVersion = 170012;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight = 1249000;
+
+        consensus.nFundingPeriodLength = consensus.nPostBlossomSubsidyHalvingInterval / 48;
+
+        // guarantees the first 2 characters, when base58 encoded, are "km"
+        keyConstants.base58Prefixes[PUBKEY_ADDRESS]     = {0x18,0xA4};
+        // guarantees the first 2 characters, when base58 encoded, are "k2"
+        keyConstants.base58Prefixes[SCRIPT_ADDRESS]     = {0x18,0x39};
+        // the first character, when base58 encoded, is "9" or "c" (as in Bitcoin)
+        keyConstants.base58Prefixes[SECRET_KEY]         = {0xEF};
+        // do not rely on these BIP32 prefixes; they are not specified and may change
+        keyConstants.base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x35,0x87,0xCF};
+        keyConstants.base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x35,0x83,0x94};
+        // guarantees the first 2 characters, when base58 encoded, are "zt"
+        keyConstants.base58Prefixes[ZCPAYMENT_ADDRESS]  = {0x16,0xB6};
+        // guarantees the first 4 characters, when base58 encoded, are "ZiVt"
+        keyConstants.base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAC,0x0C};
+        // guarantees the first 2 characters, when base58 encoded, are "ST"
+        keyConstants.base58Prefixes[ZCSPENDING_KEY]     = {0xAC,0x08};
+
+        keyConstants.bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "ktestsapling";
+        keyConstants.bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewtestsapling";
+        keyConstants.bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivktestsapling";
+        keyConstants.bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-test";
+        keyConstants.bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviewtestsapling";
+
+#if 0
+        // Testnet funding streams
+        {
+            std::vector<std::string> ecc_addresses = {
+            };
+
+            // ZF and MG use the same address for each funding period
+            std::vector<std::string> zf_addresses = {
+            };
+            std::vector<std::string> mg_addresses = {
+            };
+
+            consensus.AddZIP207FundingStream(
+                keyConstants,
+                Consensus::FS_ZIP214_ECC,
+                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2796000,
+                ecc_addresses);
+            consensus.AddZIP207FundingStream(
+                keyConstants,
+                Consensus::FS_ZIP214_ZF,
+                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2796000,
+                zf_addresses);
+            consensus.AddZIP207FundingStream(
+                keyConstants,
+                Consensus::FS_ZIP214_MG,
+                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2796000,
+                mg_addresses);
+        }
+#endif
 
         // On testnet we activate this rule 6 blocks after Blossom activation. From block 299188 and
         // prior to Blossom activation, the testnet minimum-difficulty threshold was 15 minutes (i.e.
@@ -298,28 +383,6 @@ public:
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("ko-to.org", "testnet.ko-to.org"));
         vSeeds.push_back(CDNSSeedData("kotocoin.info", "dnsseed.testnet.kotocoin.info"));
-
-        // guarantees the first 2 characters, when base58 encoded, are "km"
-        base58Prefixes[PUBKEY_ADDRESS]     = {0x18,0xA4};
-        // guarantees the first 2 characters, when base58 encoded, are "k2"
-        base58Prefixes[SCRIPT_ADDRESS]     = {0x18,0x39};
-        // the first character, when base58 encoded, is "9" or "c" (as in Bitcoin)
-        base58Prefixes[SECRET_KEY]         = {0xEF};
-        // do not rely on these BIP32 prefixes; they are not specified and may change
-        base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x35,0x87,0xCF};
-        base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x35,0x83,0x94};
-        // guarantees the first 2 characters, when base58 encoded, are "zt"
-        base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0xB6};
-        // guarantees the first 4 characters, when base58 encoded, are "ZiVt"
-        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAC,0x0C};
-        // guarantees the first 2 characters, when base58 encoded, are "ST"
-        base58Prefixes[ZCSPENDING_KEY]     = {0xAC,0x08};
-
-        bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "ktestsapling";
-        bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewtestsapling";
-        bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivktestsapling";
-        bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-test";
-        bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviewtestsapling";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
@@ -368,7 +431,7 @@ public:
         consensus.fCoinbaseMustBeShielded = false;
         consensus.nSubsidySlowStartInterval = 0;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_REGTEST_HALVING_INTERVAL;
-        consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_REGTEST_HALVING_INTERVAL;
+        consensus.nPostBlossomSubsidyHalvingInterval = POST_BLOSSOM_HALVING_INTERVAL(Consensus::PRE_BLOSSOM_REGTEST_HALVING_INTERVAL);
         consensus.nFoundersRewardPercentage = 3;
         consensus.nFoundersRewardTxPercentage = 10;
         consensus.nMajorityEnforceBlockUpgrade = 750;
@@ -400,6 +463,33 @@ public:
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170010;
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight =
             Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nProtocolVersion = 170012;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight =
+            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
+
+        consensus.nFundingPeriodLength = consensus.nPostBlossomSubsidyHalvingInterval / 48;
+        // Defined funding streams can be enabled with node config flags.
+
+        // These prefixes are the same as the testnet prefixes
+        keyConstants.base58Prefixes[PUBKEY_ADDRESS]     = {0x18,0xA4};
+        keyConstants.base58Prefixes[SCRIPT_ADDRESS]     = {0x18,0x39};
+        keyConstants.base58Prefixes[SECRET_KEY]         = {0xEF};
+        // do not rely on these BIP32 prefixes; they are not specified and may change
+        keyConstants.base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x35,0x87,0xCF};
+        keyConstants.base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x35,0x83,0x94};
+        keyConstants.base58Prefixes[ZCPAYMENT_ADDRESS]  = {0x16,0xB6};
+        keyConstants.base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAC,0x0C};
+        keyConstants.base58Prefixes[ZCSPENDING_KEY]     = {0xAC,0x08};
+
+        keyConstants.bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "kregtestsapling";
+        keyConstants.bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewregtestsapling";
+        keyConstants.bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivkregtestsapling";
+        keyConstants.bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-regtest";
+        keyConstants.bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviewregtestsapling";
+
+	// Founders reward script expects a vector of multisig addresses
+	vFoundersRewardAddress = { "k2A4ArX2YAQJ6Qiut7tNNWUhq3Np7Et525K" };
+	assert(vFoundersRewardAddress.size() <= consensus.GetLastFoundersRewardBlockHeight(0));
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -434,32 +524,18 @@ public:
             0,
             0
         };
-        // These prefixes are the same as the testnet prefixes
-        base58Prefixes[PUBKEY_ADDRESS]     = {0x18,0xA4};
-        base58Prefixes[SCRIPT_ADDRESS]     = {0x18,0x39};
-        base58Prefixes[SECRET_KEY]         = {0xEF};
-        // do not rely on these BIP32 prefixes; they are not specified and may change
-        base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x35,0x87,0xCF};
-        base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x35,0x83,0x94};
-        base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0xB6};
-        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAC,0x0C};
-        base58Prefixes[ZCSPENDING_KEY]     = {0xAC,0x08};
-
-        bech32HRPs[SAPLING_PAYMENT_ADDRESS]      = "kregtestsapling";
-        bech32HRPs[SAPLING_FULL_VIEWING_KEY]     = "kviewregtestsapling";
-        bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "kivkregtestsapling";
-        bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-regtest";
-        bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviewregtestsapling";
-
-	// Founders reward script expects a vector of multisig addresses
-	vFoundersRewardAddress = { "k2A4ArX2YAQJ6Qiut7tNNWUhq3Np7Et525K" };
-	assert(vFoundersRewardAddress.size() <= consensus.GetLastFoundersRewardBlockHeight(0));
     }
 
     void UpdateNetworkUpgradeParameters(Consensus::UpgradeIndex idx, int nActivationHeight)
     {
         assert(idx > Consensus::BASE_SPROUT && idx < Consensus::MAX_NETWORK_UPGRADES);
         consensus.vUpgrades[idx].nActivationHeight = nActivationHeight;
+    }
+
+    void UpdateFundingStreamParameters(Consensus::FundingStreamIndex idx, Consensus::FundingStream fs)
+    {
+        assert(idx >= Consensus::FIRST_FUNDING_STREAM && idx < Consensus::MAX_FUNDING_STREAMS);
+        consensus.vFundingStreams[idx] = fs;
     }
 
     void UpdateRegtestPow(int64_t nPowMaxAdjustDown, int64_t nPowMaxAdjustUp, uint256 powLimit)
@@ -530,7 +606,8 @@ std::string CChainParams::GetFoundersRewardAddressAtHeight(int nHeight) const {
 CScript CChainParams::GetFoundersRewardScriptAtHeight(int nHeight) const {
     assert(nHeight > 0 && nHeight <= consensus.GetLastFoundersRewardBlockHeight(nHeight));
 
-    CTxDestination address = DecodeDestination(GetFoundersRewardAddressAtHeight(nHeight).c_str());
+    KeyIO keyIO(*this);
+    CTxDestination address = keyIO.DecodeDestination(GetFoundersRewardAddressAtHeight(nHeight).c_str());
     assert(IsValidDestination(address));
     assert(IsScriptDestination(address));
     CScriptID scriptID = boost::get<CScriptID>(address); // address is a boost variant
@@ -546,6 +623,11 @@ std::string CChainParams::GetFoundersRewardAddressAtIndex(int i) const {
 void UpdateNetworkUpgradeParameters(Consensus::UpgradeIndex idx, int nActivationHeight)
 {
     regTestParams.UpdateNetworkUpgradeParameters(idx, nActivationHeight);
+}
+
+void UpdateFundingStreamParameters(Consensus::FundingStreamIndex idx, Consensus::FundingStream fs)
+{
+    regTestParams.UpdateFundingStreamParameters(idx, fs);
 }
 
 void UpdateRegtestPow(int64_t nPowMaxAdjustDown, int64_t nPowMaxAdjustUp, uint256 powLimit) {

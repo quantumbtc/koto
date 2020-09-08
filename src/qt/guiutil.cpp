@@ -117,9 +117,10 @@ static std::string DummyAddress(const CChainParams &params)
 {
     std::vector<unsigned char> sourcedata = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
     sourcedata.insert(sourcedata.end(), dummydata, dummydata + sizeof(dummydata));
+    KeyIO keyIO(Params());
     for(int i=0; i<256; ++i) { // Try every trailing byte
         std::string s = EncodeBase58(begin_ptr(sourcedata), end_ptr(sourcedata));
-        if (!IsValidDestination(DecodeDestination(s)))
+        if (!IsValidDestination(keyIO.DecodeDestination(s)))
             return s;
         sourcedata[sourcedata.size()-1] += 1;
     }
@@ -269,7 +270,8 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
 
 bool isDust(const QString& address, const CAmount& amount)
 {
-    CTxDestination dest = DecodeDestination(address.toStdString());
+    KeyIO keyIO(Params());
+    CTxDestination dest = keyIO.DecodeDestination(address.toStdString());
     CScript script = GetScriptForDestination(dest);
     CTxOut txOut(amount, script);
     return txOut.IsDust(::minRelayTxFee);

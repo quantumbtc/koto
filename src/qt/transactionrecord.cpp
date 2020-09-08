@@ -39,9 +39,10 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
 {
     std::set<libzcash::SproutPaymentAddress> addresses;
     wallet->GetSproutPaymentAddresses(addresses);
+    KeyIO keyIO(Params());
     for (auto addr : addresses ) {
         if (wallet->HaveSproutSpendingKey(addr)) {
-            std::string address = EncodePaymentAddress(addr);
+            std::string address = keyIO.EncodePaymentAddress(addr);
             UniValue ret;
             if (ztxMap.count(address)) {
                 ret = ztxMap[address];
@@ -58,7 +59,7 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
                 if(txid.get_str() == hash.GetHex())
                 {
                     amout = AmountFromValue(amount);
-                    address = EncodePaymentAddress(addr);
+                    address = keyIO.EncodePaymentAddress(addr);
                     return true;
                 }
             }
@@ -73,7 +74,7 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
         if (wallet->GetSaplingIncomingViewingKey(addr, ivk) &&
             wallet->GetSaplingFullViewingKey(ivk, extfvk) &&
             wallet->HaveSaplingSpendingKey(extfvk)) {
-            std::string address = EncodePaymentAddress(addr);
+            std::string address = keyIO.EncodePaymentAddress(addr);
             UniValue ret;
             if (ztxMap.count(address)) {
                 ret = ztxMap[address];
@@ -90,7 +91,7 @@ bool TransactionRecord::findZTransaction(const CWallet *wallet, const uint256 &h
                 if(txid.get_str() == hash.GetHex())
                 {
                     amout = AmountFromValue(amount);
-                    address = EncodePaymentAddress(addr);
+                    address = keyIO.EncodePaymentAddress(addr);
                     return true;
                 }
             }
@@ -130,6 +131,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
     std::string address;
 
     bool found = findZTransaction(wallet, hash, nCredit, address);
+    KeyIO keyIO(Params());
 
     if(found)
     {
@@ -150,7 +152,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
                 if (ExtractDestination(txout.scriptPubKey, tAddress))
                 {
                     // Received by Koto Address
-                    address = EncodeDestination(tAddress);
+                    address = keyIO.EncodeDestination(tAddress);
                 }
 
             }
@@ -220,7 +222,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
                 if (ExtractDestination(txout.scriptPubKey, tAddress))
                 {
                     // Received by Koto Address
-                    address = EncodeDestination(tAddress);
+                    address = keyIO.EncodeDestination(tAddress);
                 }
             }
             nDebit = 0;
@@ -249,6 +251,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTTransaction(const CWallet 
     CAmount nNet = nCredit - nDebit;
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
+    KeyIO keyIO(Params());
 
     if (nNet > 0 || wtx.IsCoinBase())
     {
@@ -269,7 +272,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTTransaction(const CWallet 
                 {
                     // Received by Koto Address
                     sub.type = TransactionRecord::RecvWithAddress;
-                    sub.address = EncodeDestination(address);
+                    sub.address = keyIO.EncodeDestination(address);
                 }
                 else
                 {
@@ -341,7 +344,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTTransaction(const CWallet 
                 {
                     // Sent to Koto Address
                     sub.type = TransactionRecord::SendToAddress;
-                    sub.address = EncodeDestination(address);
+                    sub.address = keyIO.EncodeDestination(address);
                 }
                 else
                 {

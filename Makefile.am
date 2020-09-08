@@ -313,3 +313,7 @@ DISTCHECK_CONFIGURE_FLAGS = --enable-man
 clean-local:
 	rm -rf test_bitcoin.coverage/ koto-gtest.coverage/ total.coverage/
 	rm -rf afl-temp
+
+distclean-local:
+	rm -f zcutil/bin/db_*
+	rmdir zcutil/bin 2>/dev/null || true

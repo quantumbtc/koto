@@ -94,6 +94,7 @@ public:
 
             LOCK2(cs_main, wallet->cs_wallet);
             wallet->AvailableCoins(vecOutputs, false, NULL, true);
+            KeyIO keyIO(Params());
 
             BOOST_FOREACH(const COutput& out, vecOutputs) {
                 if (out.tx->IsCoinBase())
@@ -106,7 +107,7 @@ public:
                 if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address)) {
                     UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("tunspent"));
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
-                                                  QString::fromStdString(EncodeDestination(address)),
+                                                  QString::fromStdString(keyIO.EncodeDestination(address)),
                                                   QString::fromStdString(out.tx->GetHash().GetHex()),
                                                   CAmount(out.tx->vout[out.i].nValue)
                                              )
@@ -146,7 +147,7 @@ public:
                 for (auto & entry : sproutEntries) {
                     UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("zunspent"));
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
-                                                  QString::fromStdString(EncodePaymentAddress(entry.address)),
+                                                  QString::fromStdString(keyIO.EncodePaymentAddress(entry.address)),
                                                   QString::fromStdString(entry.jsop.hash.ToString()),
                                                   CAmount(entry.note.value())
                                              )
@@ -155,7 +156,7 @@ public:
                 for (SaplingNoteEntry & entry : saplingEntries) {
                     UnspentTableEntry::Type unspentType = translateUnspentType(QString::fromStdString("zunspent"));
                     cachedUnspentTable.append(UnspentTableEntry(unspentType,
-                                                  QString::fromStdString(EncodePaymentAddress(entry.address)),
+                                                  QString::fromStdString(keyIO.EncodePaymentAddress(entry.address)),
                                                   QString::fromStdString(entry.op.hash.ToString()),
                                                   CAmount(entry.note.value())
                                              )

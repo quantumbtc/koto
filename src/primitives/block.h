@@ -27,8 +27,9 @@ class CBlockHeaderUncached
 {
 public:
     // header
-    static const int32_t CURRENT_VERSION=5;
-    static const int32_t SAPLING_VERSION=5;
+    enum : size_t { HEADER_SIZE=4+32+32+4+4+4+32 };
+    enum : int32_t { CURRENT_VERSION=5 };
+    enum : int32_t { SAPLING_VERSION=5 };
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
