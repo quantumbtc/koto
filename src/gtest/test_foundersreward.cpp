@@ -236,6 +236,7 @@ TEST(FoundersRewardTest, PerAddressRewardTestnet) {
     verifyNumberOfRewards();
 }
 
+#if 0
 // Verify that post-Canopy, block rewards are split according to ZIP 207.
 TEST(FundingStreamsRewardTest, Zip207Distribution) {
     auto consensus = RegtestActivateCanopy(false, 200);
@@ -277,6 +278,7 @@ TEST(FundingStreamsRewardTest, Zip207Distribution) {
 
     RegtestDeactivateCanopy();
 }
+#endif
 
 TEST(FundingStreamsRewardTest, ParseFundingStream) {
     auto consensus = RegtestActivateCanopy(false, 200);

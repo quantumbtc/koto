@@ -1,5 +1,5 @@
 ---
-name: "koto-win-3.1.0"
+name: "koto-win-4.0.0"
 enable_cache: true
 suites:
 - "bionic"

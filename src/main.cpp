@@ -762,7 +762,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& in
 
 /**
  * Check a transaction contextually against a set of consensus rules valid at a given block height.
- * 
+ *
  * Notes:
  * 1. AcceptToMemoryPool calls CheckTransaction and this function.
  * 2. ProcessNewBlock calls AcceptBlock, which calls CheckBlock (which calls CheckTransaction)
@@ -793,29 +793,73 @@ bool ContextualCheckTransaction(
 
     bool overwinterActive = chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_OVERWINTER);
     bool saplingActive = chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_SAPLING);
-    bool isSprout = !overwinterActive;
+    bool beforeOverwinter = !overwinterActive;
     bool heartwoodActive = chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_HEARTWOOD);
     bool canopyActive = chainparams.GetConsensus().NetworkUpgradeActive(nHeight, Consensus::UPGRADE_CANOPY);
 
-    // If Sprout rules apply, reject transactions which are intended for Overwinter and beyond
-    if (isSprout && tx.fOverwintered) {
-        return state.DoS(
-            dosLevelPotentiallyRelaxing,
-            error("ContextualCheckTransaction(): overwinter is not active yet"),
-            REJECT_INVALID, "tx-overwinter-not-active");
+    assert(!saplingActive || overwinterActive); // Sapling cannot be active unless Overwinter is
+    assert(!heartwoodActive || saplingActive);  // Heartwood cannot be active unless Sapling is
+    assert(!canopyActive || heartwoodActive);   // Canopy cannot be active unless Heartwood is
+
+    // Rules that apply only to Sprout
+    if (beforeOverwinter) {
+        // Reject transactions which are intended for Overwinter and beyond
+        if (tx.fOverwintered) {
+            return state.DoS(
+                dosLevelPotentiallyRelaxing,
+                error("ContextualCheckTransaction(): overwinter is not active yet"),
+                REJECT_INVALID, "tx-overwinter-not-active");
+        }
     }
 
-    if (saplingActive) {
-        // Reject transactions with valid version but missing overwintered flag
-        if (tx.nVersion >= SAPLING_MIN_TX_VERSION && !tx.fOverwintered) {
+    // Rules that apply to Overwinter and later:
+    if (overwinterActive) {
+        // Reject transactions intended for Sprout
+        if (!tx.fOverwintered) {
             return state.DoS(
                 dosLevelConstricting,
-                error("ContextualCheckTransaction(): overwintered flag must be set"),
+                error("ContextualCheckTransaction: fOverwintered flag must be set when Overwinter is active"),
                 REJECT_INVALID, "tx-overwintered-flag-not-set");
         }
 
+        // The condition `if (tx.nVersion < OVERWINTER_MIN_TX_VERSION)`
+        // that would otherwise fire here is already performed in the
+        // noncontextual checks in CheckTransactionWithoutProofVerification
+
+        // Check that all transactions are unexpired
+        if (IsExpiredTx(tx, nHeight)) {
+            // Don't increase banscore if the transaction only just expired
+            int expiredDosLevel = IsExpiredTx(tx, nHeight - 1) ? dosLevelConstricting : 0;
+            return state.DoS(
+                    expiredDosLevel,
+                    error("ContextualCheckTransaction(): transaction is expired. Resending when caught up with the blockchain, or manually setting the zcashd txexpirydelta parameter may help."),
+                    REJECT_INVALID, "tx-overwinter-expired");
+        }
+
+        // Rules that became inactive after Sapling activation.
+        if (!saplingActive) {
+            // Reject transactions with invalid version
+            if (tx.nVersion > OVERWINTER_MAX_TX_VERSION ) {
+                return state.DoS(
+                    dosLevelPotentiallyRelaxing,
+                    error("CheckTransaction(): overwinter version too high"),
+                    REJECT_INVALID, "bad-tx-overwinter-version-too-high");
+            }
+
+            // Reject transactions with non-Overwinter version group ID
+            if (tx.nVersionGroupId != OVERWINTER_VERSION_GROUP_ID) {
+                return state.DoS(
+                    dosLevelPotentiallyRelaxing,
+                    error("CheckTransaction(): invalid Overwinter tx version"),
+                    REJECT_INVALID, "bad-overwinter-tx-version-group-id");
+            }
+        }
+    }
+
+    // Rules that apply to Sapling and later:
+    if (saplingActive) {
         // Reject transactions with non-Sapling version group ID
-        if (tx.fOverwintered && tx.nVersionGroupId != SAPLING_VERSION_GROUP_ID) {
+        if (tx.nVersionGroupId != SAPLING_VERSION_GROUP_ID) {
             return state.DoS(
                 dosLevelPotentiallyRelaxing,
                 error("CheckTransaction(): invalid Sapling tx version"),
@@ -823,7 +867,7 @@ bool ContextualCheckTransaction(
         }
 
         // Reject transactions with invalid version
-        if (tx.fOverwintered && tx.nVersion < SAPLING_MIN_TX_VERSION ) {
+        if (tx.nVersion < SAPLING_MIN_TX_VERSION) {
             return state.DoS(
                 dosLevelConstricting,
                 error("CheckTransaction(): Sapling version too low"),
@@ -831,62 +875,18 @@ bool ContextualCheckTransaction(
         }
 
         // Reject transactions with invalid version
-        if (tx.fOverwintered && tx.nVersion > SAPLING_MAX_TX_VERSION ) {
+        if (tx.nVersion > SAPLING_MAX_TX_VERSION) {
             return state.DoS(
                 dosLevelPotentiallyRelaxing,
                 error("CheckTransaction(): Sapling version too high"),
                 REJECT_INVALID, "bad-tx-sapling-version-too-high");
         }
-    } else if (overwinterActive) {
-        // Reject transactions with valid version but missing overwinter flag
-        if (tx.nVersion >= OVERWINTER_MIN_TX_VERSION && !tx.fOverwintered) {
-            return state.DoS(
-                dosLevelConstricting,
-                error("ContextualCheckTransaction(): overwinter flag must be set"),
-                REJECT_INVALID, "tx-overwinter-flag-not-set");
-        }
+    } else {
+        // Rules that apply generally before Sapling. These were
+        // previously noncontextual checks that became contextual
+        // after Sapling activation.
 
-        // Reject transactions with non-Overwinter version group ID
-        if (tx.fOverwintered && tx.nVersionGroupId != OVERWINTER_VERSION_GROUP_ID) {
-            return state.DoS(
-                dosLevelPotentiallyRelaxing,
-                error("CheckTransaction(): invalid Overwinter tx version"),
-                REJECT_INVALID, "bad-overwinter-tx-version-group-id");
-        }
-
-        // Reject transactions with invalid version
-        if (tx.fOverwintered && tx.nVersion > OVERWINTER_MAX_TX_VERSION ) {
-            return state.DoS(
-                dosLevelPotentiallyRelaxing,
-                error("CheckTransaction(): overwinter version too high"),
-                REJECT_INVALID, "bad-tx-overwinter-version-too-high");
-        }
-    }
-
-    // Rules that apply to Overwinter or later:
-    if (overwinterActive) {
-        // Reject transactions intended for Sprout
-        if (!tx.fOverwintered) {
-            return state.DoS(
-                dosLevelConstricting,
-                error("ContextualCheckTransaction: overwinter is active"),
-                REJECT_INVALID, "tx-overwinter-active");
-        }
-    
-        // Check that all transactions are unexpired
-        if (IsExpiredTx(tx, nHeight)) {
-            // Don't increase banscore if the transaction only just expired
-            int expiredDosLevel = IsExpiredTx(tx, nHeight - 1) ? dosLevelConstricting : 0;
-            return state.DoS(
-                expiredDosLevel,
-                error("ContextualCheckTransaction(): transaction is expired. Resending when caught up with the blockchain, or manually setting the zcashd txexpirydelta parameter may help."),
-                REJECT_INVALID, "tx-overwinter-expired");
-        }
-    }
-
-    // Rules that apply before Sapling:
-    if (!saplingActive) {
-        // Size limits
+        // Reject transactions that exceed pre-sapling size limits
         BOOST_STATIC_ASSERT(MAX_BLOCK_SIZE > MAX_TX_SIZE_BEFORE_SAPLING); // sanity
         if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > MAX_TX_SIZE_BEFORE_SAPLING)
             return state.DoS(
@@ -895,33 +895,18 @@ bool ContextualCheckTransaction(
                 REJECT_INVALID, "bad-txns-oversize");
     }
 
-    // Rules that apply before Heartwood:
-    if (!heartwoodActive) {
-        if (tx.IsCoinBase()) {
-            // A coinbase transaction cannot have output descriptions
-            if (tx.vShieldedOutput.size() > 0)
-                return state.DoS(
-                    dosLevelPotentiallyRelaxing,
-                    error("CheckTransaction(): coinbase has output descriptions"),
-                    REJECT_INVALID, "bad-cb-has-output-description");
-        }
-    }
-
 #if 0
     // From Canopy onward, coinbase transaction must include outputs corresponding to the
     // ZIP 207 consensus funding streams active at the current block height. To avoid
     // double-decrypting, we detect any shielded funding streams during the Heartwood
     // consensus check. If Canopy is not yet active, fundingStreamElements will be empty.
-    std::set<Consensus::FundingStreamElement> fundingStreamElements;
-    if (canopyActive) {
-        fundingStreamElements = Consensus::GetActiveFundingStreamElements(
-            nHeight,
-            GetBlockSubsidy(nHeight, chainparams.GetConsensus()),
-            chainparams.GetConsensus());
-    }
+    std::set<Consensus::FundingStreamElement> fundingStreamElements = Consensus::GetActiveFundingStreamElements(
+        nHeight,
+        GetBlockSubsidy(nHeight, chainparams.GetConsensus()),
+        chainparams.GetConsensus());
 #endif
 
-    // Rules that apply to Heartwood or later:
+    // Rules that apply to Heartwood and later:
     if (heartwoodActive) {
         if (tx.IsCoinBase()) {
             // All Sapling outputs in coinbase transactions MUST have valid note commitments
@@ -935,8 +920,7 @@ bool ContextualCheckTransaction(
                     return state.DoS(
                         DOS_LEVEL_BLOCK,
                         error("CheckTransaction(): coinbase output description has invalid outCiphertext"),
-                        REJECT_INVALID,
-                        "bad-cb-output-desc-invalid-outct");
+                        REJECT_INVALID, "bad-cb-output-desc-invalid-outct");
                 }
 
                 // SaplingNotePlaintext::decrypt() checks note commitment validity.
@@ -953,8 +937,7 @@ bool ContextualCheckTransaction(
                     return state.DoS(
                         DOS_LEVEL_BLOCK,
                         error("CheckTransaction(): coinbase output description has invalid encCiphertext"),
-                        REJECT_INVALID,
-                        "bad-cb-output-desc-invalid-encct");
+                        REJECT_INVALID, "bad-cb-output-desc-invalid-encct");
                 }
 
 #if 0
@@ -984,6 +967,19 @@ bool ContextualCheckTransaction(
                         "bad-cb-output-desc-invalid-note-plaintext-version");
                 }
             }
+        }
+    } else {
+        // Rules that apply generally before Heartwood. These were
+        // previously noncontextual checks that became contextual
+        // after Heartwood activation.
+
+        if (tx.IsCoinBase()) {
+            // A coinbase transaction cannot have output descriptions
+            if (tx.vShieldedOutput.size() > 0)
+                return state.DoS(
+                    dosLevelPotentiallyRelaxing,
+                    error("CheckTransaction(): coinbase has output descriptions"),
+                    REJECT_INVALID, "bad-cb-has-output-description");
         }
     }
 
@@ -1015,6 +1011,10 @@ bool ContextualCheckTransaction(
             }
         }
 #endif
+    } else {
+        // Rules that apply generally before Canopy. These were
+        // previously noncontextual checks that became contextual
+        // after Canopy activation.
     }
 
     auto consensusBranchId = CurrentEpochBranchId(nHeight, chainparams.GetConsensus());
@@ -1670,7 +1670,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
         {
             // We lock to prevent other threads from accessing the mempool between adding and evicting
             LOCK(pool.cs);
-            
+
             // Store transaction in memory
             pool.addUnchecked(hash, entry, !IsInitialBlockDownload(Params()));
 
@@ -5106,7 +5106,7 @@ bool LoadBlockIndex()
     return true;
 }
 
-bool InitBlockIndex(const CChainParams& chainparams) 
+bool InitBlockIndex(const CChainParams& chainparams)
 {
     LOCK(cs_main);
 

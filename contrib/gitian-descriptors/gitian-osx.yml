@@ -1,5 +1,5 @@
 ---
-name: "koto-osx-3.1.0"
+name: "koto-osx-4.0.0"
 enable_cache: true
 suites:
 - "bionic"
