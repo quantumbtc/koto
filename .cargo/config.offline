@@ -5,7 +5,7 @@ linker = "x86_64-w64-mingw32-gcc"
 linker = "aarch64-linux-gnu-gcc"
 
 [target.x86_64-apple-darwin]
-linker = "../depends/x86_64-apple-darwin14/native/bin/clang"
+linker = "../depends/x86_64-apple-darwin16/native/bin/clang"
 rustflags = ["-C", "link-args=-target x86_64-apple-darwin16 -mmacosx-version-min=10.12 --sysroot ../depends/SDKs/Xcode-11.3.1-11C505-extracted-SDK-with-libcxx-headers"]
 
 [source.crates-io]
