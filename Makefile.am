@@ -43,8 +43,7 @@ OSX_QT_TRANSLATIONS = ja
 DIST_DOCS = $(wildcard doc/*.md) $(wildcard doc/release-notes/*.md)
 DIST_CONTRIB = $(top_srcdir)/contrib/koto-cli.bash-completion \
                $(top_srcdir)/contrib/koto-tx.bash-completion \
-               $(top_srcdir)/contrib/kotod.bash-completion \
-               $(top_srcdir)/contrib/init
+               $(top_srcdir)/contrib/kotod.bash-completion
 DIST_SHARE = \
   $(top_srcdir)/share/genbuild.sh
 
