@@ -415,7 +415,7 @@ public:
         consensus.nFutureTimestampSoftForkHeight = 851830;
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000000002374cdc32");
+        consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000000059383304a");
 
         pchMessageStart[0] = 0x54;
         pchMessageStart[1] = 0x6f;
