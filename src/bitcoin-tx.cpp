@@ -167,10 +167,21 @@ static void RegisterLoad(const std::string& strInput)
 static void MutateTxVersion(CMutableTransaction& tx, const std::string& cmdVal)
 {
     int64_t newVersion = atoi64(cmdVal);
-    if (newVersion < CTransaction::SPROUT_MIN_CURRENT_VERSION || newVersion > CTransaction::SPROUT_MAX_CURRENT_VERSION)
+    if (newVersion < CTransaction::SPROUT_MIN_CURRENT_VERSION || newVersion > CTransaction::SAPLING_MAX_CURRENT_VERSION)
         throw std::runtime_error("Invalid TX version requested");
 
     tx.nVersion = (int) newVersion;
+    if (newVersion >= OVERWINTER_MIN_TX_VERSION) {
+        tx.fOverwintered = true;
+        if (newVersion >= SAPLING_MIN_TX_VERSION) {
+            tx.nVersionGroupId = SAPLING_VERSION_GROUP_ID;
+        } else {
+            tx.nVersionGroupId = OVERWINTER_VERSION_GROUP_ID;
+        }
+    } else {
+        tx.fOverwintered = false;
+        tx.nVersionGroupId = 0;
+    }
 }
 
 static void MutateTxExpiry(CMutableTransaction& tx, const std::string& cmdVal)
