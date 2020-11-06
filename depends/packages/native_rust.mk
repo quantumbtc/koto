@@ -19,7 +19,7 @@ $(package)_rust_target_x86_64-w64-mingw32=x86_64-pc-windows-gnu
 
 # Mapping from Rust targets to SHA-256 hashes
 $(package)_rust_std_sha256_hash_aarch64-unknown-linux-gnu=666c6d1f2c65a9bb6e20ae68a6eaa1c5aadee44ff4eb43c593836fe7daba1441
-$(package)_rust_sha256_hash_x86_64-unknown-linux-gnu=a41df89a461a580536aeb42755e43037556fba2e527dd13a1e1bb0749de28202
+$(package)_rust_std_sha256_hash_x86_64-unknown-linux-gnu=a41df89a461a580536aeb42755e43037556fba2e527dd13a1e1bb0749de28202
 $(package)_rust_std_sha256_hash_x86_64-apple-darwin=716305d18cfa88151b0446e8c1424e07831affa215d0c9a221c31a918f18b498
 $(package)_rust_std_sha256_hash_x86_64-pc-windows-gnu=d82ee422b024451c0001ee4dd4282e948405df7a3c315b2791880ed68c1ff88b
 
