@@ -15,7 +15,7 @@ import random
 from decimal import Decimal, ROUND_DOWN
 
 # Construct 2 trivial P2SH's and the ScriptSigs that spend them
-# So we can create many many transactions without needing to spend
+# So we can create many transactions without needing to spend
 # time signing.
 P2SH_1 = "k2UfuaDZ5Vt5ou9Jxf465dUfhsr38cLHZLu" # P2SH of "OP_1 OP_DROP"
 P2SH_2 = "k2AQamszXqeaxdK1ChxC46YvmMzhq9xqwRQ" # P2SH of "OP_2 OP_DROP"

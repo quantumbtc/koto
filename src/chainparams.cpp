@@ -205,7 +205,7 @@ public:
 
             consensus.AddZIP207FundingStream(
                 keyConstants,
-                Consensus::FS_ZIP214_ECC,
+                Consensus::FS_ZIP214_BP,
                 consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
                 ecc_addresses);
             consensus.AddZIP207FundingStream(
@@ -381,7 +381,7 @@ public:
 
             consensus.AddZIP207FundingStream(
                 keyConstants,
-                Consensus::FS_ZIP214_ECC,
+                Consensus::FS_ZIP214_BP,
                 consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2796000,
                 ecc_addresses);
             consensus.AddZIP207FundingStream(
@@ -450,9 +450,9 @@ public:
             boost::assign::map_list_of
             ( 0, consensus.hashGenesisBlock)
             (85000, uint256S("0xf1b07e23116246700d5ad5e12a1105f02faa6b9d952fac8da5e2bb299b86372e")),
-            1526264849,
-            86482,
-            1465
+            1526264849,  // * UNIX timestamp of last checkpoint block
+            86482,       // * total number of transactions between genesis and last checkpoint
+            1465          //   total number of tx / (checkpoint block height / (24 * 24))
         };
 
         // Hardcoded fallback value for the Sprout shielded value pool balance

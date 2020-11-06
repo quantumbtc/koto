@@ -89,8 +89,9 @@ AsyncRPCOperation_sendmany::AsyncRPCOperation_sendmany(
 
     KeyIO keyIO(Params());
 
+    useanyutxo_ = fromAddress == "ANY_TADDR";
     fromtaddr_ = keyIO.DecodeDestination(fromAddress);
-    isfromtaddr_ = IsValidDestination(fromtaddr_);
+    isfromtaddr_ = useanyutxo_ || IsValidDestination(fromtaddr_);
     isfromzaddr_ = false;
 
     if (!isfromtaddr_) {
@@ -213,8 +214,9 @@ bool AsyncRPCOperation_sendmany::main_impl() {
     // When spending coinbase utxos, you can only specify a single zaddr as the change must go somewhere
     // and if there are multiple zaddrs, we don't know where to send it.
     if (isfromtaddr_) {
+        // Only select coinbase if we are spending from a single t-address to a single z-address.
         KeyIO keyIO(Params());
-        if (isSingleZaddrOutput || keyIO.EncodeDestination(fromtaddr_) == Params().GetFoundersRewardAddressAtIndex(0)) {
+        if (!useanyutxo_ && (isSingleZaddrOutput || keyIO.EncodeDestination(fromtaddr_) == Params().GetFoundersRewardAddressAtIndex(0))) {
             bool b = find_utxos(true);
             if (!b) {
                 throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds, no UTXOs found for taddr from address.");
@@ -223,7 +225,7 @@ bool AsyncRPCOperation_sendmany::main_impl() {
             bool b = find_utxos(false);
             if (!b) {
                 if (isMultipleZaddrOutput) {
-                    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Could not find any non-coinbase UTXOs to spend. Coinbase UTXOs can only be sent to a single zaddr recipient.");
+                    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Could not find any non-coinbase UTXOs to spend. Coinbase UTXOs can only be sent to a single zaddr recipient from a single taddr.");
                 } else {
                     throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Could not find any non-coinbase UTXOs to spend.");
                 }
@@ -320,12 +322,8 @@ bool AsyncRPCOperation_sendmany::main_impl() {
 
         // update the transaction with these inputs
         if (isUsingBuilder_) {
-            CScript scriptPubKey = GetScriptForDestination(fromtaddr_);
             for (auto t : t_inputs_) {
-                uint256 txid = t.txid;
-                int vout = t.vout;
-                CAmount amount = t.amount;
-                builder_.AddTransparentInput(COutPoint(txid, vout), scriptPubKey, amount);
+                builder_.AddTransparentInput(COutPoint(t.txid, t.vout), t.scriptPubKey, t.amount);
             }
         } else {
             CMutableTransaction rawTx(tx_);
@@ -896,7 +894,9 @@ bool AsyncRPCOperation_sendmany::main_impl() {
 
 bool AsyncRPCOperation_sendmany::find_utxos(bool fAcceptCoinbase=false) {
     std::set<CTxDestination> destinations;
-    destinations.insert(fromtaddr_);
+    if (!useanyutxo_) {
+        destinations.insert(fromtaddr_);
+    }
     vector<COutput> vecOutputs;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -929,8 +929,9 @@ bool AsyncRPCOperation_sendmany::find_utxos(bool fAcceptCoinbase=false) {
             continue;
         }
 
+        CScript scriptPubKey = out.tx->vout[out.i].scriptPubKey;
         CAmount nValue = out.tx->vout[out.i].nValue;
-        SendManyInputUTXO utxo(out.tx->GetHash(), out.i, nValue, isCoinbase);
+        SendManyInputUTXO utxo(out.tx->GetHash(), out.i, scriptPubKey, nValue, isCoinbase);
         t_inputs_.push_back(utxo);
     }
 

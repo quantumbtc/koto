@@ -16,6 +16,7 @@
 #include "consensus/upgrades.h"
 #include "consensus/validation.h"
 #include "experimental_features.h"
+#include "fs.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -56,10 +57,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
-#include <openssl/crypto.h>
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -69,6 +69,7 @@
 #include "librustzcash.h"
 
 using namespace std;
+using namespace boost::placeholders;
 
 extern void ThreadSendAlert();
 
@@ -210,8 +211,8 @@ void Shutdown()
 
     if (fFeeEstimatesInitialized)
     {
-        boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-        CAutoFile est_fileout(fopen(est_path.string().c_str(), "wb"), SER_DISK, CLIENT_VERSION);
+        fs::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
+        CAutoFile est_fileout(fsbridge::fopen(est_path, "wb"), SER_DISK, CLIENT_VERSION);
         if (!est_fileout.IsNull())
             mempool.WriteFeeEstimates(est_fileout);
         else
@@ -224,9 +225,6 @@ void Shutdown()
         if (pcoinsTip != NULL) {
             FlushStateToDisk();
         }
-        // Flush the wallet witness cache to disk (no longer done by FlushStateToDisk())
-        GetMainSignals().SetBestChain(chainActive.GetLocator());
-
         delete pcoinsTip;
         pcoinsTip = NULL;
         delete pcoinscatcher;
@@ -251,8 +249,8 @@ void Shutdown()
 
 #ifndef WIN32
     try {
-        boost::filesystem::remove(GetPidFile());
-    } catch (const boost::filesystem::filesystem_error& e) {
+        fs::remove(GetPidFile());
+    } catch (const fs::filesystem_error& e) {
         LogPrintf("%s: Unable to remove pidfile: %s\n", __func__, e.what());
     }
 #endif
@@ -316,7 +314,7 @@ void OnRPCStopped()
 void OnRPCPreCommand(const CRPCCommand& cmd)
 {
     // Observe safe mode
-    string strWarning = GetWarnings("rpc");
+    string strWarning = GetWarnings("rpc").first;
     if (strWarning != "" && !GetBoolArg("-disablesafemode", DEFAULT_DISABLE_SAFEMODE) &&
         !cmd.okSafeMode)
         throw JSONRPCError(RPC_FORBIDDEN_BY_SAFE_MODE, string("Safe mode: ") + strWarning);
@@ -348,6 +346,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-dbcache=<n>", strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache));
     strUsage += HelpMessageOpt("-debuglogfile=<file>", strprintf(_("Specify location of debug log file: this can be an absolute path or a path relative to the data directory (default: %s)"), DEFAULT_DEBUGLOGFILE));
     strUsage += HelpMessageOpt("-exportdir=<dir>", _("Specify directory to be used when exporting data"));
+    strUsage += HelpMessageOpt("-ibdskiptxverification", strprintf(_("Skip transaction verification during initial block download up to the last checkpoint height. Incompatible with flags that disable checkpoints. (default = %u)"), DEFAULT_IBD_SKIP_TX_VERIFICATION));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file on startup"));
     strUsage += HelpMessageOpt("-maxorphantx=<n>", strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DEFAULT_MAX_ORPHAN_TRANSACTIONS));
     strUsage += HelpMessageOpt("-par=<n>", strprintf(_("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
@@ -425,13 +424,13 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-nuparams=hexBranchId:activationHeight", "Use given activation height for specified network upgrade (regtest-only)");
         strUsage += HelpMessageOpt("-nurejectoldversions", strprintf("Reject peers that don't know about the current epoch (regtest-only) (default: %u)", DEFAULT_NU_REJECT_OLD_VERSIONS));
         strUsage += HelpMessageOpt(
-                "-fundingstream=streamId:startHeight:endHeight:comma_delimited_addresses", 
+                "-fundingstream=streamId:startHeight:endHeight:comma_delimited_addresses",
                 "Use given addresses for block subsidy share paid to the funding stream with id <streamId> (regtest-only)");
     }
     string debugCategories = "addrman, alert, bench, coindb, db, estimatefee, http, libevent, lock, mempool, net, partitioncheck, pow, proxy, prune, "
-                             "rand, reindex, rpc, selectcoins, tor, zmq, zrpc, zrpcunsafe (implies zrpc)"; // Don't translate these
+                             "rand, receiveunsafe, reindex, rpc, selectcoins, tor, zmq, zrpc, zrpcunsafe (implies zrpc)"; // Don't translate these
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
-        _("If <category> is not supplied or if <category> = 1, output all debugging information.") + " " + _("<category> can be:") + " " + debugCategories + ". " + 
+        _("If <category> is not supplied or if <category> = 1, output all debugging information.") + " " + _("<category> can be:") + " " + debugCategories + ". " +
         _("For multiple specific categories use -debug=<category> multiple times."));
     strUsage += HelpMessageOpt("-experimentalfeatures", _("Enable use of experimental features"));
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
@@ -512,11 +511,14 @@ std::string HelpMessage(HelpMessageMode mode)
     return strUsage;
 }
 
-static void BlockNotifyCallback(const uint256& hashNewTip)
+static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex)
 {
+    if (initialSync || !pBlockIndex)
+        return;
+
     std::string strCmd = GetArg("-blocknotify", "");
 
-    boost::replace_all(strCmd, "%s", hashNewTip.GetHex());
+    boost::replace_all(strCmd, "%s", pBlockIndex->GetBlockHash().GetHex());
     boost::thread t(runCommand, strCmd); // thread runs free
 }
 
@@ -550,7 +552,7 @@ struct CImportingNow
 // works correctly.
 void CleanupBlockRevFiles()
 {
-    using namespace boost::filesystem;
+    using namespace fs;
     map<string, path> mapBlockFiles;
 
     // Glob all blk?????.dat and rev?????.dat files from the blocks directory.
@@ -584,7 +586,7 @@ void CleanupBlockRevFiles()
     }
 }
 
-void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
+void ThreadImport(std::vector<fs::path> vImportFiles)
 {
     const CChainParams& chainparams = Params();
     RenameThread("koto-loadblk");
@@ -597,17 +599,17 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         size_t fullSize = 0;
         while (true) {
             CDiskBlockPos pos(nFile, 0);
-            boost::filesystem::path blkFile = GetBlockPosFilename(pos, "blk");
-            if (!boost::filesystem::exists(blkFile))
+            fs::path blkFile = GetBlockPosFilename(pos, "blk");
+            if (!fs::exists(blkFile))
                 break; // No block files left to reindex
             nFile++;
-            fullSize += boost::filesystem::file_size(blkFile);
+            fullSize += fs::file_size(blkFile);
         }
         nFullSizeToReindex = std::max<size_t>(1, fullSize);
         nFile = 0;
         while (true) {
             CDiskBlockPos pos(nFile, 0);
-            if (!boost::filesystem::exists(GetBlockPosFilename(pos, "blk")))
+            if (!fs::exists(GetBlockPosFilename(pos, "blk")))
                 break; // No block files left to reindex
             FILE *file = OpenBlockFile(pos, true);
             if (!file)
@@ -626,12 +628,12 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     }
 
     // hardcoded $DATADIR/bootstrap.dat
-    boost::filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
-    if (boost::filesystem::exists(pathBootstrap)) {
-        FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
+    fs::path pathBootstrap = GetDataDir() / "bootstrap.dat";
+    if (fs::exists(pathBootstrap)) {
+        FILE *file = fsbridge::fopen(pathBootstrap, "rb");
         if (file) {
             CImportingNow imp;
-            boost::filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
+            fs::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
             LogPrintf("Importing bootstrap.dat...\n");
             LoadExternalBlockFile(chainparams, file);
             RenameOver(pathBootstrap, pathBootstrapOld);
@@ -641,8 +643,8 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     }
 
     // -loadblock=
-    BOOST_FOREACH(const boost::filesystem::path& path, vImportFiles) {
-        FILE *file = fopen(path.string().c_str(), "rb");
+    BOOST_FOREACH(const fs::path& path, vImportFiles) {
+        FILE *file = fsbridge::fopen(path, "rb");
         if (file) {
             CImportingNow imp;
             LogPrintf("Importing blocks file %s...\n", path.string());
@@ -682,9 +684,9 @@ static bool ZC_LoadParams(
     struct timeval tv_start, tv_end;
     float elapsed;
 
-    boost::filesystem::path sapling_spend = ZC_GetParamsDir() / "sapling-spend.params";
-    boost::filesystem::path sapling_output = ZC_GetParamsDir() / "sapling-output.params";
-    boost::filesystem::path sprout_groth16 = ZC_GetParamsDir() / "sprout-groth16.params";
+    fs::path sapling_spend = ZC_GetParamsDir() / "sapling-spend.params";
+    fs::path sapling_output = ZC_GetParamsDir() / "sapling-output.params";
+    fs::path sprout_groth16 = ZC_GetParamsDir() / "sprout-groth16.params";
 
     if(!(boost::filesystem::is_directory(ZC_GetParamsDir()))) {
         // Create the '.zcash-params' directory or the 'ZcashParams' folder
@@ -716,7 +718,7 @@ static bool ZC_LoadParams(
 	return false;
 
     static_assert(
-        sizeof(boost::filesystem::path::value_type) == sizeof(codeunit),
+        sizeof(fs::path::value_type) == sizeof(codeunit),
         "librustzcash not configured correctly");
     auto sapling_spend_str = sapling_spend.native();
     auto sapling_output_str = sapling_output.native();
@@ -841,9 +843,9 @@ void InitLogging()
     // Set up the initial filtering directive from the -debug flags.
     std::string initialFilter = LogConfigFilter();
 
-    boost::filesystem::path pathDebug = GetDebugLogPath();
-    const boost::filesystem::path::string_type& pathDebugStr = pathDebug.native();
-    static_assert(sizeof(boost::filesystem::path::value_type) == sizeof(codeunit),
+    fs::path pathDebug = GetDebugLogPath();
+    const fs::path::string_type& pathDebugStr = pathDebug.native();
+    static_assert(sizeof(fs::path::value_type) == sizeof(codeunit),
                     "native path has unexpected code unit size");
     const codeunit* pathDebugCStr = nullptr;
     size_t pathDebugLen = 0;
@@ -944,7 +946,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Make sure enough file descriptors are available
     int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
     nMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
-    nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS)), 0);
+    nMaxConnections = std::max(std::min(nMaxConnections, FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS), 0);
     int nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS);
     if (nFD < MIN_CORE_FILEDESCRIPTORS)
         return InitError(_("Not enough file descriptors available."));
@@ -960,6 +962,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again."));
         }
 #endif
+    }
+
+    // ensure that the user has not disabled checkpoints when requesting to
+    // skip transaction verification in initial block download.
+    if (GetBoolArg("-ibdskiptxverification", DEFAULT_IBD_SKIP_TX_VERIFICATION)) {
+        if (!GetBoolArg("-checkpoints", DEFAULT_CHECKPOINTS_ENABLED)) {
+            return InitError(_("-ibdskiptxverification requires checkpoints to be enabled; it is incompatible with flags that disable checkpoints"));
+        }
     }
 
     // ********************************************************* Step 3: parameter-to-internal-flags
@@ -1003,6 +1013,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     mempool.SetMempoolCostLimit(mempoolTotalCostLimit, mempoolEvictionMemorySeconds);
 
     fCheckBlockIndex = GetBoolArg("-checkblockindex", chainparams.DefaultConsistencyChecks());
+    fIBDSkipTxVerification = GetBoolArg("-ibdskiptxverification", DEFAULT_IBD_SKIP_TX_VERIFICATION);
     fCheckpointsEnabled = GetBoolArg("-checkpoints", DEFAULT_CHECKPOINTS_ENABLED);
 
     // -par=0 means autodetect, but nScriptCheckThreads==0 means no concurrency
@@ -1145,8 +1156,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError("Funding stream parameters malformed, expecting streamId:startHeight:endHeight:comma_delimited_addresses");
             }
             int nFundingStreamId;
-            if (!ParseInt32(vStreamParams[0], &nFundingStreamId) || 
-                    nFundingStreamId < Consensus::FIRST_FUNDING_STREAM || 
+            if (!ParseInt32(vStreamParams[0], &nFundingStreamId) ||
+                    nFundingStreamId < Consensus::FIRST_FUNDING_STREAM ||
                     nFundingStreamId >= Consensus::MAX_FUNDING_STREAMS) {
                 return InitError(strprintf("Invalid streamId (%s)", vStreamParams[0]));
             }
@@ -1189,8 +1200,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string strDataDir = GetDataDir().string();
 
     // Make sure only a single Bitcoin process is using the data directory.
-    boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
-    FILE* file = fopen(pathLockFile.string().c_str(), "a"); // empty lock file; created if it doesn't exist.
+    fs::path pathLockFile = GetDataDir() / ".lock";
+    FILE* file = fsbridge::fopen(pathLockFile, "a"); // empty lock file; created if it doesn't exist.
     if (file) fclose(file);
 
     try {
@@ -1207,7 +1218,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // if (GetBoolArg("-shrinkdebugfile", !fDebug))
     //     ShrinkDebugFile();
 
-    LogPrintf("Using OpenSSL version %s\n", SSLeay_version(SSLEAY_VERSION));
 #ifdef ENABLE_WALLET
     LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
 #endif
@@ -1396,7 +1406,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     fReindex = GetBoolArg("-reindex", false);
 
-    boost::filesystem::create_directories(GetDataDir() / "blocks");
+    fs::create_directories(GetDataDir() / "blocks");
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
@@ -1567,8 +1577,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     LogPrintf(" block index %15dms\n", GetTimeMillis() - nStart);
 
-    boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-    CAutoFile est_filein(fopen(est_path.string().c_str(), "rb"), SER_DISK, CLIENT_VERSION);
+    fs::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
+    CAutoFile est_filein(fsbridge::fopen(est_path, "rb"), SER_DISK, CLIENT_VERSION);
     // Allowed to fail as this file IS missing on first startup.
     if (!est_filein.IsNull())
         mempool.ReadFeeEstimates(est_filein);
@@ -1682,7 +1692,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (!ActivateBestChain(state, chainparams))
         strErrors << "Failed to connect best block";
 
-    std::vector<boost::filesystem::path> vImportFiles;
+    std::vector<fs::path> vImportFiles;
     if (mapArgs.count("-loadblock"))
     {
         BOOST_FOREACH(const std::string& strFile, mapMultiArgs["-loadblock"])

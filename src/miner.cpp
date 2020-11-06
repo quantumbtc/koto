@@ -32,7 +32,6 @@
 #include "validationinterface.h"
 
 #include <librustzcash.h>
-#include "sodium.h"
 
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -634,7 +633,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const MinerAddre
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CValidationState state;
-        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false))
+        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false))
             throw std::runtime_error(std::string("CreateNewBlock(): TestBlockValidity failed: ") + state.GetRejectReason());
     }
 
@@ -741,7 +740,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
     std::mutex m_cs;
     bool cancelSolver = false;
     boost::signals2::connection c = uiInterface.NotifyBlockTip.connect(
-        [&m_cs, &cancelSolver](const uint256& hashNewTip) mutable {
+        [&m_cs, &cancelSolver](bool, const CBlockIndex *) mutable {
             std::lock_guard<std::mutex> lock{m_cs};
             cancelSolver = true;
         }
