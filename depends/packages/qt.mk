@@ -57,7 +57,6 @@ $(package)_config_opts += -no-xinput2
 $(package)_config_opts += -nomake examples
 $(package)_config_opts += -nomake tests
 $(package)_config_opts += -opensource
-$(package)_config_opts += -openssl-linked
 $(package)_config_opts += -optimized-qmake
 $(package)_config_opts += -pch
 $(package)_config_opts += -pkg-config
@@ -103,9 +102,9 @@ $(package)_config_opts_linux += -no-feature-sessionmanager
 $(package)_config_opts_linux += -fontconfig
 $(package)_config_opts_linux += -no-opengl
 $(package)_config_opts_arm_linux += -platform linux-g++ -xplatform bitcoin-linux-g++
-$(package)_config_opts_i686_linux  = -xplatform linux-g++-32
-$(package)_config_opts_x86_64_linux = -xplatform linux-g++-64
-$(package)_config_opts_aarch64_linux = -xplatform linux-aarch64-gnu-g++
+$(package)_config_opts_i686_linux  = -xplatform linux-clang-libc++
+$(package)_config_opts_x86_64_linux = -xplatform linux-clang-libc++
+$(package)_config_opts_aarch64_linux = -xplatform linux-clang-libc++
 $(package)_config_opts_mingw32  = -no-opengl -xplatform win32-g++ -device-option CROSS_COMPILE="$(host)-"
 $(package)_build_env  = QT_RCC_TEST=1
 $(package)_build_env += QT_RCC_SOURCE_DATE_OVERRIDE=1
