@@ -24,6 +24,8 @@ packages:
 - "python"
 - "unzip"
 - "wget"
+- "libssl-dev"
+- "libts-dev"
 remotes:
 - "url": "https://github.com/KotoDevelopers/koto.git"
   "dir": "koto"
