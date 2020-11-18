@@ -34,8 +34,8 @@ define $(package)_set_vars
   $(package)_config_opts=--target=$(host) --with-libtapi=$($(package)_extract_dir)
   $(package)_ldflags+=-Wl,-rpath=\\$$$$$$$$\$$$$$$$$ORIGIN/../lib
   $(package)_config_opts+=--enable-lto-support --with-llvm-config=$(build_prefix)/bin/llvm-config
-#  $(package)_cc=$(build_prefix)/bin/clang
-#  $(package)_cxx=$(build_prefix)/bin/clang++
+  $(package)_cc=$(build_prefix)/bin/clang
+  $(package)_cxx=$(build_prefix)/bin/clang++
   $(package)_cxxflags+=-std=c++17
   $(package)_ldflags+=-static-libstdc++ -lc++abi
 endef
