@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php .
 
+#ifndef ZCASH_METRICS_H
+#define ZCASH_METRICS_H
+
 #include "uint256.h"
 #include "consensus/params.h"
 
@@ -91,3 +94,5 @@ void ThreadShowMetricsScreen();
  * Heart: img2txt -W 40 -H 20 -f utf8 -d none 2000px-Heart_corazón.svg.png
  */
 const std::string METRICS_ART = "";
+
+#endif // ZCASH_METRICS_H
