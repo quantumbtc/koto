@@ -9,8 +9,6 @@ packages:
 - "g++-aarch64-linux-gnu"
 - "gcc-aarch64-linux-gnu"
 - "binutils-aarch64-linux-gnu"
-- "g++-8-multilib"
-- "gcc-8-multilib"
 - "binutils-gold"
 - "git"
 - "pkg-config"
