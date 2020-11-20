@@ -17,8 +17,6 @@ packages:
 - "libtool"
 - "automake"
 - "faketime"
-- "g++-multilib"
-- "libc6-dev"
 - "bsdmainutils"
 - "ca-certificates"
 - "python"
