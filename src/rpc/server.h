@@ -147,6 +147,12 @@ public:
      */
     UniValue execute(const std::string &method, const UniValue &params) const;
 
+    /**
+    * Returns a list of registered commands
+    * @returns List of registered commands.
+    */
+    std::vector<std::string> listCommands() const;
+
 
     /**
      * Appends a CRPCCommand to the dispatch table.
@@ -154,12 +160,6 @@ public:
      * Commands cannot be overwritten (returns false).
      */
     bool appendCommand(const std::string& name, const CRPCCommand* pcmd);
-
-    /**
-     * Returns a list of registered commands
-     * @returns List of registered commands.
-     */
-    std::vector<std::string> listCommands() const;
 };
 
 extern CRPCTable tableRPC;

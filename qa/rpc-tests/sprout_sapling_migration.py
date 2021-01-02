@@ -6,8 +6,8 @@
 from decimal import Decimal
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_true, get_coinbase_address, \
-    initialize_chain_clean, start_nodes, wait_and_assert_operationid_status, \
-    wait_and_assert_operationid_status_result
+    start_nodes, wait_and_assert_operationid_status, \
+    wait_and_assert_operationid_status_result, DEFAULT_FEE
 
 SAPLING_ADDR = 'kregtestsapling1r7djt2qfnepkdgx267ma4v4gza3a0upep3zefgj7ht27emzqs7frt3qvnwknqqhy348eza4zjcq'
 SAPLING_KEY = 'ksecret-extended-key-regtest1qw9pn64dqqqqpqyrf7pm634fzd4w99j2uaggyrmfj6qd9f48k3vp44z6wcnjhtt70k4n5m9xjdznw5dnacny2605gxf7argu5z7dnkxerqq854eca2rsgty53y6u0gpmuuatehjmc9lcqclm2uduyplr8klyjyw83mwcvmswk8n67g2q4ejpm4u9lmlz2xtxh0kt79u2mqaqh4c8dq2s03vehd65zzmrluyak5vgzsuws4dvnm05ah2fpw74ttc6zla995rxnv2ptsc5y0xu6'
@@ -49,9 +49,14 @@ def check_migration_status(node, destination_address, migration_state):
 
 
 class SproutSaplingMigration(BitcoinTestFramework):
+    def __init__(self):
+        super().__init__()
+        self.num_nodes = 4
+        self.setup_clean_chain = True
+
     def setup_nodes(self):
         extra_args = [[
-        ]] * 4
+        ]] * self.num_nodes
         # Add migration parameters to nodes[0]
         extra_args[0] = extra_args[0] + [
             '-migration',
@@ -60,11 +65,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
         ]
         assert_equal(3, len(extra_args[0]))
         assert_equal(0, len(extra_args[1]))
-        return start_nodes(4, self.options.tmpdir, extra_args)
-
-    def setup_chain(self):
-        print("Initializing test directory " + self.options.tmpdir)
-        initialize_chain_clean(self.options.tmpdir, 4)
+        return start_nodes(self.num_nodes, self.options.tmpdir, extra_args)
 
     def run_migration_test(self, node, sproutAddr, saplingAddr, target_height):
         if target_height == 500:
@@ -129,9 +130,9 @@ class SproutSaplingMigration(BitcoinTestFramework):
         status = node.z_getmigrationstatus()
         print("status: {}".format(status))
         if target_height == 500:
-            assert_equal(Decimal('3802399.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
+            assert_equal(Decimal('3802400.0') - DEFAULT_FEE, Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
         else:
-            assert_equal(Decimal('96.9999'), Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
+            assert_equal(Decimal('97.0') - DEFAULT_FEE, Decimal(status['unmigrated_amount']) + Decimal(status['unfinalized_migrated_amount']))
 
         # The transaction in the mempool should be the one listed in migration_txids,
         # and it should expire at the next 450 % 500.
@@ -150,7 +151,7 @@ class SproutSaplingMigration(BitcoinTestFramework):
         print("sprout balance: {}, sapling balance: {}".format(sprout_balance, sapling_balance))
         assert_true(sprout_balance < Decimal(balance), "Should have less Sprout funds")
         assert_true(sapling_balance > Decimal('0'), "Should have more Sapling funds")
-        assert_true(sprout_balance + sapling_balance, Decimal('3802399.9999'))
+        assert_true(sprout_balance + sapling_balance, Decimal('3802400.0') - DEFAULT_FEE)
 
         check_migration_status(node, saplingAddr, DURING_MIGRATION)
         # At 10 % 500 the transactions will be considered 'finalized'

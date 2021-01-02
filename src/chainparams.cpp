@@ -12,6 +12,8 @@
 #include "utilstrencodings.h"
 
 #include <assert.h>
+#include <optional>
+#include <variant>
 
 #include <boost/assign/list_of.hpp>
 
@@ -99,7 +101,8 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPreBlossomPowTargetSpacing = Consensus::PRE_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPostBlossomPowTargetSpacing = Consensus::POST_BLOSSOM_POW_TARGET_SPACING;
-        consensus.nPowAllowMinDifficultyBlocksAfterHeight = boost::none;
+        consensus.nPowAllowMinDifficultyBlocksAfterHeight = std::nullopt;
+        consensus.fPowNoRetargeting = false;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
@@ -116,10 +119,16 @@ public:
             uint256S("069d7f5b21621d4e9d1072d7e3d417c5603b14be37fcaab5b57e812495635265");
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nProtocolVersion = 170009;
         consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight = 1060000;
+        consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].hashActivationBlock =
+            uint256S("f4b0a581ed3579131ed969b20db9f165a0b4b6edb4a53c86a53caddb15f9437f");
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170011;
         consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight = 1480000;
+        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].hashActivationBlock =
+            uint256S("87730e5ef75e52c36abd454e22e068842f5d012ec323f51d601f8562353e4993");
         consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nProtocolVersion = 170013;
         consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight = 1530000;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].hashActivationBlock =
+            uint256S("356b8806085d5da6780c7957f11094d884963e8a4cc864b8724d07ada3971975");
 
         consensus.nFundingPeriodLength = consensus.nPostBlossomSubsidyHalvingInterval / 48;
 
@@ -222,7 +231,7 @@ public:
 #endif
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0000000000000000000000000000000000000000000000000001150e91c681b9");
+        consensus.nMinimumChainWork = uint256S("0000000000000000000000000000000000000000000000000001714e5c11bccf");
 
         /**
          * The message start string should be awesome! ⓩ❤
@@ -317,7 +326,8 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPreBlossomPowTargetSpacing = Consensus::PRE_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPostBlossomPowTargetSpacing = Consensus::POST_BLOSSOM_POW_TARGET_SPACING;
-        consensus.nPowAllowMinDifficultyBlocksAfterHeight = boost::none;
+        consensus.nPowAllowMinDifficultyBlocksAfterHeight = std::nullopt;
+        consensus.fPowNoRetargeting = false;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
@@ -342,6 +352,8 @@ public:
             uint256S("ea626d2eea61873a08a9546e3e8a5d248c079b8114895888c6e2f211d624d5eb");
         consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nProtocolVersion = 170012;
         consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight = 1249000;
+        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].hashActivationBlock =
+            uint256S("9a671dd602556450bfa3f467d1bacee25bd2618a52f102d288dc39fd9601feb3");
 
         consensus.nFundingPeriodLength = consensus.nPostBlossomSubsidyHalvingInterval / 48;
 
@@ -415,7 +427,7 @@ public:
         consensus.nFutureTimestampSoftForkHeight = 851830;
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000000059383304a");
+        consensus.nMinimumChainWork = uint256S("00000000000000000000000000000000000000000000000000000006dabaf6d0");
 
         pchMessageStart[0] = 0x54;
         pchMessageStart[1] = 0x6f;
@@ -498,6 +510,7 @@ public:
         consensus.nPreBlossomPowTargetSpacing = Consensus::PRE_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPostBlossomPowTargetSpacing = Consensus::POST_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPowAllowMinDifficultyBlocksAfterHeight = 0;
+        consensus.fPowNoRetargeting = true;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
             Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
@@ -591,11 +604,16 @@ public:
         consensus.vFundingStreams[idx] = fs;
     }
 
-    void UpdateRegtestPow(int64_t nPowMaxAdjustDown, int64_t nPowMaxAdjustUp, uint256 powLimit)
+    void UpdateRegtestPow(
+        int64_t nPowMaxAdjustDown,
+        int64_t nPowMaxAdjustUp,
+        uint256 powLimit,
+        bool noRetargeting)
     {
         consensus.nPowMaxAdjustDown = nPowMaxAdjustDown;
         consensus.nPowMaxAdjustUp = nPowMaxAdjustUp;
         consensus.powLimit = powLimit;
+        consensus.fPowNoRetargeting = noRetargeting;
     }
 
     void SetRegTestZIP209Enabled() {
@@ -663,7 +681,7 @@ CScript CChainParams::GetFoundersRewardScriptAtHeight(int nHeight) const {
     CTxDestination address = keyIO.DecodeDestination(GetFoundersRewardAddressAtHeight(nHeight).c_str());
     assert(IsValidDestination(address));
     assert(IsScriptDestination(address));
-    CScriptID scriptID = boost::get<CScriptID>(address); // address is a boost variant
+    CScriptID scriptID = std::get<CScriptID>(address); // address is a variant
     CScript script = CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
     return script;
 }
@@ -683,6 +701,11 @@ void UpdateFundingStreamParameters(Consensus::FundingStreamIndex idx, Consensus:
     regTestParams.UpdateFundingStreamParameters(idx, fs);
 }
 
-void UpdateRegtestPow(int64_t nPowMaxAdjustDown, int64_t nPowMaxAdjustUp, uint256 powLimit) {
-    regTestParams.UpdateRegtestPow(nPowMaxAdjustDown, nPowMaxAdjustUp, powLimit);
+void UpdateRegtestPow(
+    int64_t nPowMaxAdjustDown,
+    int64_t nPowMaxAdjustUp,
+    uint256 powLimit,
+    bool noRetargeting)
+{
+    regTestParams.UpdateRegtestPow(nPowMaxAdjustDown, nPowMaxAdjustUp, powLimit, noRetargeting);
 }

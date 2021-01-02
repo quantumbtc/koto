@@ -95,7 +95,7 @@ TEST(Metrics, GetLocalSolPS) {
 }
 
 TEST(Metrics, EstimateNetHeight) {
-    auto params = RegtestActivateBlossom(false, 200);
+    auto params = RegtestActivateBlossom(false, 200).GetConsensus();
     int64_t blockTimes[400];
     for (int i = 0; i < 400; i++) {
         blockTimes[i] = i ? blockTimes[i - 1] + params.PoWTargetSpacing(i) : 0;
@@ -126,7 +126,7 @@ TEST(Metrics, NextUpgrade) {
     EXPECT_EQ(DisplayDuration(SecondsLeftToNextEpoch(params, 99).value(), DurationFormat::REDUCED), "1 minutes");
     EXPECT_EQ(DisplayDuration(SecondsLeftToNextEpoch(params, 99).value(), DurationFormat::FULL), "1 minutes, 0 seconds");
 
-    auto paramsBlossom = RegtestActivateBlossom(true);
+    auto paramsBlossom = RegtestActivateBlossom(true).GetConsensus();
     EXPECT_EQ(SecondsLeftToNextEpoch(paramsBlossom, 1).value(), 5940);
     EXPECT_EQ(DisplayDuration(SecondsLeftToNextEpoch(paramsBlossom, 1).value(), DurationFormat::REDUCED), "1 hours");
     EXPECT_EQ(DisplayDuration(SecondsLeftToNextEpoch(paramsBlossom, 1).value(), DurationFormat::FULL), "1 hours, 39 minutes, 0 seconds");

@@ -1,4 +1,4 @@
-Koto 4.1.1
+Koto 4.2.0
 <img align="right" width="120" height="120" src="doc/imgs/logo.png">
 ===========
 
@@ -45,7 +45,7 @@ Please see our [user guide](https://github.com/KotoDevelopers/docs/wiki) for joi
 * :blue_book: See the documentation at the [Koto Wiki](https://github.com/KotoDevelopers/docs/wiki)
   for help and more information.
 * :incoming_envelope: Ask for help on the [Koto](https://discourse.ko-to.org/) forum.
-* :speech_balloon: Chat with our support community on [Discord](https://discord.gg/HmsTDww)
+* :speech_balloon: Join our community on [Discord](https://discord.gg/HmsTDww)
 
 Participation in the Koto project is subject to a
 [Code of Conduct](code_of_conduct.md).
