@@ -348,17 +348,17 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[2].generate(1)
         self.sync_all()
 
-        assert_equal(self.nodes[2].getbalance(), node2utxobalance)
-        assert_equal(self.nodes[2].getbalance("*"), node2utxobalance)
+        assert_equal(round(self.nodes[2].getbalance(), 5), node2utxobalance)
+        assert_equal(round(self.nodes[2].getbalance("*"), 5), node2utxobalance)
 
         # check zaddr balance with z_getbalance
         assert_equal(self.nodes[2].z_getbalance(myzaddr), zsendmanynotevalue)
 
         # check via z_gettotalbalance
         resp = self.nodes[2].z_gettotalbalance()
-        assert_equal(Decimal(resp["transparent"]), node2utxobalance)
+        assert_equal(round(Decimal(resp["transparent"]), 5), node2utxobalance)
         assert_equal(Decimal(resp["private"]), zsendmanynotevalue)
-        assert_equal(Decimal(resp["total"]), node2utxobalance + zsendmanynotevalue)
+        assert_equal(round(Decimal(resp["total"]), 5), node2utxobalance + zsendmanynotevalue)
 
         # check confirmed shielded balance with getwalletinfo
         wallet_info = self.nodes[2].getwalletinfo()

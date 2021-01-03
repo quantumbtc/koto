@@ -41,7 +41,7 @@ class RemoveSproutShieldingTest (BitcoinTestFramework):
 
         self.nodes[0].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[0].z_getbalance(sprout_addr), Decimal('3802400'))
+        assert_equal(self.nodes[0].z_getbalance(sprout_addr), Decimal('97'))
 
         # Fund taddr_0 from shielded coinbase on node 0
         taddr_0 = self.nodes[0].getnewaddress()

@@ -171,7 +171,7 @@ class WalletBackupTest(BitcoinTestFramework):
 
         # At this point, there are 214 blocks (103 for setup, then 10 rounds, then 101.)
         # 114 are mature, so the sum of all wallets should be 3920000 + 113 * 100 = 3931300.
-        assert_equal(total, 3813360.99998107)
+        assert_equal(round(total, 5), Decimal('3813360.99998'))
 
         ##
         # Test restoring spender wallets from backups

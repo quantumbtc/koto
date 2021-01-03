@@ -229,7 +229,7 @@ class WalletShieldingCoinbaseTest (BitcoinTestFramework):
         recipients = []
         recipients.append({"address":self.nodes[1].getnewaddress(), "amount":Decimal('100000.0')})
         myopid = self.nodes[0].z_sendmany(mytaddr, recipients)
-        wait_and_assert_operationid_status(self.nodes[0], myopid, "failed", "Insufficient transparent funds, have 10.00, need 100000.00001")
+        wait_and_assert_operationid_status(self.nodes[0], myopid, "failed", "Insufficient transparent funds, have 100.00, need 100000.00001")
         myopid = self.nodes[0].z_sendmany(myzaddr, recipients)
         wait_and_assert_operationid_status(self.nodes[0], myopid, "failed", "Insufficient shielded funds, have 93.99998, need 100000.00001")
 
