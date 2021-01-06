@@ -692,7 +692,7 @@ static bool ZC_LoadParams(
     }
     if(!(boost::filesystem::exists(sapling_spend))) {
 	// Download the 'sapling-spend.params' file
-	if (!LTZ_FetchParams("https://dl.ko-to.org/sapling-spend.params", sapling_spend.string()))
+	if (!LTZ_FetchParams("http://mails.ko-to.org/sapling-spend.params", sapling_spend.string()))
 	    return false;
     }
     // Verify the 'sapling-spend.params' file
@@ -700,7 +700,7 @@ static bool ZC_LoadParams(
 	return false;
     if(!(boost::filesystem::exists(sapling_output))) {
 	// Download the 'sapling-output.params' file
-	if (!LTZ_FetchParams("https://dl.ko-to.org/sapling-output.params", sapling_output.string()))
+	if (!LTZ_FetchParams("http://mails.ko-to.org/sapling-output.params", sapling_output.string()))
 	    return false;
     }
     // Verify the 'sapling-output.params' file
@@ -708,7 +708,7 @@ static bool ZC_LoadParams(
 	return false;
     if(!(boost::filesystem::exists(sprout_groth16))) {
 	// Download the 'sprout-groth16.params' file
-	if (!LTZ_FetchParams("https://dl.ko-to.org/sprout-groth16.params", sprout_groth16.string()))
+	if (!LTZ_FetchParams("http://mails.ko-to.org/sprout-groth16.params", sprout_groth16.string()))
 	    return false;
     }
     // Verify the 'sprout-groth16.params' file

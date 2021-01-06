@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
-#include <openssl/sha.h>
+#include "sha256.h"
 
 #include <sstream>
 #include <string>
@@ -32,7 +32,7 @@ bool LTZ_VerifyParams(std::string file, std::string sha256expected)
     }
 
     unsigned char buffer[BUFSIZ];
-    unsigned char hash[SHA256_DIGEST_LENGTH];
+    unsigned char hash[32];
 
     int len = 0;
     int bytesRead = 0;
@@ -55,7 +55,7 @@ bool LTZ_VerifyParams(std::string file, std::string sha256expected)
     fclose(fp);
 
     std::ostringstream oss;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+    for (int i = 0; i < 32; ++i)
         oss << strprintf("%02x", hash[i]);
 
     LogPrintf("SHA256SUM: %s\n", oss.str());
