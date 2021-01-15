@@ -111,7 +111,7 @@ AC_PATH_PROG(XGETTEXT,xgettext)
 ZC_REQUIRE_PROG(HEXDUMP,hexdump)
 AC_PATH_PROG(READELF,readelf)
 ZC_REQUIRE_TOOL(CPPFILT,c++filt)
-ZC_REQUIRE_TOOL(CPPFILT,objcopy)
+ZC_REQUIRE_TOOL(OBJCOPY,objcopy)
 
 AC_ARG_ENABLE([online-rust],
   [AS_HELP_STRING([--enable-online-rust],
@@ -509,9 +509,10 @@ case $host in
 
      AX_CHECK_LINK_FLAG([[-Wl,-headerpad_max_install_names]], [LDFLAGS="$LDFLAGS -Wl,-headerpad_max_install_names"])
      CPPFLAGS="$CPPFLAGS -DMAC_OSX"
-     OBJCXXFLAGS="-std=c++11 $CXXFLAGS"
+     OBJCXXFLAGS="$CXXFLAGS"
      ;;
    *linux*)
+     TARGET_OS=linux
      LEVELDB_TARGET_FLAGS="-DOS_LINUX"
      ;;
    *)
