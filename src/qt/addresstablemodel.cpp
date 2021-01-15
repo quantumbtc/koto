@@ -12,8 +12,6 @@
 #include "key_io.h"
 #include "wallet/wallet.h"
 
-#include <boost/foreach.hpp>
-
 #include <QFont>
 #include <QDebug>
 
@@ -90,13 +88,13 @@ public:
             KeyIO keyIO(Params());
 
             // Transparent address
-            BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, wallet->mapAddressBook)
+            for (const auto& [first, second] : wallet->mapAddressBook)
             {
-                const CTxDestination& address = item.first;
+                const CTxDestination& address = first;
                 bool fMine = IsMine(*wallet, address);
                 AddressTableEntry::Type addressType = translateTransactionType(
-                        QString::fromStdString(item.second.purpose), fMine);
-                const std::string& strName = item.second.name;
+                        QString::fromStdString(second.purpose), fMine);
+                const std::string& strName = second.name;
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                   QString::fromStdString(strName),
                                   QString::fromStdString(keyIO.EncodeDestination(address))));
@@ -302,7 +300,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
         } else if(index.column() == Address) {
             CTxDestination newAddress = keyIO.DecodeDestination(value.toString().toStdString());
             // Refuse to set invalid address, set error status and return false
-            if(boost::get<CNoDestination>(&newAddress))
+            if(std::get_if<CNoDestination>(&newAddress))
             {
                 editStatus = INVALID_ADDRESS;
                 return false;

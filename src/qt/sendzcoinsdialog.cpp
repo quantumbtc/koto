@@ -185,7 +185,7 @@ void SendZCoinsDialog::on_sendButton_clicked()
 
     // Format confirmation message
     QStringList formatted;
-    Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
+    for (const SendCoinsRecipient &rcp : currentTransaction.getRecipients())
     {
         // generate bold amount string
         QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
@@ -196,19 +196,7 @@ void SendZCoinsDialog::on_sendButton_clicked()
 
         QString recipientElement;
 
-        if (!rcp.paymentRequest.IsInitialized()) // normal payment
-        {
-            if(rcp.label.length() > 0) // label with address
-            {
-                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                recipientElement.append(QString(" (%1)").arg(address));
-            }
-            else // just address
-            {
-                recipientElement = tr("%1 to %2").arg(amount, address);
-            }
-        }
-        else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+        if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
         {
             recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
         }
@@ -252,7 +240,7 @@ void SendZCoinsDialog::on_sendButton_clicked()
     questionString.append("<hr />");
     CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
-    Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
+    for (BitcoinUnits::Unit u : BitcoinUnits::availableUnits())
     {
         if(u != model->getOptionsModel()->getDisplayUnit())
             alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
@@ -509,10 +497,6 @@ void SendZCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn
     case WalletModel::AbsurdFee:
         msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
         break;
-    case WalletModel::PaymentRequestExpired:
-        msgParams.first = tr("Payment request expired.");
-        msgParams.second = CClientUIInterface::MSG_ERROR;
-        break;
     // included to prevent a compiler warning.
     case WalletModel::OK:
     default:
@@ -633,7 +617,7 @@ void SendZCoinsDialog::updateLabels()
     bool fDust = false;
     CMutableTransaction txDummy;
 
-    Q_FOREACH(const CAmount &amount, SendZCoinsDialog::payAmounts)
+    for (const CAmount &amount : SendZCoinsDialog::payAmounts)
     {
         nPayAmount += amount;
 

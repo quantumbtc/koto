@@ -13,8 +13,6 @@
 #include "key_io.h"
 #include "wallet/wallet.h"
 
-#include <boost/foreach.hpp>
-
 #include <QFont>
 #include <QDebug>
 
@@ -95,7 +93,7 @@ public:
             wallet->AvailableCoins(vecOutputs, false, NULL, true);
             KeyIO keyIO(Params());
 
-            BOOST_FOREACH(const COutput& out, vecOutputs) {
+            for (const COutput& out : vecOutputs) {
                 if (out.tx->IsCoinBase())
                     continue;
 
@@ -107,10 +105,10 @@ public:
                     mapCoins[QString::fromStdString(keyIO.EncodeDestination(address))].push_back(out);
                 }
             }
-            BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
-                QString sWalletAddress = coins.first;
+            for (const auto& [first, second] : mapCoins) {
+                QString sWalletAddress = first;
                 CAmount nSum = 0;
-                for (const COutput& out : coins.second)
+                for (const COutput& out : second)
                     nSum += CAmount(out.tx->vout[out.i].nValue);
                 if (nSum > 0)
                 {
@@ -155,10 +153,10 @@ public:
                 for (auto & entry : sproutEntries) {
                     mapZCoins[QString::fromStdString(keyIO.EncodePaymentAddress(entry.address))].push_back(entry);
                 }
-                BOOST_FOREACH(const PAIRTYPE(QString, std::vector<SproutNoteEntry>)& coins, mapZCoins) {
-                    QString sWalletAddress = coins.first;
+                for (const auto& [first, second] : mapZCoins) {
+                    QString sWalletAddress = first;
                     CAmount nSum = 0;
-                    for (const auto & entry : coins.second)
+                    for (const auto & entry : second)
                         nSum += CAmount(entry.note.value());
                     if (nSum > 0)
                     {
@@ -170,10 +168,10 @@ public:
                 for (SaplingNoteEntry & entry : saplingEntries) {
                     mapSaplingZCoins[QString::fromStdString(keyIO.EncodePaymentAddress(entry.address))].push_back(entry);
                 }
-                BOOST_FOREACH(const PAIRTYPE(QString, std::vector<SaplingNoteEntry>)& coins, mapSaplingZCoins) {
-                    QString sWalletAddress = coins.first;
+                for (const auto& [first, second] : mapSaplingZCoins) {
+                    QString sWalletAddress = first;
                     CAmount nSum = 0;
-                    for (const SaplingNoteEntry& entry : coins.second)
+                    for (const SaplingNoteEntry& entry : second)
                         nSum += CAmount(entry.note.value());
                     if (nSum > 0)
                     {

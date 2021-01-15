@@ -20,8 +20,6 @@
 #include "rpc/client.h"
 #include "util.h"
 
-#include <openssl/crypto.h>
-
 #include <univalue.h>
 
 #ifdef ENABLE_WALLET
@@ -137,7 +135,7 @@ bool parseCommandLine(std::vector<std::string> &args, const std::string &strComm
         STATE_ESCAPE_DOUBLEQUOTED
     } state = STATE_EATING_SPACES;
     std::string curarg;
-    Q_FOREACH(char ch, strCommand)
+    for (char ch : strCommand)
     {
         switch(state)
         {

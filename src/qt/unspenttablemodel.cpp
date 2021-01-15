@@ -14,8 +14,6 @@
 #include "wallet/wallet.h"
 #include "main.h"
 
-#include <boost/foreach.hpp>
-
 #include <QFont>
 #include <QDebug>
 
@@ -96,7 +94,7 @@ public:
             wallet->AvailableCoins(vecOutputs, false, NULL, true);
             KeyIO keyIO(Params());
 
-            BOOST_FOREACH(const COutput& out, vecOutputs) {
+            for (const COutput& out : vecOutputs) {
                 if (out.tx->IsCoinBase())
                     continue;
 

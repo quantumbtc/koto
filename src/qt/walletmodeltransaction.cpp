@@ -53,22 +53,6 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
     {
         SendCoinsRecipient& rcp = (*it);
 
-        if (rcp.paymentRequest.IsInitialized())
-        {
-            CAmount subtotal = 0;
-            const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
-            for (int j = 0; j < details.outputs_size(); j++)
-            {
-                const payments::Output& out = details.outputs(j);
-                if (out.amount() <= 0) continue;
-                if (i == nChangePosRet)
-                    i++;
-                subtotal += walletTransaction->vout[i].nValue;
-                i++;
-            }
-            rcp.amount = subtotal;
-        }
-        else // normal recipient (no payment request)
         {
             if (i == nChangePosRet)
                 i++;
@@ -81,7 +65,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
 CAmount WalletModelTransaction::getTotalTransactionAmount()
 {
     CAmount totalTransactionAmount = 0;
-    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
+    for (const SendCoinsRecipient &rcp : recipients)
     {
         totalTransactionAmount += rcp.amount;
     }

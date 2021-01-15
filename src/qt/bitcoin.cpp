@@ -78,6 +78,8 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #include <QTextCodec>
 #endif
 
+const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
+
 // Declare meta types used for QMetaObject::invokeMethod
 Q_DECLARE_METATYPE(bool*)
 Q_DECLARE_METATYPE(CAmount)
@@ -262,7 +264,7 @@ BitcoinCore::BitcoinCore():
 void BitcoinCore::handleRunawayException(const std::exception *e)
 {
     PrintExceptionContinue(e, "Runaway exception");
-    Q_EMIT runawayException(QString::fromStdString(GetWarnings("gui")));
+    Q_EMIT runawayException(QString::fromStdString(GetWarnings("gui").first));
 }
 
 void BitcoinCore::initialize()
@@ -444,7 +446,6 @@ void BitcoinApplication::initializeResult(int retval)
         // Log this only after AppInit2 finishes, as then logging setup is guaranteed complete
         qWarning() << "Platform customization:" << platformStyle->getName();
 #ifdef ENABLE_WALLET
-        PaymentServer::LoadRootCAs();
         paymentServer->setOptionsModel(optionsModel);
 #endif
 
@@ -543,13 +544,6 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_MAC
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
-#if QT_VERSION >= 0x050500
-    // Because of the POODLE attack it is recommended to disable SSLv3 (https://disablessl3.com/),
-    // so set SSL protocols to TLS1.0+.
-    QSslConfiguration sslconf = QSslConfiguration::defaultConfiguration();
-    sslconf.setProtocol(QSsl::TlsV1_0OrLater);
-    QSslConfiguration::setDefaultConfiguration(sslconf);
-#endif
 
     // Register meta types used for QMetaObject::invokeMethod
     qRegisterMetaType< bool* >();
@@ -569,7 +563,7 @@ int main(int argc, char *argv[])
     // Now that QSettings are accessible, initialize translations
     QTranslator qtTranslatorBase, qtTranslator, translatorBase, translator;
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
-    translationInterface.Translate.connect(Translate);
+    // translationInterface.Translate.connect(Translate);
 
     // Show help message immediately after parsing command-line options (for "-lang") and setting locale,
     // but before showing splash screen.
@@ -678,10 +672,10 @@ int main(int argc, char *argv[])
         app.exec();
     } catch (const std::exception& e) {
         PrintExceptionContinue(&e, "Runaway exception");
-        app.handleRunawayException(QString::fromStdString(GetWarnings("gui")));
+        app.handleRunawayException(QString::fromStdString(GetWarnings("gui").first));
     } catch (...) {
         PrintExceptionContinue(NULL, "Runaway exception");
-        app.handleRunawayException(QString::fromStdString(GetWarnings("gui")));
+        app.handleRunawayException(QString::fromStdString(GetWarnings("gui").first));
     }
     return app.getReturnValue();
 }

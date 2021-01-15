@@ -133,10 +133,6 @@ bool SendZCoinsEntry::validate()
     // Check input validity
     bool retval = true;
 
-    // Skip checks for payment request
-    if (recipient.paymentRequest.IsInitialized())
-        return retval;
-
     if ((!model->validateAddress(ui->payTo->text())) && (!model->validateZAddress(ui->payTo->text())))
     {
         ui->payTo->setValid(false);
@@ -166,10 +162,6 @@ bool SendZCoinsEntry::validate()
 
 SendCoinsRecipient SendZCoinsEntry::getValue()
 {
-    // Payment request
-    if (recipient.paymentRequest.IsInitialized())
-        return recipient;
-
     // Normal payment
     recipient.address = ui->payTo->text();
     recipient.label = ui->addAsLabel->text();
@@ -195,25 +187,6 @@ QWidget *SendZCoinsEntry::setupTabChain(QWidget *prev)
 void SendZCoinsEntry::setValue(const SendCoinsRecipient &value)
 {
     recipient = value;
-
-    if (recipient.paymentRequest.IsInitialized()) // payment request
-    {
-        if (recipient.authenticatedMerchant.isEmpty()) // unauthenticated
-        {
-            ui->payTo_is->setText(recipient.address);
-            ui->payAmount_is->setValue(recipient.amount);
-            ui->payAmount_is->setReadOnly(true);
-            setCurrentWidget(ui->SendZCoins_UnauthenticatedPaymentRequest);
-        }
-        else // authenticated
-        {
-            ui->payTo_s->setText(recipient.authenticatedMerchant);
-            ui->payAmount_s->setValue(recipient.amount);
-            ui->payAmount_s->setReadOnly(true);
-            setCurrentWidget(ui->SendZCoins_AuthenticatedPaymentRequest);
-        }
-    }
-    else // normal payment
     {
         ui->addAsLabel->clear();
         ui->addAsMemo->clear();

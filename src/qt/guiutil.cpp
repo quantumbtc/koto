@@ -32,6 +32,8 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+// override byte to prevent clashes with <cstddef>
+#define byte win_byte_override
 #include "shellapi.h"
 #include "shlobj.h"
 #include "shlwapi.h"

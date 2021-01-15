@@ -454,7 +454,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     CAmount nPayAmount = 0;
     bool fDust = false;
     CMutableTransaction txDummy;
-    Q_FOREACH(const CAmount &amount, CoinControlDialog::payAmounts)
+    for (const CAmount &amount : CoinControlDialog::payAmounts)
     {
         nPayAmount += amount;
 
@@ -485,7 +485,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     coinControl->ListSelected(vCoinControl);
     model->getOutputs(vCoinControl, vOutputs);
 
-    BOOST_FOREACH(const COutput& out, vOutputs) {
+    for (const COutput& out : vOutputs) {
         // unselect already spent, very unlikely scenario, this could happen
         // when selected are spent elsewhere, like rpc or another computer
         uint256 txhash = out.tx->GetHash();
@@ -510,7 +510,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
         {
             CPubKey pubkey;
-            CKeyID *keyid = boost::get<CKeyID>(&address);
+            CKeyID *keyid = std::get_if<CKeyID>(&address);
             if (keyid && model->getPubKey(*keyid, pubkey))
             {
                 nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
@@ -686,10 +686,10 @@ void CoinControlDialog::updateView()
     std::map<QString, std::vector<COutput> > mapCoins;
     model->listCoins(mapCoins);
 
-    BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
+    for (const auto& [first, second] : mapCoins) {
         CCoinControlWidgetItem *itemWalletAddress = new CCoinControlWidgetItem();
         itemWalletAddress->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
-        QString sWalletAddress = coins.first;
+        QString sWalletAddress = first;
         QString sWalletLabel = model->getAddressTableModel()->labelForAddress(sWalletAddress);
         if (sWalletLabel.isEmpty())
             sWalletLabel = tr("(no label)");
@@ -714,7 +714,7 @@ void CoinControlDialog::updateView()
         int nChildren = 0;
         int nInputSum = 0;
         KeyIO keyIO(Params());
-        BOOST_FOREACH(const COutput& out, coins.second) {
+        for (const COutput& out : second) {
             int nInputSize = 0;
             nSum += out.tx->vout[out.i].nValue;
             nChildren++;
@@ -737,7 +737,7 @@ void CoinControlDialog::updateView()
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
 
                 CPubKey pubkey;
-                CKeyID *keyid = boost::get<CKeyID>(&outputAddress);
+                CKeyID *keyid = std::get_if<CKeyID>(&outputAddress);
                 if (keyid && model->getPubKey(*keyid, pubkey) && !pubkey.IsCompressed())
                     nInputSize = 29; // 29 = 180 - 151 (public key is 180 bytes, priority free area is 151 bytes)
             }

@@ -29,8 +29,6 @@
 #include <QSet>
 #include <QTimer>
 
-#include <boost/foreach.hpp>
-
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0), coinSelectionTableModel(0), unspentTableModel(0),
     transactionTableModel(0),
@@ -89,7 +87,7 @@ CAmount WalletModel::getTBalance(const CCoinControl *coinControl) const
         CAmount nBalance = 0;
         std::vector<COutput> vCoins;
         wallet->AvailableCoins(vCoins, true, coinControl);
-        BOOST_FOREACH(const COutput& out, vCoins)
+        for (const COutput& out : vCoins)
             if(out.fSpendable)
                 nBalance += out.tx->vout[out.i].nValue;
 
@@ -115,7 +113,7 @@ CAmount WalletModel::getUnshielded() const
     CAmount nBalance = 0;
     std::vector<COutput> vCoins;
     wallet->AvailableCoins(vCoins, true);
-    BOOST_FOREACH(const COutput& out, vCoins)
+    for (const COutput& out : vCoins)
         if(out.fSpendable && out.tx->IsCoinBase())
             nBalance += out.tx->vout[out.i].nValue;
 
@@ -284,33 +282,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     int nAddresses = 0;
 
     // Pre-check input data for validity
-    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
+    for (const SendCoinsRecipient &rcp : recipients)
     {
         if (rcp.fSubtractFeeFromAmount)
             fSubtractFeeFromAmount = true;
-
-        if (rcp.paymentRequest.IsInitialized())
-        {   // PaymentRequest...
-            CAmount subtotal = 0;
-            const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
-            for (int i = 0; i < details.outputs_size(); i++)
-            {
-                const payments::Output& out = details.outputs(i);
-                if (out.amount() <= 0) continue;
-                subtotal += out.amount();
-                const unsigned char* scriptStr = (const unsigned char*)out.script().data();
-                CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
-                CAmount nAmount = out.amount();
-                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount};
-                vecSend.push_back(recipient);
-            }
-            if (subtotal <= 0)
-            {
-                return InvalidAmount;
-            }
-            total += subtotal;
-        }
-        else
         {   // User-entered koto address / amount:
             if(!validateAddress(rcp.address))
             {
@@ -396,26 +371,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareZTransaction(WalletModelTransac
     int nAddresses = 0;
 
     // Pre-check input data for validity
-    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
+    for (const SendCoinsRecipient &rcp : recipients)
     {
-        if (rcp.paymentRequest.IsInitialized())
-        {   // PaymentRequest...
-            CAmount subtotal = 0;
-            const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
-            for (int i = 0; i < details.outputs_size(); i++)
-            {
-                const payments::Output& out = details.outputs(i);
-                if (out.amount() <= 0) continue;
-                subtotal += out.amount();
-                CAmount nAmount = out.amount();
-            }
-            if (subtotal <= 0)
-            {
-                return InvalidAmount;
-            }
-            total += subtotal;
-        }
-        else
         {   // User-entered koto address / amount:
             if((!validateAddress(rcp.address)) && (!validateZAddress(rcp.address)))
             {
@@ -470,22 +427,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
         LOCK2(cs_main, wallet->cs_wallet);
         CWalletTx *newTx = transaction.getTransaction();
 
-        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+        for (const SendCoinsRecipient &rcp : transaction.getRecipients())
         {
-            if (rcp.paymentRequest.IsInitialized())
-            {
-                // Make sure any payment requests involved are still valid.
-                if (PaymentServer::verifyExpired(rcp.paymentRequest.getDetails())) {
-                    return PaymentRequestExpired;
-                }
-
-                // Store PaymentRequests in wtx.vOrderForm in wallet.
-                std::string key("PaymentRequest");
-                std::string value;
-                rcp.paymentRequest.SerializeToString(&value);
-                newTx->vOrderForm.push_back(make_pair(key, value));
-            }
-            else if (!rcp.message.isEmpty()) // Message from normal koto:URI (koto:k123...?message=example)
+            if (!rcp.message.isEmpty()) // Message from normal koto:URI (koto:k123...?message=example)
                 newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
         }
 
@@ -502,10 +446,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
     KeyIO keyIO(Params());
     // Add addresses / update labels that we've sent to to the address book,
     // and emit coinsSent signal for each recipient
-    Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+    for (const SendCoinsRecipient &rcp : transaction.getRecipients())
     {
-        // Don't touch the address book when we have a payment request
-        if (!rcp.paymentRequest.IsInitialized())
         {
             std::string strAddress = rcp.address.toStdString();
             CTxDestination dest = keyIO.DecodeDestination(strAddress);
@@ -691,23 +633,23 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
-    wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
-    wallet->NotifyZAddressBookChanged.connect(boost::bind(NotifyZAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-    wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
-    wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
+    wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
+    wallet->NotifyZAddressBookChanged.connect(boost::bind(NotifyZAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
+    wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
+    wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
+    wallet->ShowProgress.connect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
+    wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, boost::placeholders::_1));
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
-    wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
-    wallet->NotifyZAddressBookChanged.disconnect(boost::bind(NotifyZAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-    wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
-    wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, _1));
+    wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
+    wallet->NotifyZAddressBookChanged.disconnect(boost::bind(NotifyZAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
+    wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
+    wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
+    wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
+    wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, boost::placeholders::_1));
 }
 
 // WalletModel::UnlockContext implementation
@@ -761,7 +703,7 @@ bool WalletModel::havePrivKey(const CKeyID &address) const
 void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs)
 {
     LOCK2(cs_main, wallet->cs_wallet);
-    BOOST_FOREACH(const COutPoint& outpoint, vOutpoints)
+    for (const COutPoint& outpoint : vOutpoints)
     {
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
@@ -788,7 +730,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
     wallet->ListLockedCoins(vLockedCoins);
 
     // add locked coins
-    BOOST_FOREACH(const COutPoint& outpoint, vLockedCoins)
+    for (const COutPoint& outpoint : vLockedCoins)
     {
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
@@ -798,7 +740,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
             vCoins.push_back(out);
     }
 
-    BOOST_FOREACH(const COutput& out, vCoins)
+    for (const COutput& out : vCoins)
     {
         COutput cout = out;
 
@@ -846,10 +788,10 @@ void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
 void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests)
 {
     LOCK(wallet->cs_wallet);
-    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, wallet->mapAddressBook)
-        BOOST_FOREACH(const PAIRTYPE(std::string, std::string)& item2, item.second.destdata)
-            if (item2.first.size() > 2 && item2.first.substr(0,2) == "rr") // receive request
-                vReceiveRequests.push_back(item2.second);
+    for (const auto& [first, second] : wallet->mapAddressBook)
+        for (const auto& [first2, second2] : second.destdata)
+            if (first2.size() > 2 && first2.substr(0,2) == "rr") // receive request
+                vReceiveRequests.push_back(second2);
 }
 
 bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest)

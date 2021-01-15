@@ -16,8 +16,6 @@
 
 #include <stdint.h>
 
-#include <boost/foreach.hpp>
-
 std::map<std::string, UniValue> TransactionRecord::ztxMap;
 
 /* Return positive answer if transaction should be shown in list.
@@ -145,7 +143,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
         else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() > 0 || wtx.mapSaplingNoteData.size() > 0))
         {
             // Sent Z->T
-            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+            for (const CTxOut& txout : wtx.vout)
             {
                 nDebit += txout.nValue;
                 CTxDestination tAddress;
@@ -215,7 +213,7 @@ QList<TransactionRecord> TransactionRecord::decomposeZTransaction(const CWallet 
         else if((wtx.vin.size() == 0) && (wtx.vout.size() > 0) && (wtx.mapSproutNoteData.size() == 0 && wtx.mapSaplingNoteData.size() == 0))
         {
             // Received T<-Z
-            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+            for (const CTxOut& txout : wtx.vout)
             {
                 nCredit += txout.nValue;
                 CTxDestination tAddress;
@@ -258,7 +256,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTTransaction(const CWallet 
         //
         // Credit
         //
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+        for (const CTxOut& txout : wtx.vout)
         {
             isminetype mine = wallet->IsMine(txout);
             if(mine)
@@ -294,7 +292,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTTransaction(const CWallet 
     {
         bool involvesWatchAddress = false;
         isminetype fAllFromMe = ISMINE_SPENDABLE;
-        BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+        for (const CTxIn& txin : wtx.vin)
         {
             isminetype mine = wallet->IsMine(txin);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
@@ -302,7 +300,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTTransaction(const CWallet 
         }
 
         isminetype fAllToMe = ISMINE_SPENDABLE;
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+        for (const CTxOut& txout : wtx.vout)
         {
             isminetype mine = wallet->IsMine(txout);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;

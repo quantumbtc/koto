@@ -56,7 +56,7 @@ int ClientModel::getNumConnections(unsigned int flags) const
         return vNodes.size();
 
     int nNum = 0;
-    BOOST_FOREACH(const CNode* pnode, vNodes)
+    for (const CNode* pnode : vNodes)
         if (flags & (pnode->fInbound ? CONNECTIONS_IN : CONNECTIONS_OUT))
             nNum++;
 
@@ -149,7 +149,7 @@ void ClientModel::updateAlert()
 
 bool ClientModel::inInitialBlockDownload() const
 {
-    return IsInitialBlockDownload(Params());
+    return IsInitialBlockDownload(Params().GetConsensus());
 }
 
 enum BlockSource ClientModel::getBlockSource() const
@@ -166,7 +166,7 @@ enum BlockSource ClientModel::getBlockSource() const
 
 QString ClientModel::getStatusBarWarnings() const
 {
-    return QString::fromStdString(GetWarnings("gui"));
+    return QString::fromStdString(GetWarnings("gui").first);
 }
 
 OptionsModel *ClientModel::getOptionsModel()
@@ -245,8 +245,8 @@ static void BannedListChanged(ClientModel *clientmodel)
 void ClientModel::subscribeToCoreSignals()
 {
     // Connect signals to client
-    uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
-    uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
+    uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, boost::placeholders::_1));
     uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this));
     uiInterface.BannedListChanged.connect(boost::bind(BannedListChanged, this));
 }
@@ -254,8 +254,8 @@ void ClientModel::subscribeToCoreSignals()
 void ClientModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
-    uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
-    uiInterface.NotifyNumConnectionsChanged.disconnect(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
+    uiInterface.NotifyNumConnectionsChanged.disconnect(boost::bind(NotifyNumConnectionsChanged, this, boost::placeholders::_1));
     uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this));
     uiInterface.BannedListChanged.disconnect(boost::bind(BannedListChanged, this));
 }

@@ -137,14 +137,14 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
         ui->statusLabel_SM->setText(tr("The entered address is invalid.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
-    if (addr.which() != 1)
+    if (addr.index() != 1)
     {
         ui->addressIn_SM->setValid(false);
         ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
         ui->statusLabel_SM->setText(tr("The entered address does not refer to a key.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
-    const CKeyID *keyID = boost::get<CKeyID>(&addr);
+    const CKeyID *keyID = std::get_if<CKeyID>(&addr);
     WalletModel::UnlockContext ctx(model->requestUnlock());
     if (!ctx.isValid())
     {
@@ -217,14 +217,14 @@ void SignVerifyMessageDialog::on_verifyMessageButton_VM_clicked()
         ui->statusLabel_VM->setText(tr("The entered address is invalid.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
-    if (addr.which() != 1)
+    if (addr.index() != 1)
     {
         ui->addressIn_VM->setValid(false);
         ui->statusLabel_VM->setStyleSheet("QLabel { color: red; }");
         ui->statusLabel_VM->setText(tr("The entered address does not refer to a key.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
-    const CKeyID *keyID = boost::get<CKeyID>(&addr);
+    const CKeyID *keyID = std::get_if<CKeyID>(&addr);
 
     bool fInvalid = false;
     std::vector<unsigned char> vchSig = DecodeBase64(ui->signatureIn_VM->text().toStdString().c_str(), &fInvalid);
