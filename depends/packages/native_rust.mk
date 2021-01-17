@@ -13,9 +13,6 @@ $(package)_sha256_hash_freebsd=36a14498f9d1d7fb50d6fc01740960a99aff3d4c4c3d2e4ff
 # "darwin", in which case we assume x86_64-apple-darwin.
 $(package)_rust_target_x86_64-pc-linux-gnu=x86_64-unknown-linux-gnu
 $(package)_rust_target_x86_64-w64-mingw32=x86_64-pc-windows-gnu
-##ifeq ($(host_os),darwin)
-##$(package)_rust_target_$(canonical_host)=x86_64-apple-darwin
-##endif
 
 # Mapping from Rust targets to SHA-256 hashes
 $(package)_rust_std_sha256_hash_aarch64-unknown-linux-gnu=666c6d1f2c65a9bb6e20ae68a6eaa1c5aadee44ff4eb43c593836fe7daba1441
