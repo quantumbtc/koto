@@ -935,7 +935,7 @@ UniValue getblocksubsidy(const UniValue& params, bool fHelp)
     if (nActivationHeight != Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT &&
 	(nHeight >= nActivationHeight) && (nHeight <= Params().GetConsensus().GetLastFoundersRewardBlockHeight(nHeight))) {
         nFoundersReward = nReward * Params().GetConsensus().nFoundersRewardPercentage / 100;
-        nReward -= nFoundersReward;
+        nMinerReward -= nFoundersReward;
     }
     UniValue result(UniValue::VOBJ);
 #if 0
