@@ -578,7 +578,6 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
             + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":0.01}\"")
         );
 
-    LOCK(cs_main);
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VARR)(UniValue::VOBJ)(UniValue::VNUM)(UniValue::VNUM), true);
     if (params[0].isNull() || params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null");
@@ -586,7 +585,11 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
     UniValue inputs = params[0].get_array();
     UniValue sendTo = params[1].get_obj();
 
-    int nextBlockHeight = chainActive.Height() + 1;
+    int nextBlockHeight;
+    {
+        LOCK(cs_main);
+        nextBlockHeight = chainActive.Height() + 1;
+    }
     CMutableTransaction rawTx = CreateNewContextualCMutableTransaction(
         Params().GetConsensus(), nextBlockHeight);
 
@@ -784,7 +787,6 @@ UniValue decodescript(const UniValue& params, bool fHelp)
             + HelpExampleRpc("decodescript", "\"hexstring\"")
         );
 
-    LOCK(cs_main);
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR));
 
     UniValue r(UniValue::VOBJ);

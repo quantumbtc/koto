@@ -120,6 +120,10 @@ BASE_SCRIPTS= [
     'post_heartwood_rollback.py',
     'feature_logging.py',
     'feature_walletfile.py',
+    'wallet_parsing_amounts.py',
+    'wallet_broadcast.py',
+    'wallet_z_sendmany.py',
+    'wallet_zero_value.py',
 ]
 
 ZMQ_SCRIPTS = [
@@ -148,6 +152,7 @@ EXTENDED_SCRIPTS = [
     'invalidblockrequest.py',
 #    'forknotify.py',
     'p2p-acceptblock.py',
+    'maxuploadtarget.py',
     'wallet_db_flush.py',
 ]
 

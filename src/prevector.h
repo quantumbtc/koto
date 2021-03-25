@@ -5,8 +5,6 @@
 #ifndef BITCOIN_PREVECTOR_H
 #define BITCOIN_PREVECTOR_H
 
-#include <util.h>
-
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -177,11 +175,11 @@ private:
                     success. These should instead use an allocator or new/delete so that handlers
                     are called as necessary, but performance would be slightly degraded by doing so. */
                 _union.indirect = static_cast<char*>(realloc(_union.indirect, ((size_t)sizeof(T)) * new_capacity));
-                if (!_union.indirect) { new_handler_terminate(); }
+                assert(_union.indirect);
                 _union.capacity = new_capacity;
             } else {
                 char* new_indirect = static_cast<char*>(malloc(((size_t)sizeof(T)) * new_capacity));
-                if (!new_indirect) { new_handler_terminate(); }
+                assert(new_indirect);
                 T* src = direct_ptr(0);
                 T* dst = reinterpret_cast<T*>(new_indirect);
                 memcpy(dst, src, size() * sizeof(T));
@@ -306,9 +304,8 @@ public:
     }
 
     void resize(size_type new_size) {
-        while (size() > new_size) {
-            item_ptr(size() - 1)->~T();
-            _size--;
+        if (size() > new_size) {
+            erase(item_ptr(new_size), end());
         }
         if (new_size > capacity()) {
             change_capacity(new_size);
@@ -376,10 +373,7 @@ public:
     }
 
     iterator erase(iterator pos) {
-        (*pos).~T();
-        memmove(&(*pos), &(*pos) + 1, ((char*)&(*end())) - ((char*)(1 + &(*pos))));
-        _size--;
-        return pos;
+        return erase(pos, pos + 1);
     }
 
     iterator erase(iterator first, iterator last) {
@@ -404,7 +398,7 @@ public:
     }
 
     void pop_back() {
-        _size--;
+        erase(end() - 1, end());
     }
 
     T& front() {
@@ -424,12 +418,7 @@ public:
     }
 
     void swap(prevector<N, T, Size, Diff>& other) {
-        if (_size & other._size & 1) {
-            std::swap(_union.capacity, other._union.capacity);
-            std::swap(_union.indirect, other._union.indirect);
-        } else {
-            std::swap(_union, other._union);
-        }
+        std::swap(_union, other._union);
         std::swap(_size, other._size);
     }
 

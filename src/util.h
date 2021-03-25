@@ -35,8 +35,6 @@ extern bool fDebug;
 extern bool fQtGui;
 extern bool fServer;
 
-[[noreturn]] extern void new_handler_terminate();
-
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
 

@@ -23,6 +23,7 @@ zcutil/bin/
 *.ko
 *.obj
 *.elf
+*.o.tmp
 *.o-*
 .zcash
 *.a
@@ -92,7 +93,7 @@ qa/cache/*
 
 /doc/doxygen/
 
-libzcashconsensus.pc
+libzcash_script.pc
 
 # Executables
 *.exe
@@ -161,3 +162,5 @@ contrib/debian/substvars
 src/fuzzing/*/input
 src/fuzzing/*/output
 src/fuzz.cpp
+
+.updatecheck-token

@@ -8,7 +8,6 @@
 #endif
 
 #include "init.h"
-#include "crypto/common.h"
 #include "addrman.h"
 #include "amount.h"
 #include "checkpoints.h"
@@ -59,6 +58,7 @@
 #include <boost/bind/bind.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
+#include <sodium.h>
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -398,6 +398,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-whitebind=<addr>", _("Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6"));
     strUsage += HelpMessageOpt("-whitelist=<netmask>", _("Whitelist peers connecting from the given netmask or IP address. Can be specified multiple times.") +
         " " + _("Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway"));
+    strUsage += HelpMessageOpt("-maxuploadtarget=<n>", strprintf(_("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"), DEFAULT_MAX_UPLOAD_TARGET));
 
 #ifdef ENABLE_WALLET
     strUsage += CWallet::GetWalletHelpString(showDebug);
@@ -861,6 +862,20 @@ void InitLogging()
     LogPrintf("Koto version %s (%s)\n", FormatFullVersion(), CLIENT_DATE);
 }
 
+[[noreturn]] static void new_handler_terminate()
+{
+    // Rather than throwing std::bad-alloc if allocation fails, terminate
+    // immediately to (try to) avoid chain corruption.
+    // Since LogPrintf may itself allocate memory, set the handler directly
+    // to terminate first.
+    std::set_new_handler(std::terminate);
+    fputs("Error: Out of memory. Terminating.\n", stderr);
+    LogPrintf("Error: Out of memory. Terminating.\n");
+
+    // The log was successful, terminate now.
+    std::terminate();
+};
+
 /** Initialize bitcoin.
  *  @pre Parameters should be parsed and config file should be read.
  */
@@ -941,16 +956,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(err.value());
     }
 
-    // Make sure enough file descriptors are available
-    int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
-    nMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
-    nMaxConnections = std::max(std::min(nMaxConnections, FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS), 0);
-    int nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS);
-    if (nFD < MIN_CORE_FILEDESCRIPTORS)
-        return InitError(_("Not enough file descriptors available."));
-    if (nFD - MIN_CORE_FILEDESCRIPTORS < nMaxConnections)
-        nMaxConnections = nFD - MIN_CORE_FILEDESCRIPTORS;
-
     // if using block pruning, then disable txindex
     if (GetArg("-prune", 0)) {
         if (GetBoolArg("-txindex", DEFAULT_TXINDEX))
@@ -961,6 +966,21 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
 #endif
     }
+    
+    // Make sure enough file descriptors are available
+    int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
+    int nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
+    nMaxConnections = std::max(nUserMaxConnections, 0);
+
+    // Trim requested connection counts, to fit into system limitations
+    nMaxConnections = std::max(std::min(nMaxConnections, FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS), 0);
+    int nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS);
+    if (nFD < MIN_CORE_FILEDESCRIPTORS)
+        return InitError(_("Not enough file descriptors available."));
+    nMaxConnections = std::min(nFD - MIN_CORE_FILEDESCRIPTORS, nMaxConnections);
+
+    if (nMaxConnections < nUserMaxConnections)
+        InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
 
     // ensure that the user has not disabled checkpoints when requesting to
     // skip transaction verification in initial block download.
@@ -1183,7 +1203,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
 
     // Initialize libsodium
-    if (init_and_check_sodium() == -1) {
+    if (sodium_init() == -1) {
         return false;
     }
 
@@ -1399,6 +1419,11 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         RegisterValidationInterface(pzmqNotificationInterface);
     }
 #endif
+    if (mapArgs.count("-maxuploadtarget")) {
+        CNode::SetMaxOutboundTarget(
+            chainparams.GetConsensus().nPostBlossomPowTargetSpacing,
+            GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024);
+    }
 
     // ********************************************************* Step 7: load block chain
 
@@ -1742,12 +1767,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         StartTorControl(threadGroup, scheduler);
 
     StartNode(threadGroup, scheduler);
-
-    // Monitor the chain every minute, and alert if we get blocks much quicker or slower than expected.
-    CScheduler::Function f = boost::bind(&PartitionCheck, &IsInitialBlockDownload,
-                                         boost::cref(chainparams.GetConsensus()),
-                                         boost::ref(cs_main), boost::cref(pindexBestHeader));
-    scheduler.scheduleEvery(f, 60);
 
 #ifdef ENABLE_MINING
     // Generate coins in the background

@@ -47,18 +47,18 @@ public:
     /** Pull a full list of banned nodes from CNode into our cache */
     void refreshBanlist()
     {
-        std::map<CSubNet, int64_t> banMap;
+        banmap_t banMap;
         CNode::GetBanned(banMap);
 
         cachedBanlist.clear();
 #if QT_VERSION >= 0x040700
         cachedBanlist.reserve(banMap.size());
 #endif
-        for (std::map<CSubNet, int64_t>::iterator it = banMap.begin(); it != banMap.end(); it++)
+        for (banmap_t::iterator it = banMap.begin(); it != banMap.end(); it++)
         {
             CCombinedBan banEntry;
             banEntry.subnet = (*it).first;
-            banEntry.nBanUntil = (*it).second;
+            banEntry.nBanUntil = (*it).second.nBanUntil;
             cachedBanlist.append(banEntry);
         }
 

@@ -38,7 +38,7 @@ darwin_OBJCXXFLAGS=$(darwin_CFLAGS)
 darwin_release_CFLAGS=-O3
 darwin_release_CXXFLAGS=$(darwin_release_CFLAGS)
 
-darwin_debug_CFLAGS=-O1
+darwin_debug_CFLAGS=-O0
 darwin_debug_CXXFLAGS=$(darwin_debug_CFLAGS)
 darwin_debug_OBJCXXFLAGS=$(darwin_debug_CFLAGS)
 

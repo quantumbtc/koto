@@ -141,7 +141,7 @@ extern uint64_t nLastBlockSize;
 extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
-extern bool fImporting;
+extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
@@ -251,12 +251,6 @@ bool ProcessMessages(const CChainParams& chainparams, CNode* pfrom);
 bool SendMessages(const Consensus::Params& params, CNode* pto, bool fSendTrickle);
 /** Run an instance of the script checking thread */
 void ThreadScriptCheck();
-/** Try to detect Partition (network isolation) attacks against us */
-void PartitionCheck(
-        bool (*initialDownloadCheck)(const Consensus::Params&),
-        const Consensus::Params& params,
-        CCriticalSection& cs,
-        const CBlockIndex *const &bestHeader);
 /** Check whether we are doing an initial block download (synchronizing from disk or network) */
 bool IsInitialBlockDownload(const Consensus::Params& params);
 /** Format a string that describes several potential problems detected by the core */

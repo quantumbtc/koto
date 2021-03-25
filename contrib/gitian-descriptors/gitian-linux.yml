@@ -1,5 +1,5 @@
 ---
-name: "koto-4.2.0"
+name: "koto-4.3.0"
 enable_cache: true
 suites:
 - "bionic"
@@ -19,6 +19,14 @@ packages:
 - "faketime"
 - "bsdmainutils"
 - "ca-certificates"
+- "g++-multilib"
+- "git-core"
+- "libc6-dev"
+- "libtool"
+- "libxml2"
+- "m4"
+- "ncurses-dev"
+- "pkg-config"
 - "python"
 - "unzip"
 - "wget"

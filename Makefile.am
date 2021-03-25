@@ -4,6 +4,10 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://www.opensource.org/licenses/mit-license.php .
 
+# Pattern rule to print variables, e.g. make print-top_srcdir
+print-%:
+	@echo $* = $($*)
+
 ACLOCAL_AMFLAGS = -I build-aux/m4
 SUBDIRS = src
 if ENABLE_MAN
@@ -15,7 +19,7 @@ export PYTHONPATH
 
 if BUILD_BITCOIN_LIBS
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libzcashconsensus.pc
+pkgconfig_DATA = libzcash_script.pc
 endif
 
 BITCOIND_BIN=$(top_builddir)/src/$(BITCOIN_DAEMON_NAME)$(EXEEXT)

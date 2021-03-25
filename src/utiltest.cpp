@@ -52,8 +52,8 @@ CMutableTransaction GetValidSproutReceiveTransaction(
 
     // Prepare JoinSplits
     uint256 rt;
-    JSDescription jsdesc {mtx.joinSplitPubKey, rt,
-                          inputs, outputs, 2*value, 0, false};
+    auto jsdesc = JSDescriptionInfo(mtx.joinSplitPubKey, rt,
+                          inputs, outputs, 2*value, 0).BuildDeterministic(false);
     mtx.vJoinSplit.push_back(jsdesc);
 
     // Consider: The following is a bit misleading (given the name of this function)
@@ -114,7 +114,10 @@ CWalletTx GetInvalidCommitmentSproutReceive(
 libzcash::SproutNote GetSproutNote(const libzcash::SproutSpendingKey& sk,
                                    const CTransaction& tx, size_t js, size_t n) {
     ZCNoteDecryption decryptor {sk.receiving_key()};
-    auto hSig = tx.vJoinSplit[js].h_sig(tx.joinSplitPubKey);
+    auto hSig = ZCJoinSplit::h_sig(
+        tx.vJoinSplit[js].randomSeed,
+        tx.vJoinSplit[js].nullifiers,
+        tx.joinSplitPubKey);
     auto note_pt = libzcash::SproutNotePlaintext::decrypt(
         decryptor,
         tx.vJoinSplit[js].ciphertexts[n],
@@ -173,8 +176,8 @@ CWalletTx GetValidSproutSpend(const libzcash::SproutSpendingKey& sk,
 
     // Prepare JoinSplits
     uint256 rt = tree.root();
-    JSDescription jsdesc {mtx.joinSplitPubKey, rt,
-                          inputs, outputs, 0, value, false};
+    auto jsdesc = JSDescriptionInfo(mtx.joinSplitPubKey, rt,
+                          inputs, outputs, 0, value).BuildDeterministic(false);
     mtx.vJoinSplit.push_back(jsdesc);
 
     // Empty output script.
@@ -273,6 +276,34 @@ void RegtestDeactivateCanopy() {
     SelectParams(CBaseChainParams::MAIN);
 }
 
+const Consensus::Params& RegtestActivateNU5(bool updatePow, int nu5ActivationHeight) {
+    SelectParams(CBaseChainParams::REGTEST);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_OVERWINTER, Consensus::NetworkUpgrade::ALWAYS_ACTIVE);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_SAPLING, Consensus::NetworkUpgrade::ALWAYS_ACTIVE);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_BLOSSOM, Consensus::NetworkUpgrade::ALWAYS_ACTIVE);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_HEARTWOOD, Consensus::NetworkUpgrade::ALWAYS_ACTIVE);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_CANOPY, Consensus::NetworkUpgrade::ALWAYS_ACTIVE);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_NU5, nu5ActivationHeight);
+    if (updatePow) {
+        UpdateRegtestPow(32, 16, uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), false);
+    }
+    return Params().GetConsensus();
+}
+
+const Consensus::Params& RegtestActivateNU5() {
+    return RegtestActivateNU5(false, Consensus::NetworkUpgrade::ALWAYS_ACTIVE);
+}
+
+void RegtestDeactivateNU5() {
+    UpdateRegtestPow(0, 0, uint256S("0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"), true);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_NU5, Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_CANOPY, Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_HEARTWOOD, Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_BLOSSOM, Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_SAPLING, Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT);
+    UpdateNetworkUpgradeParameters(Consensus::UPGRADE_OVERWINTER, Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT);
+    SelectParams(CBaseChainParams::MAIN);
+}
 
 libzcash::SaplingExtendedSpendingKey GetTestMasterSaplingSpendingKey() {
     std::vector<unsigned char, secure_allocator<unsigned char>> rawSeed(32);

@@ -69,7 +69,7 @@ static int64_t nTimeBestReceived = 0;
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
-bool fImporting = false;
+std::atomic_bool fImporting(false);
 std::atomic_bool fReindex(false);
 bool fTxIndex = false;
 bool fAddressIndex = false;     // insightexplorer || lightwalletd
@@ -2658,84 +2658,6 @@ static CCheckQueue<CScriptCheck> scriptcheckqueue(128);
 void ThreadScriptCheck() {
     RenameThread("koto-scriptch");
     scriptcheckqueue.Thread();
-}
-
-//
-// Called periodically asynchronously; alerts if it smells like
-// we're being fed a bad chain (blocks being generated much
-// too slowly or too quickly).
-void PartitionCheck(
-        bool (*initialDownloadCheck)(const Consensus::Params&),
-        const Consensus::Params& consensusParams,
-        CCriticalSection& cs,
-        const CBlockIndex *const &bestHeader)
-{
-    if (bestHeader == NULL || initialDownloadCheck(consensusParams)) return;
-
-    static int64_t lastAlertTime = 0;
-    int64_t now = GetTime();
-    if (lastAlertTime > now-60*60*24) return; // Alert at most once per day
-
-    const int SPAN_HOURS=4;
-    const int SPAN_SECONDS=SPAN_HOURS*60*60;
-
-    LOCK(cs);
-
-    int BLOCKS_EXPECTED;
-    // TODO: This can be simplified when the Blossom activation height is set
-    int nBlossomBlocks = consensusParams.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight == Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT ?
-        0 : std::max(0, bestHeader->nHeight - consensusParams.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight);
-    int blossomBlockTime = nBlossomBlocks * consensusParams.nPostBlossomPowTargetSpacing;
-    // If the span period includes Blossom activation, adjust the number of expected blocks.
-    if (blossomBlockTime < SPAN_SECONDS) {
-        // If there are 0 blossomBlocks the following is equivalent to
-        // BLOCKS_EXPECTED = SPAN_SECONDS / consensusParams.nPreBlossomPowTargetSpacing
-        BLOCKS_EXPECTED = nBlossomBlocks + (SPAN_SECONDS - blossomBlockTime) / consensusParams.nPreBlossomPowTargetSpacing;
-    } else {
-        BLOCKS_EXPECTED = SPAN_SECONDS / consensusParams.nPostBlossomPowTargetSpacing;
-    }
-
-    boost::math::poisson_distribution<double> poisson(BLOCKS_EXPECTED);
-
-    std::string strWarning;
-    int64_t startTime = GetTime() - SPAN_SECONDS;
-
-    const CBlockIndex* i = bestHeader;
-    int nBlocks = 0;
-    while (i->GetBlockTime() >= startTime) {
-        ++nBlocks;
-        i = i->pprev;
-        if (i == NULL) return; // Ran out of chain, we must not be fully synced
-    }
-
-    // How likely is it to find that many by chance?
-    double p = boost::math::pdf(poisson, nBlocks);
-
-    LogPrint("partitioncheck", "%s : Found %d blocks in the last %d hours\n", __func__, nBlocks, SPAN_HOURS);
-    LogPrint("partitioncheck", "%s : likelihood: %g\n", __func__, p);
-
-    // Aim for one false-positive about every fifty years of normal running:
-    const int FIFTY_YEARS = 50*365*24*60*60;
-    double alertThreshold = 1.0 / (FIFTY_YEARS / SPAN_SECONDS);
-
-    if (p <= alertThreshold && nBlocks < BLOCKS_EXPECTED)
-    {
-        // Many fewer blocks than expected: alert!
-        strWarning = strprintf(_("WARNING: Check your network connection, %d blocks received in the last %d hours (%d expected)"),
-                               nBlocks, SPAN_HOURS, BLOCKS_EXPECTED);
-    }
-    else if (p <= alertThreshold && nBlocks > BLOCKS_EXPECTED)
-    {
-        // Many more blocks than expected: alert!
-        strWarning = strprintf(_("WARNING: Abnormally high number of blocks generated, %d blocks received in the last %d hours (%d expected)"),
-                               nBlocks, SPAN_HOURS, BLOCKS_EXPECTED);
-    }
-    if (!strWarning.empty())
-    {
-        SetMiscWarning(strWarning, GetTime());
-        CAlert::Notify(strWarning, true);
-        lastAlertTime = now;
-    }
 }
 
 static int64_t nTimeVerify = 0;
@@ -5585,6 +5507,22 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         }
                     }
                 }
+                // disconnect node in case we have reached the outbound limit for serving historical blocks
+                // never disconnect whitelisted nodes
+                static const int nOneWeek = 7 * 24 * 60 * 60; // assume > 1 week = historical
+                if (send && CNode::OutboundTargetReached(consensusParams.PoWTargetSpacing(currentHeight), true) && (
+                        (
+                            (pindexBestHeader != NULL) &&
+                            (pindexBestHeader->GetBlockTime() - mi->second->GetBlockTime() > nOneWeek)
+                        ) || inv.type == MSG_FILTERED_BLOCK
+                    ) && !pfrom->fWhitelisted)
+                {
+                    LogPrint("net", "historical block serving limit reached, disconnect peer=%d\n", pfrom->GetId());
+
+                    //disconnect node
+                    pfrom->fDisconnect = true;
+                    send = false;
+                }
                 // Pruned nodes may have deleted the block, so check whether
                 // it's available before trying to send.
                 if (send && (mi->second->nStatus & BLOCK_HAVE_DATA))
@@ -5610,8 +5548,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                             // however we MUST always provide at least what the remote peer needs
                             typedef std::pair<unsigned int, uint256> PairType;
                             for (PairType& pair : merkleBlock.vMatchedTxn)
-                                if (!pfrom->setInventoryKnown.count(CInv(MSG_TX, pair.second)))
-                                    pfrom->PushMessage("tx", block.vtx[pair.first]);
+                                pfrom->PushMessage("tx", block.vtx[pair.first]);
                         }
                         // else
                             // no response
@@ -5913,26 +5850,21 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
                     LOCK(cs_vNodes);
                     // Use deterministic randomness to send to the same nodes for 24 hours
                     // at a time so the addrKnowns of the chosen nodes prevent repeats
-                    static uint256 hashSalt;
-                    if (hashSalt.IsNull())
-                        hashSalt = GetRandHash();
+                    static const uint64_t salt0 = GetRand(std::numeric_limits<uint64_t>::max());
+                    static const uint64_t salt1 = GetRand(std::numeric_limits<uint64_t>::max());
                     uint64_t hashAddr = addr.GetHash();
-                    uint256 hashRand = ArithToUint256(UintToArith256(hashSalt) ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60)));
-                    hashRand = Hash(BEGIN(hashRand), END(hashRand));
-                    multimap<uint256, CNode*> mapMix;
+                    multimap<uint64_t, CNode*> mapMix;
                     FastRandomContext insecure_rand;
+                    const CSipHasher hasher = CSipHasher(salt0, salt1).Write(hashAddr << 32).Write((GetTime() + hashAddr) / (24*60*60));
                     for (CNode* pnode : vNodes)
                     {
                         if (pnode->nVersion < CADDR_TIME_VERSION)
                             continue;
-                        unsigned int nPointer;
-                        memcpy(&nPointer, &pnode, sizeof(nPointer));
-                        uint256 hashKey = ArithToUint256(UintToArith256(hashRand) ^ nPointer);
-                        hashKey = Hash(BEGIN(hashKey), END(hashKey));
+                        uint64_t hashKey = CSipHasher(hasher).Write(pnode->id).Finalize();
                         mapMix.insert(make_pair(hashKey, pnode));
                     }
                     int nRelayNodes = fReachable ? 2 : 1; // limited relaying of addresses outside our network(s)
-                    for (multimap<uint256, CNode*>::iterator mi = mapMix.begin(); mi != mapMix.end() && nRelayNodes-- > 0; ++mi)
+                    for (multimap<uint64_t, CNode*>::iterator mi = mapMix.begin(); mi != mapMix.end() && nRelayNodes-- > 0; ++mi)
                         ((*mi).second)->PushAddress(addr, insecure_rand);
                 }
             }
@@ -5972,9 +5904,6 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
             bool fAlreadyHave = AlreadyHave(inv);
             LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
 
-            if (!fAlreadyHave && !fImporting && !fReindex && inv.type != MSG_BLOCK)
-                pfrom->AskFor(inv);
-
             if (inv.type == MSG_BLOCK) {
                 UpdateBlockAvailability(pfrom->GetId(), inv.hash);
                 if (!fAlreadyHave && !fImporting && !fReindex && !mapBlocksInFlight.count(inv.hash)) {
@@ -5998,6 +5927,9 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
                     }
                     LogPrint("net", "getheaders (%d) %s to peer=%d\n", pindexBestHeader->nHeight, inv.hash.ToString(), pfrom->id);
                 }
+            } else {
+                if (!fAlreadyHave && !IsInitialBlockDownload(chainparams.GetConsensus()))
+                    pfrom->AskFor(inv);
             }
 
             // Track requests for our stuff
@@ -6086,10 +6018,10 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
         vRecv >> locator >> hashStop;
 
         LOCK(cs_main);
-
-        if (IsInitialBlockDownload(chainparams.GetConsensus()))
+        if (IsInitialBlockDownload(chainparams.GetConsensus()) && !pfrom->fWhitelisted) {
+            LogPrint("net", "Ignoring getheaders from peer=%d because node is in initial block download\n", pfrom->id);
             return true;
-
+        }
         CBlockIndex* pindex = NULL;
         if (locator.IsNull())
         {
@@ -6121,7 +6053,7 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
     }
 
 
-    else if (strCommand == "tx")
+    else if (strCommand == "tx" && !IsInitialBlockDownload(chainparams.GetConsensus()))
     {
         vector<uint256> vWorkQueue;
         vector<uint256> vEraseQueue;
@@ -6277,6 +6209,18 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
             return true;
         }
 
+        // If we already know the last header in the message, then it contains
+        // no new information for us.  In this case, we do not request
+        // more headers later.  This prevents multiple chains of redundant
+        // getheader requests from running in parallel if triggered by incoming
+        // blocks while the node is still in initial headers sync.
+        //
+        // (Allow disabling optimization in case there are unexpected problems.)
+        bool hasNewHeaders = true;
+        if (GetBoolArg("-optimize-getheaders", true) && IsInitialBlockDownload(chainparams.GetConsensus())) {
+            hasNewHeaders = (mapBlockIndex.count(headers.back().GetHash()) == 0);
+        }
+
         CBlockIndex *pindexLast = NULL;
         for (const CBlockHeader& header : headers) {
             CValidationState state;
@@ -6297,7 +6241,12 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
         if (pindexLast)
             UpdateBlockAvailability(pfrom->GetId(), pindexLast->GetBlockHash());
 
-        if (nCount == MAX_HEADERS_RESULTS && pindexLast) {
+        // Temporary, until we're sure the optimization works
+        if (nCount == MAX_HEADERS_RESULTS && pindexLast && !hasNewHeaders) {
+            LogPrint("net", "NO more getheaders (%d) to send to peer=%d (startheight:%d)\n", pindexLast->nHeight, pfrom->id, pfrom->nStartingHeight);
+        }
+
+        if (nCount == MAX_HEADERS_RESULTS && pindexLast && hasNewHeaders) {
             // Headers message had its maximum size; the peer may have more headers.
             // TODO: optimize: if pindexLast is an ancestor of chainActive.Tip or pindexBestHeader, continue
             // from there instead.
@@ -6364,6 +6313,12 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
     else if (strCommand == "mempool")
     {
         int currentHeight = GetHeight();
+        if (CNode::OutboundTargetReached(chainparams.GetConsensus().PoWTargetSpacing(currentHeight), false) && !pfrom->fWhitelisted)
+        {
+            LogPrint("net", "mempool request with bandwidth limit reached, disconnect peer=%d\n", pfrom->GetId());
+            pfrom->fDisconnect = true;
+            return true;
+        }
 
         LOCK2(cs_main, pfrom->cs_filter);
 
@@ -6597,7 +6552,7 @@ bool static ProcessMessage(const CChainParams& chainparams, CNode* pfrom, string
         // message would be undesirable as we transmit it ourselves.
     }
 
-    else {
+    else if (!(strCommand == "tx" || strCommand == "block" || strCommand == "headers" || strCommand == "alert")) {
         // Ignore unknown commands for extensibility
         LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);
     }
@@ -6822,7 +6777,7 @@ bool SendMessages(const Consensus::Params& params, CNode* pto, bool fSendTrickle
                     LogPrintf("Warning: not banning local peer %s!\n", pto->addr.ToString());
                 else
                 {
-                    CNode::Ban(pto->addr);
+                    CNode::Ban(pto->addr, BanReasonNodeMisbehaving);
                 }
             }
             state.fShouldBan = false;
@@ -6841,7 +6796,16 @@ bool SendMessages(const Consensus::Params& params, CNode* pto, bool fSendTrickle
             if ((nSyncStarted == 0 && fFetch) || pindexBestHeader->GetBlockTime() > GetTime() - 24 * 60 * 60) {
                 state.fSyncStarted = true;
                 nSyncStarted++;
-                CBlockIndex *pindexStart = pindexBestHeader->pprev ? pindexBestHeader->pprev : pindexBestHeader;
+                const CBlockIndex *pindexStart = pindexBestHeader;
+                /* If possible, start at the block preceding the currently
+                   best known header.  This ensures that we always get a
+                   non-empty list of headers back as long as the peer
+                   is up-to-date.  With a non-empty response, we can initialise
+                   the peer's known best block.  This wouldn't be possible
+                   if we requested starting at pindexBestHeader and
+                   got back an empty response.  */
+                if (pindexStart->pprev)
+                    pindexStart = pindexStart->pprev;
                 LogPrint("net", "initial getheaders (%d) to peer=%d (startheight:%d)\n", pindexStart->nHeight, pto->id, pto->nStartingHeight);
                 pto->PushMessage("getheaders", chainActive.GetLocator(pindexStart), uint256());
             }
@@ -6866,7 +6830,7 @@ bool SendMessages(const Consensus::Params& params, CNode* pto, bool fSendTrickle
             vInvWait.reserve(pto->vInventoryToSend.size());
             for (const CInv& inv : pto->vInventoryToSend)
             {
-                if (pto->setInventoryKnown.count(inv))
+                if (inv.type == MSG_TX && pto->filterInventoryKnown.contains(inv.hash))
                     continue;
 
                 // trickle out tx inv to protect privacy
@@ -6887,15 +6851,13 @@ bool SendMessages(const Consensus::Params& params, CNode* pto, bool fSendTrickle
                     }
                 }
 
-                // returns true if wasn't already contained in the set
-                if (pto->setInventoryKnown.insert(inv).second)
+                pto->filterInventoryKnown.insert(inv.hash);
+
+                vInv.push_back(inv);
+                if (vInv.size() >= 1000)
                 {
-                    vInv.push_back(inv);
-                    if (vInv.size() >= 1000)
-                    {
-                        pto->PushMessage("inv", vInv);
-                        vInv.clear();
-                    }
+                    pto->PushMessage("inv", vInv);
+                    vInv.clear();
                 }
             }
             pto->vInventoryToSend = vInvWait;
