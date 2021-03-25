@@ -19,7 +19,6 @@ packages:
 - "faketime"
 - "bsdmainutils"
 - "ca-certificates"
-- "g++-multilib"
 - "git-core"
 - "libc6-dev"
 - "libtool"
