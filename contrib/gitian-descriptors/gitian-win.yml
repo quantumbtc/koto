@@ -19,7 +19,8 @@ packages:
 - "nsis"
 - "zip"
 - "ca-certificates"
-- "python"
+- "python-dev"
+- "python-setuptools"
 - "rename"
 - "cmake"
 remotes:
