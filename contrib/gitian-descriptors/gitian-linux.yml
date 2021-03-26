@@ -6,8 +6,8 @@ suites:
 architectures:
 - "amd64"
 packages:
-- "g++-7-aarch64-linux-gnu"
-- "gcc-7-aarch64-linux-gnu"
+- "g++-aarch64-linux-gnu"
+- "gcc-aarch64-linux-gnu"
 - "binutils-aarch64-linux-gnu"
 - "binutils-gold"
 - "git"
