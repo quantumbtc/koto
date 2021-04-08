@@ -22,6 +22,7 @@
 #include <string>
 #ifdef WIN32
 #include <io.h>
+#include <wincon.h>
 #else
 #include <sys/ioctl.h>
 #endif
@@ -569,8 +570,6 @@ int printInitMessage()
 }
 
 #ifdef WIN32
-#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-
 bool enableVTMode()
 {
     // Set output mode to handle virtual terminal sequences
