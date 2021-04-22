@@ -25,7 +25,7 @@
 #include <rust/ed25519/types.h>
 
 // Overwinter transaction version group id
-static constexpr uint32_t OVERWINTER_VERSION_GROUP_ID = 0x03C48270;
+static constexpr uint32_t OVERWINTER_VERSION_GROUP_ID = 0x02E7D970;
 static_assert(OVERWINTER_VERSION_GROUP_ID != 0, "version group id must be non-zero as specified in ZIP 202");
 
 // Overwinter transaction version
@@ -36,7 +36,7 @@ static_assert(OVERWINTER_TX_VERSION <= OVERWINTER_MAX_TX_VERSION,
     "Overwinter tx version must not be higher than maximum");
 
 // Sapling transaction version group id
-static constexpr uint32_t SAPLING_VERSION_GROUP_ID = 0x892F2085;
+static constexpr uint32_t SAPLING_VERSION_GROUP_ID = 0x9023E50A;
 static_assert(SAPLING_VERSION_GROUP_ID != 0, "version group id must be non-zero as specified in ZIP 202");
 
 // Sapling transaction version
