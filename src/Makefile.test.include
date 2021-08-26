@@ -15,7 +15,7 @@ EXTRA_DIST += \
 	test/bitcoin-util-test.py \
 	test/data/bitcoin-util-test.json \
 	test/data/blanktx.hex \
-	test/data/merkle_roots_sapling.json \
+	test/data/merkle_roots_orchard.h \
 	test/data/tt-delin1-out.hex \
 	test/data/tt-delout1-out.hex \
 	test/data/tt-locktime317000-out.hex \
