@@ -160,7 +160,7 @@ TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>&
         block.vtx.push_back(tx);
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
-    IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
+    IncrementExtraNonce(pblocktemplate, chainActive.Tip(), extraNonce, chainparams.GetConsensus());
 
     while (!CheckProofOfWork(block.GetPoWHash(), block.nBits, Params().GetConsensus())) {
         // target -- 1 in 2^(2^32). That ain't gonna happen.
@@ -182,9 +182,11 @@ TestChain100Setup::~TestChain100Setup()
 
 
 CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(CMutableTransaction &tx, CTxMemPool *pool) {
-    return CTxMemPoolEntry(tx, nFee, nTime, dPriority, nHeight,
-                           pool ? pool->HasNoInputsOf(tx) : hadNoDependencies,
-                           spendsCoinbase, nBranchId);
+    CTransaction txn(tx);
+    bool hasNoDependencies = pool ? pool->HasNoInputsOf(tx) : hadNoDependencies;
+
+    return CTxMemPoolEntry(txn, nFee, nTime, dPriority, nHeight,
+                           hasNoDependencies, spendsCoinbase, sigOpCount, nBranchId);
 }
 
 void Shutdown(void* parg)

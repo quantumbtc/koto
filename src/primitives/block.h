@@ -16,6 +16,11 @@
 #include "version.h"
 
 
+// Derives the ZIP 244 block commitments hash.
+uint256 DeriveBlockCommitmentsHash(
+    uint256 hashChainHistoryRoot,
+    uint256 hashAuthDataRoot);
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -23,7 +28,7 @@
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
  */
-class CBlockHeaderUncached
+class CBlockHeader
 {
 public:
     // header
@@ -36,9 +41,9 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
-    uint256 hashLightClientRoot;
+    uint256 hashBlockCommitments;
 
-    CBlockHeaderUncached()
+    CBlockHeader()
     {
         SetNull();
     }
@@ -53,17 +58,17 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        if (this->nVersion >= CBlockHeaderUncached::SAPLING_VERSION) {
-            READWRITE(hashLightClientRoot);
+        if (this->nVersion >= CBlockHeader::SAPLING_VERSION) {
+            READWRITE(hashBlockCommitments);
         }
     }
 
     void SetNull()
     {
-        nVersion = CBlockHeaderUncached::CURRENT_VERSION;
+        nVersion = CBlockHeader::CURRENT_VERSION;
         hashPrevBlock.SetNull();
         hashMerkleRoot.SetNull();
-        hashLightClientRoot.SetNull();
+        hashBlockCommitments.SetNull();
         nTime = 0;
         nBits = 0;
         nNonce = 0;
@@ -98,36 +103,6 @@ public:
         }
         return thash;
     }
-};
-
-
-class CBlockHeader : public CBlockHeaderUncached
-{
-public:
-    mutable CCriticalSection cache_lock;
-    mutable bool cache_init;
-    mutable uint256 cache_block_hash, cache_PoW_hash;
-
-    CBlockHeader()
-    {
-        cache_init = false;
-    }
-
-    CBlockHeader(const CBlockHeader& header)
-    {
-        *this = header;
-    }
-
-    CBlockHeader& operator=(const CBlockHeader& header)
-    {
-        *(CBlockHeaderUncached*)this = (CBlockHeaderUncached)header;
-        cache_init = header.cache_init;
-        cache_block_hash = header.cache_block_hash;
-        cache_PoW_hash = header.cache_PoW_hash;
-        return *this;
-    }
-
-    uint256 GetPoWHash_cached() const;
 };
 
 
@@ -172,7 +147,7 @@ public:
         block.nVersion       = nVersion;
         block.hashPrevBlock  = hashPrevBlock;
         block.hashMerkleRoot = hashMerkleRoot;
-        block.hashLightClientRoot = hashLightClientRoot;
+        block.hashBlockCommitments = hashBlockCommitments;
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
@@ -187,6 +162,11 @@ public:
 
     std::vector<uint256> GetMerkleBranch(int nIndex) const;
     static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch, int nIndex);
+
+    // Build the authorizing data Merkle tree for this block and return its
+    // root.
+    uint256 BuildAuthDataMerkleTree() const;
+
     std::string ToString() const;
 };
 
@@ -211,7 +191,7 @@ public:
         READWRITE(this->nVersion);
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
-        READWRITE(hashLightClientRoot);
+        READWRITE(hashBlockCommitments);
         READWRITE(nTime);
         READWRITE(nBits);
     }

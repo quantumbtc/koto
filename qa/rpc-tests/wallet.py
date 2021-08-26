@@ -111,8 +111,7 @@ class WalletTest (BitcoinTestFramework):
             self.nodes[2].sendrawtransaction(signed_tx["hex"])
         except JSONRPCException as e:
             errorString = e.error['message']
-        assert("absurdly high fees" in errorString)
-        assert("9000000000 > 10000000" in errorString)
+        assert_equal(errorString, "256: absurdly-high-fee")
 
         # create both transactions
         txns_to_send = []
@@ -200,7 +199,7 @@ class WalletTest (BitcoinTestFramework):
         assert(txid1 in self.nodes[3].getrawmempool())
 
         # check integer balances from getbalance
-        assert_equal(self.nodes[2].getbalance("*", 1, False, True), 999800000)
+        assert_equal(self.nodes[2].getbalance("*", 1, False, True), 380274799799922)
 
         # send from node 0 to node 2 taddr
         mytaddr = self.nodes[2].getnewaddress()

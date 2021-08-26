@@ -73,7 +73,7 @@ class WalletZSendmanyTest(BitcoinTestFramework):
         # check balances
         zsendmanynotevalue = Decimal('7.0')
         zsendmanyfee = DEFAULT_FEE
-        node2utxobalance = Decimal('260.00000000') - zsendmanynotevalue - zsendmanyfee
+        node2utxobalance = Decimal('2435.00000000') - zsendmanynotevalue - zsendmanyfee
 
         # check shielded balance status with getwalletinfo
         wallet_info = self.nodes[2].getwalletinfo()
@@ -124,7 +124,7 @@ class WalletZSendmanyTest(BitcoinTestFramework):
         self.nodes[2].generate(1)
         self.sync_all()
 
-        node0balance += Decimal('11.0')
+        node0balance += Decimal('98.0')
         node2balance += Decimal('1.0')
         assert_equal(Decimal(self.nodes[0].getbalance()), node0balance)
         assert_equal(Decimal(self.nodes[0].getbalance("*")), node0balance)

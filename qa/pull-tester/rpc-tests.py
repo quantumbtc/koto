@@ -104,6 +104,8 @@ BASE_SCRIPTS= [
     'getblocktemplate.py',
     'bip65-cltv-p2p.py',
     'bipdersig-p2p.py',
+    'invalidblockrequest.py',
+    'invalidtxrequest.py',
     'p2p_nu_peer_management.py',
     'rewind_index.py',
     'p2p_txexpiry_dos.py',
@@ -116,6 +118,7 @@ BASE_SCRIPTS= [
     'framework.py',
     'sapling_rewind_check.py',
     'feature_zip221.py',
+    'feature_zip244_blockcommitments.py',
     'upgrade_golden.py',
     'post_heartwood_rollback.py',
     'feature_logging.py',
@@ -149,7 +152,6 @@ EXTENDED_SCRIPTS = [
     'invalidateblock.py',
     'receivedby.py',
     'maxblocksinflight.py',
-    'invalidblockrequest.py',
 #    'forknotify.py',
     'p2p-acceptblock.py',
     'maxuploadtarget.py',
@@ -259,7 +261,7 @@ def run_tests(test_list, src_dir, build_dir, exeext, jobs=1, enable_coverage=Fal
 
     #Set env vars
     if "BITCOIND" not in os.environ:
-        os.environ["BITCOIND"] = build_dir + '/src/zcashd' + exeext
+        os.environ["BITCOIND"] = build_dir + '/src/kotod' + exeext
 
     tests_dir = src_dir + '/qa/rpc-tests/'
 

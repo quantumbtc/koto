@@ -118,7 +118,7 @@ public:
             }
 
             // Z-CoinSelection
-            std::set<libzcash::PaymentAddress> zaddrs = {};
+            std::set<libzcash::RawAddress> zaddrs = {};
             std::map<QString, std::vector<SproutNoteEntry> > mapZCoins;
             std::map<QString, std::vector<SaplingNoteEntry> > mapSaplingZCoins;
             int nMinDepth = 1;
@@ -147,7 +147,7 @@ public:
                 std::vector<SproutNoteEntry> sproutEntries;
 		std::vector<SaplingNoteEntry> saplingEntries;
                 wallet->GetFilteredNotes(sproutEntries, saplingEntries, zaddrs, nMinDepth, nMaxDepth, true, true, false);
-		std::set<std::pair<libzcash::PaymentAddress, uint256>> nullifierSet = wallet->GetNullifiersForAddresses(zaddrs);
+		std::set<std::pair<libzcash::RawAddress, uint256>> nullifierSet = wallet->GetNullifiersForAddresses(zaddrs);
                 KeyIO keyIO(Params());
 
                 for (auto & entry : sproutEntries) {

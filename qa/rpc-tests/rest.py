@@ -9,10 +9,9 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_greater_than, \
-    start_nodes, connect_nodes_bi
+    hex_str_to_bytes, start_nodes, connect_nodes_bi
 
 import struct
-import binascii
 import json
 from io import BytesIO
 from codecs import encode
@@ -36,7 +35,7 @@ def http_get_call(host, port, path, response_object = 0):
     if response_object:
         return conn.getresponse()
 
-    return conn.getresponse().read().decode("utf-8")
+    return conn.getresponse().read().decode('utf-8')
 
 # allows simple http post calls with a request body
 def http_post_call(host, port, path, requestdata = '', response_object = 0):
@@ -139,9 +138,9 @@ class RESTTest (BitcoinTestFramework):
         bb_hash = self.nodes[0].getbestblockhash()
 
         binaryRequest = b'\x01\x02'
-        binaryRequest += binascii.unhexlify(txid)
+        binaryRequest += hex_str_to_bytes(txid)
         binaryRequest += struct.pack("i", n);
-        binaryRequest += binascii.unhexlify(vintx);
+        binaryRequest += hex_str_to_bytes(vintx);
         binaryRequest += struct.pack("i", 0);
 
         bin_response = http_post_call(url.hostname, url.port, '/rest/getutxos'+self.FORMAT_SEPARATOR+'bin', binaryRequest)
@@ -292,7 +291,6 @@ class RESTTest (BitcoinTestFramework):
         hex_string = http_get_call(url.hostname, url.port, '/rest/tx/'+tx_hash+self.FORMAT_SEPARATOR+"hex", True)
         assert_equal(hex_string.status, 200)
         assert_greater_than(int(response.getheader('content-length')), 10)
-
 
 
         # check block tx details

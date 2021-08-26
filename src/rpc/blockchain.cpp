@@ -221,6 +221,9 @@ UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
 UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false)
 {
     AssertLockHeld(cs_main);
+    bool nu5Active = Params().GetConsensus().NetworkUpgradeActive(
+        blockindex->nHeight, Consensus::UPGRADE_NU5);
+
     UniValue result(UniValue::VOBJ);
     result.pushKV("hash", block.GetHash().GetHex());
     int confirmations = -1;
@@ -232,7 +235,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.pushKV("height", blockindex->nHeight);
     result.pushKV("version", block.nVersion);
     result.pushKV("merkleroot", block.hashMerkleRoot.GetHex());
+    result.pushKV("blockcommitments", blockindex->hashBlockCommitments.GetHex());
+    result.pushKV("authdataroot", blockindex->hashAuthDataRoot.GetHex());
     result.pushKV("finalsaplingroot", blockindex->hashFinalSaplingRoot.GetHex());
+    if (nu5Active) {
+        result.pushKV("finalorchardroot", blockindex->hashFinalOrchardRoot.GetHex());
+    }
     result.pushKV("chainhistoryroot", blockindex->hashChainHistoryRoot.GetHex());
     UniValue txs(UniValue::VARR);
     for (const CTransaction&tx : block.vtx)
@@ -257,6 +265,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     UniValue valuePools(UniValue::VARR);
     valuePools.push_back(ValuePoolDesc("sprout", blockindex->nChainSproutValue, blockindex->nSproutValue));
     valuePools.push_back(ValuePoolDesc("sapling", blockindex->nChainSaplingValue, blockindex->nSaplingValue));
+    valuePools.push_back(ValuePoolDesc("orchard", blockindex->nChainOrchardValue, blockindex->nOrchardValue));
     result.pushKV("valuePools", valuePools);
 
     if (blockindex->pprev)
@@ -330,6 +339,7 @@ UniValue mempoolToJSON(bool fVerbose = false)
             UniValue info(UniValue::VOBJ);
             info.pushKV("size", (int)e.GetTxSize());
             info.pushKV("fee", ValueFromAmount(e.GetFee()));
+            info.pushKV("modifiedfee", ValueFromAmount(e.GetModifiedFee()));
             info.pushKV("time", e.GetTime());
             info.pushKV("height", (int)e.GetHeight());
             info.pushKV("startingpriority", e.GetPriority(e.GetHeight()));
@@ -384,6 +394,7 @@ UniValue getrawmempool(const UniValue& params, bool fHelp)
             "  \"transactionid\" : {       (json object)\n"
             "    \"size\" : n,             (numeric) transaction size in bytes\n"
             "    \"fee\" : n,              (numeric) transaction fee in " + CURRENCY_UNIT + "\n"
+            "    \"modifiedfee\" : n,      (numeric) transaction fee with fee deltas used for mining priority\n"
             "    \"time\" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT\n"
             "    \"height\" : n,           (numeric) block height when transaction entered pool\n"
             "    \"startingpriority\" : n, (numeric) priority when transaction entered pool\n"
@@ -702,6 +713,9 @@ UniValue getblock(const UniValue& params, bool fHelp)
             "  \"version\" : n,         (numeric) The block version\n"
             "  \"merkleroot\" : \"xxxx\", (string) The merkle root\n"
             "  \"finalsaplingroot\" : \"xxxx\", (string) The root of the Sapling commitment tree after applying this block\n"
+            "  \"finalorchardroot\" : \"xxxx\", (string) The root of the Orchard commitment tree after applying this block.\n"
+            "                                        Omitted for blocks prior to NU5 activation. This will be the null\n"
+            "                                        hash if this block has never been connected to a main chain.\n"
             "  \"tx\" : [               (array of string) The transaction ids\n"
             "     \"transactionid\"     (string) The transaction id\n"
             "     ,...\n"
@@ -1062,6 +1076,7 @@ UniValue getblockchaininfo(const UniValue& params, bool fHelp)
     UniValue valuePools(UniValue::VARR);
     valuePools.push_back(ValuePoolDesc("sprout", tip->nChainSproutValue, std::nullopt));
     valuePools.push_back(ValuePoolDesc("sapling", tip->nChainSaplingValue, std::nullopt));
+    valuePools.push_back(ValuePoolDesc("orchard", tip->nChainOrchardValue, std::nullopt));
     obj.pushKV("valuePools",            valuePools);
 
     const CChainParams& chainparams = Params();

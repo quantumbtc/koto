@@ -24,8 +24,8 @@ class WalletBroadcastTest(BitcoinTestFramework):
         self.sync_all()
         self.nodes[1].generate(1) #mine a block, tx should not be in there
         self.sync_all()
-        assert_equal(self.nodes[2].getbalance(), Decimal('250.00000000')) #default should not be changed because tx was not broadcasted
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('250.00000000')) #default should not be changed because tx was not broadcasted
+        assert_equal(self.nodes[2].getbalance(), Decimal('2425.00000000')) #default should not be changed because tx was not broadcasted
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('2425.00000000')) #default should not be changed because tx was not broadcasted
 
         #now broadcast from another node, mine a block, sync, and check the balance
         self.nodes[1].sendrawtransaction(txObjNotBroadcasted['hex'])
@@ -33,8 +33,8 @@ class WalletBroadcastTest(BitcoinTestFramework):
         self.nodes[1].generate(1)
         self.sync_all()
         txObjNotBroadcasted = self.nodes[0].gettransaction(txIdNotBroadcasted)
-        assert_equal(self.nodes[2].getbalance(), Decimal('252.00000000')) #should not be
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('252.00000000')) #should not be
+        assert_equal(self.nodes[2].getbalance(), Decimal('2427.00000000')) #should not be
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('2427.00000000')) #should not be
 
         #create another tx
         txIdNotBroadcasted  = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 2)
@@ -52,8 +52,8 @@ class WalletBroadcastTest(BitcoinTestFramework):
         sync_blocks(self.nodes)
 
         # tx should be added to balance because after restarting the nodes tx should be broadcast
-        assert_equal(self.nodes[2].getbalance(), Decimal('254.00000000'))
-        assert_equal(self.nodes[2].getbalance("*"), Decimal('254.00000000'))
+        assert_equal(self.nodes[2].getbalance(), Decimal('2429.00000000'))
+        assert_equal(self.nodes[2].getbalance("*"), Decimal('2429.00000000'))
 
 if __name__ == '__main__':
     WalletBroadcastTest().main()

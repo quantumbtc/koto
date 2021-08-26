@@ -7,34 +7,48 @@
 #include "utiltest.h"
 #include "zcash/Proof.hpp"
 
+#include <rust/orchard.h>
+
 class MockCValidationState : public CValidationState {
 public:
-    MOCK_METHOD5(DoS, bool(int level, bool ret,
-             unsigned char chRejectCodeIn, std::string strRejectReasonIn,
-             bool corruptionIn));
-    MOCK_METHOD3(Invalid, bool(bool ret,
-                 unsigned char _chRejectCode, std::string _strRejectReason));
+    MOCK_METHOD6(DoS, bool(int level, bool ret,
+             unsigned int chRejectCodeIn, const std::string strRejectReasonIn,
+             bool corruptionIn,
+             const std::string &strDebugMessageIn));
+    MOCK_METHOD4(Invalid, bool(bool ret,
+                 unsigned int _chRejectCode, const std::string _strRejectReason,
+                 const std::string &_strDebugMessage));
     MOCK_METHOD1(Error, bool(std::string strRejectReasonIn));
     MOCK_CONST_METHOD0(IsValid, bool());
     MOCK_CONST_METHOD0(IsInvalid, bool());
     MOCK_CONST_METHOD0(IsError, bool());
     MOCK_CONST_METHOD1(IsInvalid, bool(int &nDoSOut));
     MOCK_CONST_METHOD0(CorruptionPossible, bool());
-    MOCK_CONST_METHOD0(GetRejectCode, unsigned char());
+    MOCK_CONST_METHOD0(GetRejectCode, unsigned int());
     MOCK_CONST_METHOD0(GetRejectReason, std::string());
+    MOCK_CONST_METHOD0(GetDebugMessage, std::string());
 };
 
 TEST(CheckBlock, VersionTooLow) {
     auto verifier = ProofVerifier::Strict();
+    auto orchardAuth = orchard::AuthValidator::Batch();
 
     CBlock block;
     block.nVersion = 1;
 
     MockCValidationState state;
-    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "version-too-low", false)).Times(1);
-    EXPECT_FALSE(CheckBlock(block, state, Params(), verifier, false, false, true));
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "version-too-low", false, "")).Times(1);
+    EXPECT_FALSE(CheckBlock(block, state, Params(), verifier, orchardAuth, false, false, true));
 }
 
+
+// Subclass of CTransaction which doesn't call UpdateHash when constructing
+// from a CMutableTransaction.  This enables us to create a CTransaction
+// with bad values which normally trigger an exception during construction.
+class UNSAFE_CTransaction : public CTransaction {
+    public:
+        UNSAFE_CTransaction(const CMutableTransaction &tx) : CTransaction(tx, true) {}
+};
 
 // Test that a Sprout tx with negative version is still rejected
 // by CheckBlock under Sprout consensus rules.
@@ -52,7 +66,8 @@ TEST(CheckBlock, BlockSproutRejectsBadVersion) {
     mtx.nVersion = -1;
     mtx.nVersionGroupId = 0;
 
-    CTransaction tx {mtx};
+    EXPECT_THROW((CTransaction(mtx)), std::ios_base::failure);
+    UNSAFE_CTransaction tx {mtx};
     CBlock block;
     block.vtx.push_back(tx);
 
@@ -60,9 +75,10 @@ TEST(CheckBlock, BlockSproutRejectsBadVersion) {
     CBlockIndex indexPrev {Params().GenesisBlock()};
 
     auto verifier = ProofVerifier::Strict();
+    auto orchardAuth = orchard::AuthValidator::Batch();
 
-    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
-    EXPECT_FALSE(CheckBlock(block, state, Params(), verifier, false, false, true));
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false, "")).Times(1);
+    EXPECT_FALSE(CheckBlock(block, state, Params(), verifier, orchardAuth, false, false, true));
 }
 
 
@@ -127,7 +143,7 @@ protected:
 
         // We now expect this to be an invalid block, for the given reason.
         MockCValidationState state;
-        EXPECT_CALL(state, DoS(level, false, REJECT_INVALID, reason, false)).Times(1);
+        EXPECT_CALL(state, DoS(level, false, REJECT_INVALID, reason, false, "")).Times(1);
         EXPECT_FALSE(ContextualCheckBlock(block, state, Params(), &indexPrev, true));
     }
 
@@ -158,14 +174,14 @@ TEST_F(ContextualCheckBlockTest, BadCoinbaseHeight) {
     CBlock prev;
     CBlockIndex indexPrev {prev};
     indexPrev.nHeight = 0;
-    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-cb-height", false)).Times(1);
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "")).Times(1);
     EXPECT_FALSE(ContextualCheckBlock(block, state, Params(), &indexPrev, true));
 
     // Setting to an incorrect height should fail
     mtx.vin[0].scriptSig = CScript() << 2 << OP_0;
     CTransaction tx3 {mtx};
     block.vtx[0] = tx3;
-    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-cb-height", false)).Times(1);
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "")).Times(1);
     EXPECT_FALSE(ContextualCheckBlock(block, state, Params(), &indexPrev, true));
 
     // After correcting the scriptSig, should pass

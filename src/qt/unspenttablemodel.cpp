@@ -114,7 +114,7 @@ public:
             }
 
             // Z-Unspent
-            std::set<libzcash::PaymentAddress> zaddrs = {};
+            std::set<libzcash::RawAddress> zaddrs = {};
             int nMinDepth = 1;
             int nMaxDepth = 9999999;
 
