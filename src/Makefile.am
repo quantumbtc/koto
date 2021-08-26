@@ -188,6 +188,7 @@ BITCOIN_CORE_H = \
   pow.h \
   prevector.h \
   primitives/block.h \
+  primitives/orchard.h \
   primitives/transaction.h \
   proof_verifier.h \
   protocol.h \
