@@ -789,14 +789,7 @@ public:
             READWRITE(*const_cast<uint32_t*>(&nLockTime));
             READWRITE(*const_cast<uint32_t*>(&nExpiryHeight));
 
-            // Transparent Transaction Fields
-            for (CTxIn &txin : vin) {
-                txin.nVersion = nVersion;
-            }
             READWRITE(*const_cast<std::vector<CTxIn>*>(&vin));
-            for (CTxIn &txin : vin) {
-                txin.nVersion = nVersion;
-            }
             READWRITE(*const_cast<std::vector<CTxOut>*>(&vout));
 
             // Sapling Transaction Fields
