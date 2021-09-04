@@ -77,7 +77,8 @@ struct TxVersionInfo {
  * Returns the current transaction version and version group id,
  * based upon the specified activation height and active features.
  */
-TxVersionInfo CurrentTxVersionInfo(const Consensus::Params& consensus, int nHeight);
+TxVersionInfo CurrentTxVersionInfo(
+    const Consensus::Params& consensus, int nHeight, bool requireSprout);
 
 struct TxParams {
     unsigned int expiryDelta;
@@ -785,7 +786,14 @@ public:
 
         if (isZip225V5) {
             // Common Transaction Fields (plus version bytes above)
-            READWRITE(*nConsensusBranchId);
+            if (ser_action.ForRead()) {
+                uint32_t consensusBranchId;
+                READWRITE(consensusBranchId);
+                *const_cast<std::optional<uint32_t>*>(&nConsensusBranchId) = consensusBranchId;
+            } else {
+                uint32_t consensusBranchId = nConsensusBranchId.value();
+                READWRITE(consensusBranchId);
+            }
             READWRITE(*const_cast<uint32_t*>(&nLockTime));
             READWRITE(*const_cast<uint32_t*>(&nExpiryHeight));
 
@@ -1012,7 +1020,14 @@ struct CMutableTransaction
 
         if (isZip225V5) {
             // Common Transaction Fields (plus version bytes above)
-            READWRITE(*nConsensusBranchId);
+            if (ser_action.ForRead()) {
+                uint32_t consensusBranchId;
+                READWRITE(consensusBranchId);
+                nConsensusBranchId = consensusBranchId;
+            } else {
+                uint32_t consensusBranchId = nConsensusBranchId.value();
+                READWRITE(consensusBranchId);
+            }
             READWRITE(nLockTime);
             READWRITE(nExpiryHeight);
 
