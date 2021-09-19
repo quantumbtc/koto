@@ -1,4 +1,4 @@
-Koto 4.4.1
+Koto 4.5.0-rc1
 <img align="right" width="120" height="120" src="doc/imgs/logo.png">
 ===========
 

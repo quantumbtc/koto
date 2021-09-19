@@ -166,7 +166,7 @@ extern int nMaxConnections;
 
 extern std::vector<CNode*> vNodes;
 extern CCriticalSection cs_vNodes;
-extern limitedmap<uint256, int64_t> mapAlreadyAskedFor;
+extern limitedmap<WTxId, int64_t> mapAlreadyAskedFor;
 
 extern std::vector<std::string> vAddedNodes;
 extern CCriticalSection cs_vAddedNodes;
@@ -348,7 +348,7 @@ public:
     // and in the order requested.
     std::vector<uint256> vInventoryBlockToSend;
     CCriticalSection cs_inventory;
-    std::set<uint256> setAskFor;
+    std::set<WTxId> setAskFor;
     std::multimap<int64_t, CInv> mapAskFor;
     int64_t nNextInvSend;
     // Used for BIP35 mempool sending, also protected by cs_inventory
@@ -468,19 +468,19 @@ public:
     }
 
 
-    void AddInventoryKnown(const CInv& inv)
+    void AddKnownTx(const WTxId& wtxid)
     {
         {
             LOCK(cs_inventory);
-            filterInventoryKnown.insert(inv.hash);
+            filterInventoryKnown.insert(wtxid.ToBytes());
         }
     }
 
-    void PushTxInventory(const uint256& hash)
+    void PushTxInventory(const WTxId& wtxid)
     {
         LOCK(cs_inventory);
-        if (!filterInventoryKnown.contains(hash)) {
-            setInventoryTxToSend.insert(hash);
+        if (!filterInventoryKnown.contains(wtxid.ToBytes())) {
+            setInventoryTxToSend.insert(wtxid.hash);
         }
     }
 
