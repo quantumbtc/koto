@@ -1116,7 +1116,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
 #ifdef ENABLE_WALLET
-    if (!CWallet::ParameterInteraction())
+    if (!CWallet::ParameterInteraction(chainparams))
         return false;
 #endif // ENABLE_WALLET
 
@@ -1672,7 +1672,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         pwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
-        CWallet::InitLoadWallet(clearWitnessCaches);
+        CWallet::InitLoadWallet(chainparams, clearWitnessCaches);
         if (!pwalletMain)
             return false;
     }

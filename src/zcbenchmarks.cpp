@@ -274,7 +274,7 @@ double benchmark_large_tx(size_t nInputs)
 // wallet. We call assert(...) to ensure that this is true.
 double benchmark_try_decrypt_sprout_notes(size_t nKeys)
 {
-    CWallet wallet;
+    CWallet wallet(Params());
     for (int i = 0; i < nKeys; i++) {
         auto sk = libzcash::SproutSpendingKey::random();
         wallet.AddSproutSpendingKey(sk);
@@ -298,7 +298,7 @@ double benchmark_try_decrypt_sapling_notes(size_t nKeys)
 
     auto masterKey = GetTestMasterSaplingSpendingKey();
 
-    CWallet wallet;
+    CWallet wallet(Params());
 
     for (int i = 0; i < nKeys; i++) {
         auto sk = masterKey.Derive(i);
@@ -335,7 +335,7 @@ double benchmark_increment_sprout_note_witnesses(size_t nTxs)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    CWallet wallet;
+    CWallet wallet(Params());
     SproutMerkleTree sproutTree;
     SaplingMerkleTree saplingTree;
 
@@ -397,7 +397,7 @@ double benchmark_increment_sapling_note_witnesses(size_t nTxs)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    CWallet wallet;
+    CWallet wallet(Params());
     SproutMerkleTree sproutTree;
     SaplingMerkleTree saplingTree;
 
@@ -590,7 +590,7 @@ double benchmark_loadwallet()
     struct timeval tv_start;
     bool fFirstRunRet=true;
     timer_start(tv_start);
-    pwalletMain = new CWallet("wallet.dat");
+    pwalletMain = new CWallet(Params(), "wallet.dat");
     DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRunRet);
     auto res = timer_stop(tv_start);
     post_wallet_load();
