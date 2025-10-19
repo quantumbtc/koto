@@ -1,6 +1,6 @@
 package=native_b2
 $(package)_version=$(boost_version)
-$(package)_download_path=$(boost_download_path)
+$(package)_download_path=https://archives.boost.io/release/1.77.0/source/
 $(package)_file_name=$(boost_file_name)
 $(package)_sha256_hash=$(boost_sha256_hash)
 $(package)_build_subdir=tools/build/src/engine
