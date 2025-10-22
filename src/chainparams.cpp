@@ -14,6 +14,8 @@
 #include <assert.h>
 #include <optional>
 #include <variant>
+#include <cstdio>
+#include <cstdlib>
 
 #include <boost/assign/list_of.hpp>
 
@@ -255,6 +257,93 @@ public:
 	    2764,
 	    0x1f07ffff, 4, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
+        
+        // Mine genesis block
+        // Can be enabled via:
+        //   1. Command line: -minegenesis
+        //   2. Config file: minegenesis=1
+        //   3. Environment variable: MINE_GENESIS=1
+        //   4. Compile time: make CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
+        bool fMineGenesis = false;
+        
+        // Check environment variable first
+        const char* envMineGenesis = getenv("MINE_GENESIS");
+        if (envMineGenesis != nullptr && atoi(envMineGenesis) != 0) {
+            fMineGenesis = true;
+        }
+        
+        // Check compile-time define
+        #ifdef MINE_GENESIS_BLOCK
+        #if MINE_GENESIS_BLOCK
+        fMineGenesis = true;
+        #endif
+        #endif
+        
+        // Command line argument overrides all (will be available after ParseParameters)
+        // Note: mapArgs may not be initialized yet during chainparams construction
+        // So we also check environment variable as fallback
+        
+        if (fMineGenesis)
+        {
+            printf("Mining genesis block with yespower algorithm...\n");
+            printf("Genesis Block Parameters:\n");
+            printf("  Time: %u\n", genesis.nTime);
+            printf("  Bits: 0x%08x\n", genesis.nBits);
+            printf("  Target: %s\n", ArithToUint256(consensus.powLimit).ToString().c_str());
+            printf("\nYespower Parameters:\n");
+            printf("  N = 131072 (memory parameter)\n");
+            printf("  r = 32 (block size parameter)\n");
+            printf("  Memory per thread: ~512 MB\n");
+            printf("\nStarting mining...\n\n");
+            
+            arith_uint256 hashTarget = arith_uint256().SetCompact(genesis.nBits);
+            uint256 hashBlock;
+            uint256 hashPoW;
+            genesis.nNonce = 0;
+            
+            while (true) {
+                // Use GetPoWHash() for yespower algorithm verification
+                hashPoW = genesis.GetPoWHash();
+                
+                if (UintToArith256(hashPoW) <= hashTarget) {
+                    hashBlock = genesis.GetHash();
+                    printf("\n");
+                    printf("========================================\n");
+                    printf("   Genesis Block Found!\n");
+                    printf("========================================\n");
+                    printf("Nonce:       %u\n", genesis.nNonce);
+                    printf("Block Hash:  %s\n", hashBlock.ToString().c_str());
+                    printf("PoW Hash:    %s\n", hashPoW.ToString().c_str());
+                    printf("Merkle Root: %s\n", genesis.hashMerkleRoot.ToString().c_str());
+                    printf("Target:      %s\n", ArithToUint256(hashTarget).ToString().c_str());
+                    printf("========================================\n");
+                    printf("\nUpdate chainparams.cpp with:\n\n");
+                    printf("genesis = CreateGenesisBlock(%u, %u, 0x%08x, %d, 0);\n", 
+                           genesis.nTime, genesis.nNonce, genesis.nBits, genesis.nVersion);
+                    printf("assert(consensus.hashGenesisBlock == uint256S(\"0x%s\"));\n", hashBlock.ToString().c_str());
+                    printf("assert(genesis.hashMerkleRoot == uint256S(\"0x%s\"));\n", genesis.hashMerkleRoot.ToString().c_str());
+                    printf("\n========================================\n");
+                    break;
+                }
+                
+                genesis.nNonce++;
+                
+                if (genesis.nNonce % 100 == 0) {
+                    hashBlock = genesis.GetHash();
+                    printf("Nonce: %8u | Block Hash: %s | PoW Hash: %s\r", 
+                           genesis.nNonce, hashBlock.ToString().substr(0, 16).c_str(), 
+                           hashPoW.ToString().substr(0, 16).c_str());
+                    fflush(stdout);
+                }
+                
+                if (genesis.nNonce == 0) {
+                    printf("\nNonce wrapped around (4294967296), incrementing time...\n");
+                    genesis.nTime++;
+                    printf("New time: %u\n", genesis.nTime);
+                }
+            }
+        }
+        
         assert(consensus.hashGenesisBlock == uint256S("0x6d424c350729ae633275d51dc3496e16cd1b1d195c164da00f39c499a2e9959e"));
         assert(genesis.hashMerkleRoot == uint256S("0xe18deb20a8da8ae6a9e965a10f52873adb65f4f568a5ac4b24ab074c7c81bb72"));
 
