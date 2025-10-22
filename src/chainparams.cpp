@@ -289,7 +289,7 @@ public:
             printf("Genesis Block Parameters:\n");
             printf("  Time: %u\n", genesis.nTime);
             printf("  Bits: 0x%08x\n", genesis.nBits);
-            printf("  Target: %s\n", ArithToUint256(consensus.powLimit).ToString().c_str());
+            printf("  Target: %s\n", consensus.powLimit.ToString().c_str());
             printf("\nYespower Parameters:\n");
             printf("  N = 131072 (memory parameter)\n");
             printf("  r = 32 (block size parameter)\n");
