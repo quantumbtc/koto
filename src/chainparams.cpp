@@ -260,29 +260,15 @@ public:
         
         // Mine genesis block
         // Can be enabled via:
-        //   1. Command line: --MINE_GENESIS or --mine_genesis or -minegenesis
-        //   2. Environment variable: MINE_GENESIS=1
-        //   3. Compile time: make CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
+        //   1. Environment variable: MINE_GENESIS=1 (推荐)
+        //   2. Compile time: make CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
+        // Note: Command line args not available yet during chainparams construction
         bool fMineGenesis = false;
         
-        // Check command line arguments (case insensitive)
-        // Try multiple variations: -MINE_GENESIS, -mine_genesis, -minegenesis
-        try {
-            if (GetBoolArg("-MINE_GENESIS", false) || 
-                GetBoolArg("-mine_genesis", false) ||
-                GetBoolArg("-minegenesis", false)) {
-                fMineGenesis = true;
-            }
-        } catch (...) {
-            // mapArgs might not be initialized yet, ignore
-        }
-        
-        // Check environment variable (fallback if mapArgs not ready)
-        if (!fMineGenesis) {
-            const char* envMineGenesis = getenv("MINE_GENESIS");
-            if (envMineGenesis != nullptr && atoi(envMineGenesis) != 0) {
-                fMineGenesis = true;
-            }
+        // Check environment variable (primary method)
+        const char* envMineGenesis = getenv("MINE_GENESIS");
+        if (envMineGenesis != nullptr && atoi(envMineGenesis) != 0) {
+            fMineGenesis = true;
         }
         
         // Check compile-time define
@@ -335,15 +321,16 @@ public:
                     break;
                 }
                 
-                genesis.nNonce++;
-                
+                // Display progress every 100 nonces
                 if (genesis.nNonce % 100 == 0) {
-                    hashBlock = genesis.GetHash();
-                    printf("Nonce: %8u | Block Hash: %s | PoW Hash: %s\r", 
-                           genesis.nNonce, hashBlock.ToString().substr(0, 16).c_str(), 
-                           hashPoW.ToString().substr(0, 16).c_str());
+                    // Show current nonce and partial hashes for progress tracking
+                    printf("Nonce: %8u | PoW: %s...\r", 
+                           genesis.nNonce, 
+                           hashPoW.ToString().substr(0, 20).c_str());
                     fflush(stdout);
                 }
+                
+                genesis.nNonce++;
                 
                 if (genesis.nNonce == 0) {
                     printf("\nNonce wrapped around (4294967296), incrementing time...\n");

@@ -6,56 +6,47 @@
 # 1. 编译
 ./zcutil/build.sh -j$(nproc)
 
-# 2. 运行（使用命令行参数）
-./src/kotod --MINE_GENESIS
+# 2. 运行（设置环境变量）
+MINE_GENESIS=1 ./src/kotod
 
 # 3. 等待输出
 # Genesis Block Found! 
 ```
 
-## 📋 四种方式对比
+## 📋 三种方式对比
 
 ```bash
-# 方式 1: 命令行参数 ⭐推荐（支持大小写）
-./src/kotod --MINE_GENESIS
-./src/kotod --mine_genesis
-./src/kotod -minegenesis
+# 方式 1: 一行命令 ⭐推荐
+MINE_GENESIS=1 ./src/kotod
 
 # 方式 2: 环境变量
 export MINE_GENESIS=1
 ./src/kotod
 
-# 方式 3: 一行命令
-MINE_GENESIS=1 ./src/kotod
-
-# 方式 4: 编译时宏
+# 方式 3: 编译时宏
 ./zcutil/build.sh CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
-
-# 方式 5: 修改代码（不推荐）
-# 在 chainparams.cpp 顶部添加: #define MINE_GENESIS_BLOCK 1
 ```
+
+**注意**: ~~命令行参数方式由于技术限制已移除。chainparams 在参数解析前初始化，所以必须使用环境变量。~~
 
 ## 🔧 Windows 环境
 
-### PowerShell（推荐命令行参数）
+### PowerShell ⭐推荐
 ```powershell
-# 方式 1: 命令行参数（推荐）
-.\src\kotod.exe --MINE_GENESIS
-.\src\kotod.exe --mine_genesis
-.\src\kotod.exe -minegenesis
+# 方式 1: 设置环境变量并运行（一行命令）
+$env:MINE_GENESIS=1; .\src\kotod.exe
 
-# 方式 2: 环境变量
+# 方式 2: 分步设置
 $env:MINE_GENESIS=1
 .\src\kotod.exe
 ```
 
 ### CMD
 ```cmd
-REM 方式 1: 命令行参数（推荐）
-src\kotod.exe --MINE_GENESIS
-
-REM 方式 2: 环境变量
+REM 设置环境变量
 set MINE_GENESIS=1
+
+REM 运行挖矿
 src\kotod.exe
 ```
 
@@ -86,8 +77,8 @@ vim src/chainparams.cpp
 # 2. 编译
 ./zcutil/build.sh -j$(nproc)
 
-# 3. 运行挖矿（使用命令行参数）
-./src/kotod --MINE_GENESIS 2>&1 | tee genesis.log
+# 3. 运行挖矿（使用环境变量）
+MINE_GENESIS=1 ./src/kotod 2>&1 | tee genesis.log
 
 # 4. 等待输出（Ctrl+C 停止）
 
@@ -96,7 +87,7 @@ vim src/chainparams.cpp
 # assert(consensus.hashGenesisBlock == uint256S("0x哈希"));
 # assert(genesis.hashMerkleRoot == uint256S("0x哈希"));
 
-# 6. 正常运行（不带参数）
+# 6. 正常运行（不需要环境变量）
 ./src/kotod
 ```
 
@@ -168,14 +159,17 @@ unset MINE_GENESIS
 
 ## 🎉 记住
 
-**推荐方式**: 命令行参数（支持大小写）
+**推荐方式**: 环境变量（一行命令）
 ```bash
-./src/kotod --MINE_GENESIS
-# 或
-./src/kotod --mine_genesis
-# 或
-./src/kotod -minegenesis
+# Linux/Mac
+MINE_GENESIS=1 ./src/kotod
+
+# Windows PowerShell
+$env:MINE_GENESIS=1; .\src\kotod.exe
+
+# Windows CMD
+set MINE_GENESIS=1 && kotod.exe
 ```
 
-简单、直观、无需改代码！✨
+简单、直接、无需改代码！✨
 
