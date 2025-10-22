@@ -93,8 +93,10 @@ public:
         ss << *this;
         yespower_params_t params = {
                 .version = YESPOWER_0_5,
-                .N = 2048,
-                .r = 8,
+                .N = 131072,  // Increased 64x: 2048 → 131072
+                .r = 32,      // Increased 4x (max): 8 → 32
+                // Total difficulty increase: 64 × 4 = 256x
+                // Memory requirement: 128 × 32 × 131072 = 512 MB per thread
                 .pers = (const uint8_t *)&ss[0],
                 .perslen = ss.size()
         };
