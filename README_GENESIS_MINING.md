@@ -3,13 +3,19 @@
 ## 🎯 快速开始
 
 ```bash
-# 最简单的使用方式
-export MINE_GENESIS=1
+# 最简单的使用方式（命令行参数，支持大小写）
 ./zcutil/build.sh -j$(nproc)
-./src/kotod
+./src/kotod --MINE_GENESIS
 ```
 
 就这么简单！🎉
+
+```bash
+# 支持的命令行格式（大小写均可）
+./src/kotod --MINE_GENESIS
+./src/kotod --mine_genesis
+./src/kotod -minegenesis
+```
 
 ---
 
@@ -47,7 +53,8 @@ export MINE_GENESIS=1
 
 | 方式 | 难度 | 灵活性 | 推荐度 |
 |-----|------|--------|--------|
-| 环境变量 | ⭐ 简单 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| 命令行参数 | ⭐ 简单 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| 环境变量 | ⭐ 简单 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
 | 编译时宏 | ⭐⭐ 中等 | ⭐⭐⭐ | ⭐⭐⭐ |
 | 修改源码 | ⭐⭐⭐ 复杂 | ⭐ | ⭐⭐ |
 
@@ -63,26 +70,33 @@ export MINE_GENESIS=1
 
 ## 🚀 使用示例
 
-### 示例 1: Linux 快速挖矿
+### 示例 1: Linux 快速挖矿（命令行参数）
 
 ```bash
-export MINE_GENESIS=1
 ./zcutil/build.sh -j$(nproc)
-./src/kotod 2>&1 | tee genesis.log
+./src/kotod --MINE_GENESIS 2>&1 | tee genesis.log
 ```
 
 ### 示例 2: Windows PowerShell
 
 ```powershell
-$env:MINE_GENESIS=1
 .\zcutil\build.sh -j4
-.\src\kotod.exe
+.\src\kotod.exe --MINE_GENESIS
 ```
 
-### 示例 3: 一行命令
+### 示例 3: 大小写支持
 
 ```bash
-MINE_GENESIS=1 ./src/kotod
+./src/kotod --MINE_GENESIS  # 大写
+./src/kotod --mine_genesis  # 小写
+./src/kotod -minegenesis    # 无下划线
+```
+
+### 示例 4: 环境变量方式
+
+```bash
+export MINE_GENESIS=1
+./src/kotod
 ```
 
 ---
@@ -328,10 +342,11 @@ make clean
 创世区块挖矿现在变得超级简单：
 
 ```bash
-export MINE_GENESIS=1
-./src/kotod
+# 推荐方式：命令行参数（支持大小写）
+./src/kotod --MINE_GENESIS
 ```
 
+- ✅ 命令行参数支持（大小写均可）
 - ✅ 无需修改源代码
 - ✅ 支持多平台
 - ✅ 灵活配置

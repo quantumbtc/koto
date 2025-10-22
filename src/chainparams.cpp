@@ -260,16 +260,29 @@ public:
         
         // Mine genesis block
         // Can be enabled via:
-        //   1. Command line: -minegenesis
-        //   2. Config file: minegenesis=1
-        //   3. Environment variable: MINE_GENESIS=1
-        //   4. Compile time: make CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
+        //   1. Command line: --MINE_GENESIS or --mine_genesis or -minegenesis
+        //   2. Environment variable: MINE_GENESIS=1
+        //   3. Compile time: make CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
         bool fMineGenesis = false;
         
-        // Check environment variable first
-        const char* envMineGenesis = getenv("MINE_GENESIS");
-        if (envMineGenesis != nullptr && atoi(envMineGenesis) != 0) {
-            fMineGenesis = true;
+        // Check command line arguments (case insensitive)
+        // Try multiple variations: -MINE_GENESIS, -mine_genesis, -minegenesis
+        try {
+            if (GetBoolArg("-MINE_GENESIS", false) || 
+                GetBoolArg("-mine_genesis", false) ||
+                GetBoolArg("-minegenesis", false)) {
+                fMineGenesis = true;
+            }
+        } catch (...) {
+            // mapArgs might not be initialized yet, ignore
+        }
+        
+        // Check environment variable (fallback if mapArgs not ready)
+        if (!fMineGenesis) {
+            const char* envMineGenesis = getenv("MINE_GENESIS");
+            if (envMineGenesis != nullptr && atoi(envMineGenesis) != 0) {
+                fMineGenesis = true;
+            }
         }
         
         // Check compile-time define
@@ -278,10 +291,6 @@ public:
         fMineGenesis = true;
         #endif
         #endif
-        
-        // Command line argument overrides all (will be available after ParseParameters)
-        // Note: mapArgs may not be initialized yet during chainparams construction
-        // So we also check environment variable as fallback
         
         if (fMineGenesis)
         {

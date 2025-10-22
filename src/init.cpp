@@ -463,7 +463,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxtxfee=<amt>", strprintf(_("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)"),
         CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)));
     if (showDebug)
-        strUsage += HelpMessageOpt("-minegenesis", _("Mine a new genesis block (for creating new altcoins, also can use env var MINE_GENESIS=1)"));
+        strUsage += HelpMessageOpt("-MINE_GENESIS", _("Mine a new genesis block (case insensitive: -MINE_GENESIS, -mine_genesis, -minegenesis, also supports env var MINE_GENESIS=1)"));
     strUsage += HelpMessageOpt("-printtoconsole", _("Send trace/debug info to console instead of debug.log file"));
     if (showDebug)
     {

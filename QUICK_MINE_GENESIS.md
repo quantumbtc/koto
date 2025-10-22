@@ -1,14 +1,13 @@
 # 创世区块挖矿 - 快速参考
 
-## 🚀 三步启动
+## 🚀 两步启动
 
 ```bash
-# 1. 设置环境变量
-export MINE_GENESIS=1
-
-# 2. 编译运行
+# 1. 编译
 ./zcutil/build.sh -j$(nproc)
-./src/kotod
+
+# 2. 运行（使用命令行参数）
+./src/kotod --MINE_GENESIS
 
 # 3. 等待输出
 # Genesis Block Found! 
@@ -17,30 +16,45 @@ export MINE_GENESIS=1
 ## 📋 四种方式对比
 
 ```bash
-# 方式 1: 环境变量 ⭐推荐
+# 方式 1: 命令行参数 ⭐推荐（支持大小写）
+./src/kotod --MINE_GENESIS
+./src/kotod --mine_genesis
+./src/kotod -minegenesis
+
+# 方式 2: 环境变量
 export MINE_GENESIS=1
 ./src/kotod
 
-# 方式 2: 一行命令
+# 方式 3: 一行命令
 MINE_GENESIS=1 ./src/kotod
 
-# 方式 3: 编译时宏
+# 方式 4: 编译时宏
 ./zcutil/build.sh CPPFLAGS="-DMINE_GENESIS_BLOCK=1"
 
-# 方式 4: 修改代码（不推荐）
+# 方式 5: 修改代码（不推荐）
 # 在 chainparams.cpp 顶部添加: #define MINE_GENESIS_BLOCK 1
 ```
 
 ## 🔧 Windows 环境
 
-### PowerShell
+### PowerShell（推荐命令行参数）
 ```powershell
+# 方式 1: 命令行参数（推荐）
+.\src\kotod.exe --MINE_GENESIS
+.\src\kotod.exe --mine_genesis
+.\src\kotod.exe -minegenesis
+
+# 方式 2: 环境变量
 $env:MINE_GENESIS=1
 .\src\kotod.exe
 ```
 
 ### CMD
 ```cmd
+REM 方式 1: 命令行参数（推荐）
+src\kotod.exe --MINE_GENESIS
+
+REM 方式 2: 环境变量
 set MINE_GENESIS=1
 src\kotod.exe
 ```
@@ -69,12 +83,11 @@ Starting mining...
 # 1. 修改参数（创世区块消息、网络魔数、端口等）
 vim src/chainparams.cpp
 
-# 2. 启用挖矿
-export MINE_GENESIS=1
-
-# 3. 编译运行
+# 2. 编译
 ./zcutil/build.sh -j$(nproc)
-./src/kotod 2>&1 | tee genesis.log
+
+# 3. 运行挖矿（使用命令行参数）
+./src/kotod --MINE_GENESIS 2>&1 | tee genesis.log
 
 # 4. 等待输出（Ctrl+C 停止）
 
@@ -83,13 +96,7 @@ export MINE_GENESIS=1
 # assert(consensus.hashGenesisBlock == uint256S("0x哈希"));
 # assert(genesis.hashMerkleRoot == uint256S("0x哈希"));
 
-# 6. 关闭挖矿
-unset MINE_GENESIS
-
-# 7. 重新编译
-./zcutil/build.sh -j$(nproc)
-
-# 8. 正常运行
+# 6. 正常运行（不带参数）
 ./src/kotod
 ```
 
@@ -161,11 +168,14 @@ unset MINE_GENESIS
 
 ## 🎉 记住
 
-**推荐方式**: 环境变量
+**推荐方式**: 命令行参数（支持大小写）
 ```bash
-export MINE_GENESIS=1
-./src/kotod
+./src/kotod --MINE_GENESIS
+# 或
+./src/kotod --mine_genesis
+# 或
+./src/kotod -minegenesis
 ```
 
-简单、灵活、无需改代码！✨
+简单、直观、无需改代码！✨
 
