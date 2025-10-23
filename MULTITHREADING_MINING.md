@@ -57,19 +57,19 @@ Hashes:     4200 | Hashrate:   305.20 H/s | Threads: 8
 
 ## 🎯 使用方法
 
-### Windows PowerShell
+### 方式 1: 自动使用所有CPU核心（默认）
 
+#### Windows PowerShell
 ```powershell
 # 编译
 .\zcutil\build.sh -j8
 
-# 运行（自动使用所有CPU核心）
+# 运行（自动检测并使用所有CPU核心）
 $env:MINE_GENESIS=1
 .\src\kotod.exe
 ```
 
-### Linux/Mac
-
+#### Linux/Mac
 ```bash
 # 编译
 ./zcutil/build.sh -j$(nproc)
@@ -78,7 +78,43 @@ $env:MINE_GENESIS=1
 MINE_GENESIS=1 ./src/kotod
 ```
 
+### 方式 2: 指定线程数 ⭐推荐
+
+#### Windows PowerShell
+```powershell
+# 使用4个线程
+$env:MINE_GENESIS=1
+$env:MINE_THREADS=4
+.\src\kotod.exe
+
+# 或者一行命令
+$env:MINE_GENESIS=1; $env:MINE_THREADS=4; .\src\kotod.exe
+```
+
+#### Linux/Mac
+```bash
+# 使用4个线程
+MINE_GENESIS=1 MINE_THREADS=4 ./src/kotod
+
+# 或者分步设置
+export MINE_GENESIS=1
+export MINE_THREADS=4
+./src/kotod
+```
+
+### 方式 3: 根据内存限制线程数
+
+```bash
+# 如果只有2GB内存，使用3个线程（3 × 512MB = 1.5GB）
+MINE_GENESIS=1 MINE_THREADS=3 ./src/kotod
+
+# 如果有8GB内存，可以用12个线程
+MINE_GENESIS=1 MINE_THREADS=12 ./src/kotod
+```
+
 ## 📈 输出示例
+
+### 自动检测模式
 
 ```
 Mining genesis block with yespower algorithm...
@@ -92,9 +128,25 @@ Yespower Parameters:
   r = 32 (block size parameter)
   Memory per thread: ~512 MB
 
-Multi-threading enabled:
+Auto-detected CPU cores: 8
+
+Multi-threading configuration:
   Threads: 8
+  Memory per thread: ~512 MB
   Total memory: ~4096 MB
+
+Starting mining...
+```
+
+### 指定线程数模式
+
+```
+Using user-specified thread count: 4
+
+Multi-threading configuration:
+  Threads: 4
+  Memory per thread: ~512 MB
+  Total memory: ~2048 MB
 
 Starting mining...
 

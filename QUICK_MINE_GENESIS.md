@@ -1,15 +1,18 @@
 # 创世区块挖矿 - 快速参考
 
-## 🚀 两步启动
+## 🚀 快速启动
 
 ```bash
 # 1. 编译
 ./zcutil/build.sh -j$(nproc)
 
-# 2. 运行（设置环境变量）
+# 2. 运行（自动检测CPU核心数）
 MINE_GENESIS=1 ./src/kotod
 
-# 3. 等待输出
+# 3. 或指定线程数（推荐）
+MINE_GENESIS=1 MINE_THREADS=4 ./src/kotod
+
+# 4. 等待输出
 # Genesis Block Found! 
 ```
 
@@ -33,11 +36,15 @@ export MINE_GENESIS=1
 
 ### PowerShell ⭐推荐
 ```powershell
-# 方式 1: 设置环境变量并运行（一行命令）
+# 方式 1: 自动检测CPU核心
 $env:MINE_GENESIS=1; .\src\kotod.exe
 
-# 方式 2: 分步设置
+# 方式 2: 指定线程数（推荐）
+$env:MINE_GENESIS=1; $env:MINE_THREADS=4; .\src\kotod.exe
+
+# 方式 3: 分步设置
 $env:MINE_GENESIS=1
+$env:MINE_THREADS=4
 .\src\kotod.exe
 ```
 
@@ -45,6 +52,7 @@ $env:MINE_GENESIS=1
 ```cmd
 REM 设置环境变量
 set MINE_GENESIS=1
+set MINE_THREADS=4
 
 REM 运行挖矿
 src\kotod.exe

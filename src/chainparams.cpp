@@ -100,7 +100,7 @@ public:
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 4000;
-        consensus.powLimit = uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowAveragingWindow = 17;
         assert(maxUint/UintToArith256(consensus.powLimit) >= consensus.nPowAveragingWindow);
         consensus.nPowMaxAdjustDown = 32; // 32% adjustment down
@@ -295,10 +295,28 @@ public:
             printf("  Memory per thread: ~512 MB\n");
             
             // Multi-threading support
-            unsigned int nThreads = std::thread::hardware_concurrency();
-            if (nThreads == 0) nThreads = 4; // fallback
-            printf("\nMulti-threading enabled:\n");
+            // Check environment variable for thread count
+            unsigned int nThreads = 0;
+            const char* envThreads = getenv("MINE_THREADS");
+            if (envThreads != nullptr) {
+                int userThreads = atoi(envThreads);
+                if (userThreads > 0 && userThreads <= 256) {
+                    nThreads = userThreads;
+                    printf("\nUsing user-specified thread count: %u\n", nThreads);
+                } else {
+                    printf("\nWarning: Invalid MINE_THREADS value (%d), using auto-detect\n", userThreads);
+                }
+            }
+            
+            if (nThreads == 0) {
+                nThreads = std::thread::hardware_concurrency();
+                if (nThreads == 0) nThreads = 4; // fallback
+                printf("\nAuto-detected CPU cores: %u\n", nThreads);
+            }
+            
+            printf("\nMulti-threading configuration:\n");
             printf("  Threads: %u\n", nThreads);
+            printf("  Memory per thread: ~512 MB\n");
             printf("  Total memory: ~%u MB\n", nThreads * 512);
             printf("\nStarting mining...\n\n");
             
