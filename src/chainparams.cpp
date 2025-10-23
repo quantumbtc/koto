@@ -16,6 +16,10 @@
 #include <variant>
 #include <cstdio>
 #include <cstdlib>
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <chrono>
 
 #include <boost/assign/list_of.hpp>
 
@@ -278,7 +282,7 @@ public:
         #endif
         #endif
         
-        if (true)
+        if (fMineGenesis)
         {
             printf("Mining genesis block with yespower algorithm...\n");
             printf("Genesis Block Parameters:\n");
@@ -289,54 +293,124 @@ public:
             printf("  N = 131072 (memory parameter)\n");
             printf("  r = 32 (block size parameter)\n");
             printf("  Memory per thread: ~512 MB\n");
+            
+            // Multi-threading support
+            unsigned int nThreads = std::thread::hardware_concurrency();
+            if (nThreads == 0) nThreads = 4; // fallback
+            printf("\nMulti-threading enabled:\n");
+            printf("  Threads: %u\n", nThreads);
+            printf("  Total memory: ~%u MB\n", nThreads * 512);
             printf("\nStarting mining...\n\n");
             
             arith_uint256 hashTarget = arith_uint256().SetCompact(genesis.nBits);
-            uint256 hashBlock;
-            uint256 hashPoW;
-            genesis.nNonce = 0;
             
-            while (true) {
-                // Use GetPoWHash() for yespower algorithm verification
-                hashPoW = genesis.GetPoWHash();
+            // Shared variables (atomic for thread safety)
+            std::atomic<bool> found(false);
+            std::atomic<uint64_t> totalHashes(0);
+            uint32_t foundNonce = 0;
+            uint256 foundBlockHash;
+            uint256 foundPoWHash;
+            
+            auto minerThread = [&](uint32_t threadId) {
+                // Each thread works on different nonce ranges
+                uint32_t nonce = threadId;
+                const uint32_t step = nThreads;
                 
-                if (UintToArith256(hashPoW) <= hashTarget) {
-                    hashBlock = genesis.GetHash();
-                    printf("\n");
-                    printf("========================================\n");
-                    printf("   Genesis Block Found!\n");
-                    printf("========================================\n");
-                    printf("Nonce:       %u\n", genesis.nNonce);
-                    printf("Block Hash:  %s\n", hashBlock.ToString().c_str());
-                    printf("PoW Hash:    %s\n", hashPoW.ToString().c_str());
-                    printf("Merkle Root: %s\n", genesis.hashMerkleRoot.ToString().c_str());
-                    printf("Target:      %s\n", ArithToUint256(hashTarget).ToString().c_str());
-                    printf("========================================\n");
-                    printf("\nUpdate chainparams.cpp with:\n\n");
-                    printf("genesis = CreateGenesisBlock(%u, %u, 0x%08x, %d, 0);\n", 
-                           genesis.nTime, genesis.nNonce, genesis.nBits, genesis.nVersion);
-                    printf("assert(consensus.hashGenesisBlock == uint256S(\"0x%s\"));\n", hashBlock.ToString().c_str());
-                    printf("assert(genesis.hashMerkleRoot == uint256S(\"0x%s\"));\n", genesis.hashMerkleRoot.ToString().c_str());
-                    printf("\n========================================\n");
-                    break;
+                CBlock localGenesis = genesis;
+                uint256 hashPoW;
+                
+                while (!found.load()) {
+                    localGenesis.nNonce = nonce;
+                    hashPoW = localGenesis.GetPoWHash();
+                    
+                    totalHashes.fetch_add(1);
+                    
+                    if (UintToArith256(hashPoW) <= hashTarget) {
+                        // Found valid block!
+                        bool expected = false;
+                        if (found.compare_exchange_strong(expected, true)) {
+                            // First thread to find it
+                            foundNonce = nonce;
+                            foundBlockHash = localGenesis.GetHash();
+                            foundPoWHash = hashPoW;
+                        }
+                        break;
+                    }
+                    
+                    nonce += step;
+                    
+                    // Handle nonce overflow
+                    if (nonce < step) {
+                        // Wrapped around, increment time
+                        break;
+                    }
                 }
+            };
+            
+            // Progress reporting thread
+            auto progressThread = [&]() {
+                uint64_t lastHashes = 0;
+                auto lastTime = std::chrono::steady_clock::now();
                 
-                // Display progress every 100 nonces
-                if (genesis.nNonce % 100 == 0) {
-                    // Show current nonce and partial hashes for progress tracking
-                    printf("Nonce: %8u | PoW: %s...\r", 
-                           genesis.nNonce, 
-                           hashPoW.ToString().substr(0, 20).c_str());
-                    fflush(stdout);
+                while (!found.load()) {
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    
+                    auto now = std::chrono::steady_clock::now();
+                    uint64_t currentHashes = totalHashes.load();
+                    double elapsed = std::chrono::duration<double>(now - lastTime).count();
+                    
+                    if (elapsed > 0) {
+                        uint64_t hashDiff = currentHashes - lastHashes;
+                        double hashrate = hashDiff / elapsed;
+                        
+                        printf("Hashes: %8llu | Hashrate: %8.2f H/s | Threads: %u\n", 
+                               (unsigned long long)currentHashes, hashrate, nThreads);
+                        fflush(stdout);
+                        
+                        lastHashes = currentHashes;
+                        lastTime = now;
+                    }
                 }
-                
-                genesis.nNonce++;
-                
-                if (genesis.nNonce == 0) {
-                    printf("\nNonce wrapped around (4294967296), incrementing time...\n");
-                    genesis.nTime++;
-                    printf("New time: %u\n", genesis.nTime);
+            };
+            
+            // Start mining threads
+            std::vector<std::thread> threads;
+            threads.reserve(nThreads + 1);
+            
+            // Start miner threads
+            for (unsigned int i = 0; i < nThreads; i++) {
+                threads.emplace_back(minerThread, i);
+            }
+            
+            // Start progress thread
+            threads.emplace_back(progressThread);
+            
+            // Wait for all threads
+            for (auto& t : threads) {
+                if (t.joinable()) {
+                    t.join();
                 }
+            }
+            
+            if (found.load()) {
+                genesis.nNonce = foundNonce;
+                printf("\n");
+                printf("========================================\n");
+                printf("   Genesis Block Found!\n");
+                printf("========================================\n");
+                printf("Nonce:       %u\n", foundNonce);
+                printf("Block Hash:  %s\n", foundBlockHash.ToString().c_str());
+                printf("PoW Hash:    %s\n", foundPoWHash.ToString().c_str());
+                printf("Merkle Root: %s\n", genesis.hashMerkleRoot.ToString().c_str());
+                printf("Target:      %s\n", ArithToUint256(hashTarget).ToString().c_str());
+                printf("Total Hashes: %llu\n", (unsigned long long)totalHashes.load());
+                printf("========================================\n");
+                printf("\nUpdate chainparams.cpp with:\n\n");
+                printf("genesis = CreateGenesisBlock(%u, %u, 0x%08x, %d, 0);\n", 
+                       genesis.nTime, foundNonce, genesis.nBits, genesis.nVersion);
+                printf("assert(consensus.hashGenesisBlock == uint256S(\"0x%s\"));\n", foundBlockHash.ToString().c_str());
+                printf("assert(genesis.hashMerkleRoot == uint256S(\"0x%s\"));\n", genesis.hashMerkleRoot.ToString().c_str());
+                printf("\n========================================\n");
             }
         }
         

@@ -164,3 +164,4 @@ src/fuzzing/*/output
 src/fuzz.cpp
 
 .updatecheck-token
+/.vs
