@@ -282,7 +282,7 @@ public:
         #endif
         #endif
         
-        if (fMineGenesis)
+        if (true)
         {
             printf("Mining genesis block with yespower algorithm...\n");
             printf("Genesis Block Parameters:\n");
