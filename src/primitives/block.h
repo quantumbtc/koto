@@ -93,8 +93,8 @@ public:
         ss << *this;
         yespower_params_t params = {
                 .version = YESPOWER_0_5,
-                .N = 2048,    // Fast mining: 2048 (original value)
-                .r = 8,       // Fast mining: 8 (original value)
+                .N = 20480,    // Fast mining: 2048 (original value)
+                .r = 32,       // Fast mining: 8 (original value)
                 // Fast configuration for quick genesis block mining
                 // Memory requirement: 128 × 8 × 2048 = ~2 MB per thread
                 // Speed: ~100x faster than N=131072, r=32
