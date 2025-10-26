@@ -93,10 +93,11 @@ public:
         ss << *this;
         yespower_params_t params = {
                 .version = YESPOWER_0_5,
-                .N = 131072,  // Increased 64x: 2048 → 131072
-                .r = 32,      // Increased 4x (max): 8 → 32
-                // Total difficulty increase: 64 × 4 = 256x
-                // Memory requirement: 128 × 32 × 131072 = 512 MB per thread
+                .N = 2048,    // Fast mining: 2048 (original value)
+                .r = 8,       // Fast mining: 8 (original value)
+                // Fast configuration for quick genesis block mining
+                // Memory requirement: 128 × 8 × 2048 = ~2 MB per thread
+                // Speed: ~100x faster than N=131072, r=32
                 .pers = (const uint8_t *)&ss[0],
                 .perslen = ss.size()
         };

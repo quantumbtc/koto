@@ -290,9 +290,10 @@ public:
             printf("  Bits: 0x%08x\n", genesis.nBits);
             printf("  Target: %s\n", consensus.powLimit.ToString().c_str());
             printf("\nYespower Parameters:\n");
-            printf("  N = 131072 (memory parameter)\n");
-            printf("  r = 32 (block size parameter)\n");
-            printf("  Memory per thread: ~512 MB\n");
+            printf("  N = 2048 (memory parameter - FAST MODE)\n");
+            printf("  r = 8 (block size parameter - FAST MODE)\n");
+            printf("  Memory per thread: ~2 MB\n");
+            printf("  Speed boost: ~100x faster than default config\n");
             
             // Multi-threading support
             // Check environment variable for thread count
