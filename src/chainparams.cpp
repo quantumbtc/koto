@@ -20,6 +20,7 @@
 #include <thread>
 #include <vector>
 #include <chrono>
+#include <ctime>
 
 #include <boost/assign/list_of.hpp>
 
@@ -109,38 +110,6 @@ public:
         consensus.nPostBlossomPowTargetSpacing = Consensus::POST_BLOSSOM_POW_TARGET_SPACING;
         consensus.nPowAllowMinDifficultyBlocksAfterHeight = std::nullopt;
         consensus.fPowNoRetargeting = false;
-        consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
-        consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
-            Consensus::NetworkUpgrade::ALWAYS_ACTIVE;
-        consensus.vUpgrades[Consensus::UPGRADE_TESTDUMMY].nProtocolVersion = 170002;
-        consensus.vUpgrades[Consensus::UPGRADE_TESTDUMMY].nActivationHeight =
-            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
-        consensus.vUpgrades[Consensus::UPGRADE_OVERWINTER].nProtocolVersion = 170005;
-        consensus.vUpgrades[Consensus::UPGRADE_OVERWINTER].nActivationHeight = 335600;
-        consensus.vUpgrades[Consensus::UPGRADE_OVERWINTER].hashActivationBlock =
-            uint256S("019a9db8304e4c97af41388b3406df936340c4b2cf6014b95e34dc7c957e168e");
-        consensus.vUpgrades[Consensus::UPGRADE_SAPLING].nProtocolVersion = 170007;
-        consensus.vUpgrades[Consensus::UPGRADE_SAPLING].nActivationHeight = 556500;
-        consensus.vUpgrades[Consensus::UPGRADE_SAPLING].hashActivationBlock =
-            uint256S("069d7f5b21621d4e9d1072d7e3d417c5603b14be37fcaab5b57e812495635265");
-        consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nProtocolVersion = 170009;
-        consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight = 1060000;
-        consensus.vUpgrades[Consensus::UPGRADE_BLOSSOM].hashActivationBlock =
-            uint256S("f4b0a581ed3579131ed969b20db9f165a0b4b6edb4a53c86a53caddb15f9437f");
-        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nProtocolVersion = 170011;
-        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].nActivationHeight = 1480000;
-        consensus.vUpgrades[Consensus::UPGRADE_HEARTWOOD].hashActivationBlock =
-            uint256S("87730e5ef75e52c36abd454e22e068842f5d012ec323f51d601f8562353e4993");
-        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nProtocolVersion = 170013;
-        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight = 1530000;
-        consensus.vUpgrades[Consensus::UPGRADE_CANOPY].hashActivationBlock =
-            uint256S("356b8806085d5da6780c7957f11094d884963e8a4cc864b8724d07ada3971975");
-        consensus.vUpgrades[Consensus::UPGRADE_NU5].nProtocolVersion = 170017;
-        consensus.vUpgrades[Consensus::UPGRADE_NU5].nActivationHeight =
-            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
-        consensus.vUpgrades[Consensus::UPGRADE_ZFUTURE].nProtocolVersion = 0x7FFFFFFF;
-        consensus.vUpgrades[Consensus::UPGRADE_ZFUTURE].nActivationHeight =
-            Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
 
         consensus.nFundingPeriodLength = consensus.nPostBlossomSubsidyHalvingInterval / 48;
 
@@ -166,81 +135,6 @@ public:
         keyConstants.bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "ksecret-extended-key-main";
         keyConstants.bech32HRPs[SAPLING_EXTENDED_FVK]         = "kxviews";
 
-#if 0
-        {
-            std::vector<std::string> ecc_addresses = {
-                "t3LmX1cxWPPPqL4TZHx42HU3U5ghbFjRiif",
-                "t3Toxk1vJQ6UjWQ42tUJz2rV2feUWkpbTDs",
-                "t3ZBdBe4iokmsjdhMuwkxEdqMCFN16YxKe6",
-                "t3ZuaJziLM8xZ32rjDUzVjVtyYdDSz8GLWB",
-                "t3bAtYWa4bi8VrtvqySxnbr5uqcG9czQGTZ",
-                "t3dktADfb5Rmxncpe1HS5BRS5Gcj7MZWYBi",
-                "t3hgskquvKKoCtvxw86yN7q8bzwRxNgUZmc",
-                "t3R1VrLzwcxAZzkX4mX3KGbWpNsgtYtMntj",
-                "t3ff6fhemqPMVujD3AQurxRxTdvS1pPSaa2",
-                "t3cEUQFG3KYnFG6qYhPxSNgGi3HDjUPwC3J",
-                "t3WR9F5U4QvUFqqx9zFmwT6xFqduqRRXnaa",
-                "t3PYc1LWngrdUrJJbHkYPCKvJuvJjcm85Ch",
-                "t3bgkjiUeatWNkhxY3cWyLbTxKksAfk561R",
-                "t3Z5rrR8zahxUpZ8itmCKhMSfxiKjUp5Dk5",
-                "t3PU1j7YW3fJ67jUbkGhSRto8qK2qXCUiW3",
-                "t3S3yaT7EwNLaFZCamfsxxKwamQW2aRGEkh",
-                "t3eutXKJ9tEaPSxZpmowhzKhPfJvmtwTEZK",
-                "t3gbTb7brxLdVVghSPSd3ycGxzHbUpukeDm",
-                "t3UCKW2LrHFqPMQFEbZn6FpjqnhAAbfpMYR",
-                "t3NyHsrnYbqaySoQqEQRyTWkjvM2PLkU7Uu",
-                "t3QEFL6acxuZwiXtW3YvV6njDVGjJ1qeaRo",
-                "t3PdBRr2S1XTDzrV8bnZkXF3SJcrzHWe1wj",
-                "t3ZWyRPpWRo23pKxTLtWsnfEKeq9T4XPxKM",
-                "t3he6QytKCTydhpztykFsSsb9PmBT5JBZLi",
-                "t3VWxWDsLb2TURNEP6tA1ZSeQzUmPKFNxRY",
-                "t3NmWLvZkbciNAipauzsFRMxoZGqmtJksbz",
-                "t3cKr4YxVPvPBG1mCvzaoTTdBNokohsRJ8n",
-                "t3T3smGZn6BoSFXWWXa1RaoQdcyaFjMfuYK",
-                "t3gkDUe9Gm4GGpjMk86TiJZqhztBVMiUSSA",
-                "t3eretuBeBXFHe5jAqeSpUS1cpxVh51fAeb",
-                "t3dN8g9zi2UGJdixGe9txeSxeofLS9t3yFQ",
-                "t3S799pq9sYBFwccRecoTJ3SvQXRHPrHqvx",
-                "t3fhYnv1S5dXwau7GED3c1XErzt4n4vDxmf",
-                "t3cmE3vsBc5xfDJKXXZdpydCPSdZqt6AcNi",
-                "t3h5fPdjJVHaH4HwynYDM5BB3J7uQaoUwKi",
-                "t3Ma35c68BgRX8sdLDJ6WR1PCrKiWHG4Da9",
-                "t3LokMKPL1J8rkJZvVpfuH7dLu6oUWqZKQK",
-                "t3WFFGbEbhJWnASZxVLw2iTJBZfJGGX73mM",
-                "t3L8GLEsUn4QHNaRYcX3EGyXmQ8kjpT1zTa",
-                "t3PgfByBhaBSkH8uq4nYJ9ZBX4NhGCJBVYm",
-                "t3WecsqKDhWXD4JAgBVcnaCC2itzyNZhJrv",
-                "t3ZG9cSfopnsMQupKW5v9sTotjcP5P6RTbn",
-                "t3hC1Ywb5zDwUYYV8LwhvF5rZ6m49jxXSG5",
-                "t3VgMqDL15ZcyQDeqBsBW3W6rzfftrWP2yB",
-                "t3LC94Y6BwLoDtBoK2NuewaEbnko1zvR9rm",
-                "t3cWCUZJR3GtALaTcatrrpNJ3MGbMFVLRwQ",
-                "t3YYF4rPLVxDcF9hHFsXyc5Yq1TFfbojCY6",
-                "t3XHAGxRP2FNfhAjxGjxbrQPYtQQjc3RCQD",
-            };
-
-            // ZF and MG each use a single address repeated 48 times,
-            // once for each funding period.
-            std::vector<std::string> zf_addresses(48, "t3dvVE3SQEi7kqNzwrfNePxZ1d4hUyztBA1");
-            std::vector<std::string> mg_addresses(48, "t3XyYW8yBFRuMnfvm5KLGFbEVz25kckZXym");
-
-            consensus.AddZIP207FundingStream(
-                keyConstants,
-                Consensus::FS_ZIP214_BP,
-                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
-                ecc_addresses);
-            consensus.AddZIP207FundingStream(
-                keyConstants,
-                Consensus::FS_ZIP214_ZF,
-                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
-                zf_addresses);
-            consensus.AddZIP207FundingStream(
-                keyConstants,
-                Consensus::FS_ZIP214_MG,
-                consensus.vUpgrades[Consensus::UPGRADE_CANOPY].nActivationHeight, 2726400,
-                mg_addresses);
-        }
-#endif
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0000000000000000000000000000000000000000000000000001714e5c11bccf");
@@ -369,7 +263,8 @@ public:
             // Progress reporting thread
             auto progressThread = [&]() {
                 uint64_t lastHashes = 0;
-                auto lastTime = std::chrono::steady_clock::now();
+                auto startTime = std::chrono::steady_clock::now();
+                auto lastTime = startTime;
                 
                 while (!found.load()) {
                     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -377,13 +272,26 @@ public:
                     auto now = std::chrono::steady_clock::now();
                     uint64_t currentHashes = totalHashes.load();
                     double elapsed = std::chrono::duration<double>(now - lastTime).count();
+                    double totalElapsed = std::chrono::duration<double>(now - startTime).count();
                     
                     if (elapsed > 0) {
                         uint64_t hashDiff = currentHashes - lastHashes;
                         double hashrate = hashDiff / elapsed;
+                        double avgHashrate = currentHashes / totalElapsed;
                         
-                        printf("Hashes: %8llu | Hashrate: %8.2f H/s | Threads: %u\n", 
-                               (unsigned long long)currentHashes, hashrate, nThreads);
+                        // Get current time for timestamp
+                        auto timeNow = std::chrono::system_clock::now();
+                        std::time_t timeT = std::chrono::system_clock::to_time_t(timeNow);
+                        char timeStr[64];
+                        std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&timeT));
+                        
+                        printf("[%s] Hashes: %8llu | Rate: %8.2f H/s | Avg: %8.2f H/s | Time: %.0fs | Threads: %u\n", 
+                               timeStr,
+                               (unsigned long long)currentHashes, 
+                               hashrate,
+                               avgHashrate,
+                               totalElapsed,
+                               nThreads);
                         fflush(stdout);
                         
                         lastHashes = currentHashes;
@@ -413,15 +321,25 @@ public:
             
             if (found.load()) {
                 genesis.nNonce = foundNonce;
+                
+                // Get current time for timestamp
+                auto timeNow = std::chrono::system_clock::now();
+                std::time_t timeT = std::chrono::system_clock::to_time_t(timeNow);
+                char timeStr[64];
+                std::strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", std::localtime(&timeT));
+                
                 printf("\n");
                 printf("========================================\n");
                 printf("   Genesis Block Found!\n");
+                printf("   Time: %s\n", timeStr);
                 printf("========================================\n");
-                printf("Nonce:       %u\n", foundNonce);
-                printf("Block Hash:  %s\n", foundBlockHash.ToString().c_str());
-                printf("PoW Hash:    %s\n", foundPoWHash.ToString().c_str());
-                printf("Merkle Root: %s\n", genesis.hashMerkleRoot.ToString().c_str());
-                printf("Target:      %s\n", ArithToUint256(hashTarget).ToString().c_str());
+                printf("Nonce:        %u\n", foundNonce);
+                printf("Block Time:   %u (%s)\n", genesis.nTime, 
+                       std::asctime(std::localtime((const time_t*)&genesis.nTime)));
+                printf("Block Hash:   %s\n", foundBlockHash.ToString().c_str());
+                printf("PoW Hash:     %s\n", foundPoWHash.ToString().c_str());
+                printf("Merkle Root:  %s\n", genesis.hashMerkleRoot.ToString().c_str());
+                printf("Target:       %s\n", ArithToUint256(hashTarget).ToString().c_str());
                 printf("Total Hashes: %llu\n", (unsigned long long)totalHashes.load());
                 printf("========================================\n");
                 printf("\nUpdate chainparams.cpp with:\n\n");
